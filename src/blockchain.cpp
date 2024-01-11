@@ -130,14 +130,14 @@ void blockchain::loadChunk(size_t chunkIndex)
 
 void blockchain::saveKeys()
 {
-    std::ofstream ofs("keys.dat", std::ios::binary);
+    std::ofstream ofs(this->blockchainPath.string() + "/keys.dat", std::ios::binary);
     boost::archive::binary_oarchive oa(ofs);
     oa << this->keyIndexMap;
 }
 
 void blockchain::loadKeys()
 {
-    std::ifstream ifs("keys.dat", std::ios::binary);
+    std::ifstream ifs(this->blockchainPath.string() + "/keys.dat", std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);
     ia >> this->keyIndexMap;
 }
