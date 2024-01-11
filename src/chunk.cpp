@@ -2,15 +2,11 @@
 
 void chunk::save()
 {
-    //std::ofstream ofs("chunk" + std::to_string(this->index) + ".dat");
-    //boost::archive::binary_oarchive oa(ofs);
-    //oa << *this;
-    std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << std::endl;
-
     std::stringstream ss;
     ss << this->blockchainPath.string() << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
+    std::filesystem::path path = this->blockchainPath.string() + ss.str();
 
-    std::cout << "Writing to file " << ss.str() << std::endl;
+    std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << " in " << path << std::endl;
     
     std::ofstream ofs(ss.str(), std::ios::binary);
     boost::archive::binary_oarchive oa(ofs);
@@ -24,21 +20,16 @@ void chunk::save()
 
 void chunk::load()
 {
-    //std::ifstream ifs("chunk" + std::to_string(this->index) + ".dat");
-    //boost::archive::binary_iarchive ia(ifs);
-    //ia >> *this;
     std::stringstream ss;
     ss << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
 
     std::filesystem::path path = this->blockchainPath.string() + ss.str();
 
-    std::cout << "Loading chunk " << this->index << " from file " << path << std::endl;
-    
     std::ifstream ifs(path, std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);
     ia >> *this;
 
-    std::cout << "Loaded " << this->blocks.size() << " blocks from chunk " << this->index << std::endl;
+    std::cout << "Loaded " << this->blocks.size() << " blocks from chunk " << this->index << " in " << path << std::endl;
 }
 
 void chunk::dump()

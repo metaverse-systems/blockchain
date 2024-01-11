@@ -70,8 +70,10 @@ auto blockchain::getBlockByIndex(size_t index) -> block
 std::vector<block> blockchain::getBlocksByKeys(const std::vector<std::string> &keys)
 {
     std::vector<block> blocks;
-    for (auto &key : keys) {
-        for (auto &index : this->keyIndexMap[key]) {
+    for(auto &key : keys)
+    {
+        for(auto &index : this->keyIndexMap[key])
+        {
             blocks.push_back(this->getBlockByIndex(index));
         }
     }
@@ -121,9 +123,11 @@ void blockchain::dumpBlocks()
 
 void blockchain::dumpKeys()
 {
-    for (auto &key : this->keyIndexMap) {
+    for(auto &key : this->keyIndexMap)
+    {
         std::cout << key.first << ": ";
-        for (auto &index : key.second) {
+        for (auto &index : key.second)
+        {
             std::cout << index << " ";
         }
         std::cout << std::endl;
