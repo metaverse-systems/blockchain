@@ -65,3 +65,4 @@ libtool
 node_modules
 .vscode
 blockchain
+test-chain

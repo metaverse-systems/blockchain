@@ -3,12 +3,12 @@
 void chunk::save()
 {
     std::stringstream ss;
-    ss << this->blockchainPath.string() << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
+    ss << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
     std::filesystem::path path = this->blockchainPath.string() + ss.str();
 
     std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << " in " << path << std::endl;
     
-    std::ofstream ofs(ss.str(), std::ios::binary);
+    std::ofstream ofs(path, std::ios::binary);
     boost::archive::binary_oarchive oa(ofs);
     oa << *this;
 

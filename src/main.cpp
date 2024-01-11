@@ -12,11 +12,13 @@ int main(int argc, char *argv[])
     }
 
     blockchain bc(argv[1]);
-    
-    //bc.addBlock("{ data: 'foo' }", { "foo" });
-    //bc.addBlock("{ data: 'bar' }", { "bar" });
-    //bc.saveChunk(0);
-    //bc.saveKeys();
+
+/*    
+    bc.addBlock("{ data: 'foo' }", { "foo", "fuu" });
+    bc.addBlock("{ data: 'bar' }", { "bar", "baz" });
+    bc.saveChunk(0);
+    bc.saveKeys();
+    */
 
 //    bc.dumpBlocks();
 //    bc.dumpKeys();
@@ -24,7 +26,7 @@ int main(int argc, char *argv[])
 //    bc.loadChunk(0);
     bc.loadKeys();
     
-    auto blocks = bc.getBlocksByKeys({ "bar" });
+    auto blocks = bc.getBlocksByKeys({ "bar", "fuu" });
     for(auto &block : blocks) block.dump();
 
   

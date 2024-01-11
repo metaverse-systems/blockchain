@@ -22,12 +22,13 @@ struct block {
     friend class boost::serialization::access;
 
     template<class Archive>
-    void serialize(Archive& ar, const unsigned int version)
+    unsigned int serialize(Archive& ar, const unsigned int version)
     {
         ar & index;
         ar & timestamp;
         ar & data;
         ar & prevHash;
         ar & hash;
+        return version;
     }
 };

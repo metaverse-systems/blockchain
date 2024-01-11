@@ -3,4 +3,4 @@
 aclocal \
 && autoheader \
 && automake --add-missing -c \
-&& autoconf
+&& autoconf -i
