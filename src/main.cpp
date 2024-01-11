@@ -13,21 +13,20 @@ int main(int argc, char *argv[])
 
     blockchain bc(argv[1]);
     
- //   bc.addBlock("{ data: 'foo' }", { "foo" });
-//    bc.saveChunk(0);
-//    bc.saveKeys();
+    //bc.addBlock("{ data: 'foo' }", { "foo" });
+    //bc.addBlock("{ data: 'bar' }", { "bar" });
+    //bc.saveChunk(0);
+    //bc.saveKeys();
 
 //    bc.dumpBlocks();
 //    bc.dumpKeys();
 
 //    bc.loadChunk(0);
-//    bc.loadKeys();
-    auto block = bc.getBlockByIndex(1);
-    std::cout << block.hash << std::endl;
+    bc.loadKeys();
+    
+    auto blocks = bc.getBlocksByKeys({ "bar" });
+    for(auto &block : blocks) block.dump();
 
-    block.dump();
-
-    bc.dumpBlocks();
-
+  
     return 0;
 }

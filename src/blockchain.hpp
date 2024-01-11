@@ -2,9 +2,8 @@
 #include <vector>
 #include <map>
 #include "block.hpp"
+#include "chunk.hpp"
 #include <filesystem>
-
-typedef std::vector<block> chunk;
 
 class blockchain 
 {

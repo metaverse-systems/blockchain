@@ -10,7 +10,7 @@
 
 void blockchain::generateGenesisBlock()
 {
-    this->chain.emplace_back(chunk());
+    this->chain.emplace_back(chunk(0, this->blockchainPath));
     this->chain.at(0).emplace_back(block(0, 0, "", "GENESIS ~~DEVICE~~BLOCK"));
 }
 
@@ -37,7 +37,7 @@ void blockchain::addBlock(const std::string &data, const std::vector<std::string
     auto previousBlock = currentChunk.back();
 
     if (currentChunk.size() == this->chunkSize) {
-        currentChunk = chunk();
+        currentChunk = chunk(this->chain.size(), this->blockchainPath);
         this->chain.push_back(currentChunk);
     }
 
@@ -45,7 +45,7 @@ void blockchain::addBlock(const std::string &data, const std::vector<std::string
     for (auto &key : keys) {
         this->keyIndexMap[key].push_back(newBlock.index);
     }
-    currentChunk.push_back(newBlock);
+    this->chain.at(newBlock.index / this->chunkSize).push_back(newBlock);
 }
 
 auto blockchain::getBlockByIndex(size_t index) -> block
@@ -54,12 +54,13 @@ auto blockchain::getBlockByIndex(size_t index) -> block
 
     if(this->chain.size() < chunkIndex + 1)
     {
-        this->chain.resize(chunkIndex + 1);
+        this->chain.resize(chunkIndex + 1, chunk(chunkIndex + 1, this->blockchainPath));
     }
 
-    if(this->chain.at(chunkIndex).size() < index % this->chunkSize + 1)
+    chunk chunk = this->chain.at(chunkIndex);
+    
+    if(!chunk.isBlockPresent(index % this->chunkSize))
     {
-        std::cout << "getBlockByIndex: Loading chunk " << chunkIndex << std::endl;
         this->loadChunk(chunkIndex);
     }
     
@@ -71,7 +72,6 @@ std::vector<block> blockchain::getBlocksByKeys(const std::vector<std::string> &k
     std::vector<block> blocks;
     for (auto &key : keys) {
         for (auto &index : this->keyIndexMap[key]) {
-            std::cout << "Loading block " << index << " for key " << key << std::endl;
             blocks.push_back(this->getBlockByIndex(index));
         }
     }
@@ -80,22 +80,7 @@ std::vector<block> blockchain::getBlocksByKeys(const std::vector<std::string> &k
 
 void blockchain::saveChunk(size_t chunkIndex)
 {
-    chunk chunk = this->chain.at(chunkIndex);
-    
-    std::cout << "Saving " << chunk.size() << " blocks to chunk " << chunkIndex << std::endl;
-
-    std::stringstream ss;
-    ss << this->blockchainPath << "/blocks_" << std::setfill('0') << std::setw(6) << chunkIndex * this->chunkSize
-       << "-" << std::setfill('0') << std::setw(6) << (chunkIndex + 1) * this->chunkSize - 1 << ".dat";
-    
-    std::ofstream ofs(ss.str(), std::ios::binary);
-    boost::archive::binary_oarchive oa(ofs);
-    oa << chunk;
-
-    if(!ofs.good())
-    {
-        throw new std::runtime_error("Error: Could not write to file " + ss.str());
-    }
+    this->chain.at(chunkIndex).save();
 }
 
 void blockchain::freeChunk(size_t chunkIndex)
@@ -105,27 +90,7 @@ void blockchain::freeChunk(size_t chunkIndex)
 
 void blockchain::loadChunk(size_t chunkIndex)
 {
-    std::stringstream ss;
-    ss << "/blocks_" << std::setfill('0') << std::setw(6) << chunkIndex * this->chunkSize
-       << "-" << std::setfill('0') << std::setw(6) << (chunkIndex + 1) * this->chunkSize - 1 << ".dat";
-
-    std::filesystem::path path = this->blockchainPath.string() + ss.str();
-
-    std::cout << "Loading chunk " << chunkIndex << " from file " << path << std::endl;
-    
-    std::ifstream ifs(path, std::ios::binary);
-    boost::archive::binary_iarchive ia(ifs);
-    chunk chunk;
-    ia >> chunk;
-
-    std::cout << "Loaded " << chunk.size() << " blocks from chunk " << chunkIndex << std::endl;
-
-    if(this->chain.size() < (chunkIndex + 1))
-    {
-        this->chain.resize(chunkIndex + 1);
-    }
-
-    this->chain[chunkIndex] = chunk;
+    this->chain.at(chunkIndex).load();
 }
 
 void blockchain::saveKeys()
