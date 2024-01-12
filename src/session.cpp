@@ -17,12 +17,33 @@ void session::do_read()
         [this, self](const boost::system::error_code& ec, std::size_t) {
             if (!ec) {
                 std::istream stream(&buffer);
+                std::ostream outputStream(&buffer);
                 std::string received_msg;
                 std::getline(stream, received_msg);
                 received_msg.push_back('\n');
 
                 nlohmann::json object = nlohmann::json::parse(received_msg);
-                if(object["command"] == "addBlock")
+                if(object["jsonrpc"].get<std::string>() != "2.0")
+                {
+                    std::cout << "Received invalid JSON-RPC message" << std::endl;
+                    std::cout << "Received message: " << object << std::endl;
+                    buffer.consume(buffer.size());  // Clear the buffer
+                    outputStream << "{\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32600, \"message\": \"Invalid JSON-RPC message\"}, \"id\": null}" << std::endl;
+                    do_write();
+                    return;
+                }
+
+                if(object["id"] == nullptr)
+                {
+                    std::cout << "JSON-RPC requests must include an 'id'" << std::endl;
+                    std::cout << "Received message: " << object << std::endl;
+                    buffer.consume(buffer.size());  // Clear the buffer
+                    outputStream << "{\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32600, \"message\": \"JSON-RPC requests must include an 'id'\"}, \"id\": null}" << std::endl;
+                    do_write();
+                    return;
+                }
+
+                if(object["method"] == "addBlock")
                 {
                     std::cout << "Received addBlock command" << std::endl;
                     std::cout << "Data: " << object["data"] << std::endl;
@@ -32,6 +53,14 @@ void session::do_read()
                     b.dump();
                     bc.saveChunk(b.index / bc.chunkSize);
                     bc.saveKeys();
+                    buffer.consume(buffer.size());  // Clear the buffer
+                    nlohmann::json response;
+                    response["jsonrpc"] = "2.0";
+                    response["result"] = b.hash;
+                    response["id"] = object["id"];
+                    outputStream << response << std::endl;
+                    do_write();
+                    return;
                 }
                 
                 buffer.consume(buffer.size());  // Clear the buffer
