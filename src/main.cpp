@@ -18,28 +18,20 @@ int main(int argc, char *argv[])
     std::string cert_file = "../ssl-cert-snakeoil.pem";
     std::string key_file = "../ssl-cert-snakeoil.key";
 
-    server s(io_context, port, cert_file, key_file);
+    blockchain bc(argv[1]);
+    bc.loadChunk(0);
+    bc.loadKeys();
+
+/*
+    auto blocks = bc.getBlocksByKeys({ "foo"  });
+    for(auto &block : blocks) block.dump();
+*/
+
+    bc.dumpBlocks();
+
+    server s(io_context, port, cert_file, key_file, bc);
     s.start_accept();
     io_context.run();
-
-    blockchain bc(argv[1]);
-
-/*    
-    bc.addBlock("{ data: 'foo' }", { "foo", "fuu" });
-    bc.addBlock("{ data: 'bar' }", { "bar", "baz" });
-    bc.saveChunk(0);
-    bc.saveKeys();
-    */
-
-//    bc.dumpBlocks();
-//    bc.dumpKeys();
-
-//    bc.loadChunk(0);
-    bc.loadKeys();
-    
-    auto blocks = bc.getBlocksByKeys({ "bar", "fuu" });
-    for(auto &block : blocks) block.dump();
-
   
     return 0;
 }

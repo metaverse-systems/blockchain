@@ -18,7 +18,7 @@ class blockchain
         this->generateGenesisBlock();
     };
     void generateGenesisBlock();
-    void addBlock(const std::string &data, const std::vector<std::string> &keys);
+    block addBlock(const std::string &data, const std::vector<std::string> &keys);
     std::vector<block> getBlocksByKeys(const std::vector<std::string> &keys);
     auto getBlockByIndex(size_t index) -> block;
     void dumpBlocks();

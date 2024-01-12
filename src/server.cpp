@@ -1,13 +1,14 @@
 #include "server.hpp"
 #include "session.hpp"
 
-server::server(boost::asio::io_context &io_context, unsigned short port, std::string cert_chain_file, std::string private_key_file)
+server::server(boost::asio::io_context &io_context, unsigned short port, std::string cert_chain_file, std::string private_key_file, blockchain &bc)
     : io_context(io_context),
       port(port),
       ssl_context(ssl::context::sslv23),
       acceptor_(io_context),
       cert_chain_file(cert_chain_file),
-      private_key_file(private_key_file)
+      private_key_file(private_key_file),
+      bc(bc)
 {
     ssl_context.set_options(
         ssl::context::default_workarounds |
@@ -48,7 +49,7 @@ void server::start_accept()
                     // You may need to adapt the `session` constructor to accept
                     // a `std::shared_ptr<ssl::stream<tcp::socket>>` instead of
                     // a moved `ssl::stream<tcp::socket>` depending on its implementation.
-                    std::make_shared<session>(socket)->start();
+                    std::make_shared<session>(socket, this->bc)->start();
                 } else {
                     std::cerr << "Handshake failed: " << error.message() << std::endl;
                 }

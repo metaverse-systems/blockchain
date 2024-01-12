@@ -29,7 +29,7 @@ bool blockchain::isValidNewBlock(const block &newBlock, const block &previousBlo
     return true;
 }
 
-void blockchain::addBlock(const std::string &data, const std::vector<std::string> &keys)
+block blockchain::addBlock(const std::string &data, const std::vector<std::string> &keys)
 {
     auto unix_timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
@@ -46,6 +46,7 @@ void blockchain::addBlock(const std::string &data, const std::vector<std::string
         this->keyIndexMap[key].push_back(newBlock.index);
     }
     this->chain.at(newBlock.index / this->chunkSize).push_back(newBlock);
+    return newBlock;
 }
 
 auto blockchain::getBlockByIndex(size_t index) -> block
