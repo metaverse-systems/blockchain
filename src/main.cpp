@@ -1,6 +1,7 @@
 #include <iostream>
 #include "block.hpp"
 #include "blockchain.hpp"
+#include "server.hpp"
 #include <chrono>
 
 int main(int argc, char *argv[])
@@ -10,6 +11,16 @@ int main(int argc, char *argv[])
         std::cerr << "Usage: " << argv[0] << " <path to blockchain directory>" << std::endl;
         return 1;
     }
+
+    boost::asio::io_context io_context;
+
+    unsigned short port = 12345;
+    std::string cert_file = "../ssl-cert-snakeoil.pem";
+    std::string key_file = "../ssl-cert-snakeoil.key";
+
+    server s(io_context, port, cert_file, key_file);
+    s.start_accept();
+    io_context.run();
 
     blockchain bc(argv[1]);
 
