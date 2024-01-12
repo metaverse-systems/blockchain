@@ -66,3 +66,5 @@ node_modules
 .vscode
 blockchain
 test-chain
+src/.dirstamp
+tests/blockchain_tests

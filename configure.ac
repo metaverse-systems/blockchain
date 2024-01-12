@@ -8,10 +8,11 @@ AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CXX
-AM_INIT_AUTOMAKE() 
+AM_INIT_AUTOMAKE([subdir-objects]) 
 
 # Checks for libraries.
 PKG_CHECK_MODULES([OPENSSL], [openssl])
+PKG_CHECK_MODULES([CATCH2], catch2-with-main)
 
 # Check for Boost and the serialization library
 AX_BOOST_BASE([1.50],, [AC_MSG_ERROR([Could not find Boost])])
@@ -24,5 +25,6 @@ AX_BOOST_SERIALIZATION(,[AC_MSG_ERROR([Could not find Boost.Serialization librar
 # Checks for library functions.
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+                 tests/Makefile])
 AC_OUTPUT
