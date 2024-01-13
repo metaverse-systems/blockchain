@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 #include "blockchain.hpp"
+#include "json.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
@@ -21,4 +22,10 @@ class session : public std::enable_shared_from_this<session>
   private:
     void do_read();
     void do_write();
+
+    static nlohmann::json invalidJsonRpcMessage();
+    static nlohmann::json noIdMessage();
+    static nlohmann::json invalidMethodMessage(std::string id, std::string method);
+    static nlohmann::json invalidParamsMessage(std::string id);
+    static nlohmann::json resultMessage(std::string id, std::string result);
 };

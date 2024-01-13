@@ -5,7 +5,7 @@
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/string.hpp>
-
+#include "json.hpp"
 
 struct block {
     size_t index;
@@ -31,4 +31,6 @@ struct block {
         ar & hash;
         return version;
     }
+
+    nlohmann::json toJson() const;
 };

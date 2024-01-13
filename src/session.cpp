@@ -22,48 +22,91 @@ void session::do_read()
                 std::getline(stream, received_msg);
                 received_msg.push_back('\n');
 
-                nlohmann::json object = nlohmann::json::parse(received_msg);
-                if(object["jsonrpc"].get<std::string>() != "2.0")
+                nlohmann::json object;
+                try
                 {
-                    std::cout << "Received invalid JSON-RPC message" << std::endl;
-                    std::cout << "Received message: " << object << std::endl;
-                    buffer.consume(buffer.size());  // Clear the buffer
-                    outputStream << "{\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32600, \"message\": \"Invalid JSON-RPC message\"}, \"id\": null}" << std::endl;
+                    object = nlohmann::json::parse(received_msg);
+                }
+                catch(const nlohmann::detail::parse_error &e)
+                {
+                    buffer.consume(buffer.size());
+                    outputStream << invalidJsonRpcMessage() << std::endl;
+                    do_write();
+                    return;
+                }
+                
+                 
+                if(object["jsonrpc"] == nullptr || object["jsonrpc"].get<std::string>() != "2.0")
+                {
+                    buffer.consume(buffer.size());
+                    outputStream << invalidJsonRpcMessage() << std::endl;
                     do_write();
                     return;
                 }
 
                 if(object["id"] == nullptr)
                 {
-                    std::cout << "JSON-RPC requests must include an 'id'" << std::endl;
-                    std::cout << "Received message: " << object << std::endl;
-                    buffer.consume(buffer.size());  // Clear the buffer
-                    outputStream << "{\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32600, \"message\": \"JSON-RPC requests must include an 'id'\"}, \"id\": null}" << std::endl;
+                    buffer.consume(buffer.size());
+                    outputStream << noIdMessage() << std::endl;
                     do_write();
                     return;
                 }
 
                 if(object["method"] == "addBlock")
                 {
-                    std::cout << "Received addBlock command" << std::endl;
-                    std::cout << "Data: " << object["data"] << std::endl;
-                    std::cout << "Keys: " << object["keys"] << std::endl;
-                    std::cout << "Received message: " << object << std::endl;
-                    block b = bc.addBlock(object["data"], object["keys"]);
+                    block b = bc.addBlock(object["params"]["data"], object["params"]["keys"]);
                     b.dump();
                     bc.saveChunk(b.index / bc.chunkSize);
                     bc.saveKeys();
-                    buffer.consume(buffer.size());  // Clear the buffer
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], b.hash) << std::endl;
+                    do_write();
+                    return;
+                }
+
+                if(object["method"] == "getBlockByIndex")
+                {
+                    if(object["params"] == nullptr || object["params"]["index"] == nullptr)
+                    {
+                        buffer.consume(buffer.size());
+                        outputStream << invalidParamsMessage(object["id"]) << std::endl;
+                        do_write();
+                        return;
+                    }
+                    auto index = object["params"]["index"].get<size_t>();
+                    block b = bc.getBlockByIndex(index);
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], b.toJson()) << std::endl;
+                    do_write();
+                    return;
+                }
+
+                if(object["method"] == "getBlocksByKeys")
+                {
+                    if(object["params"] == nullptr || object["params"]["keys"] == nullptr)
+                    {
+                        buffer.consume(buffer.size());
+                        outputStream << invalidParamsMessage(object["id"]) << std::endl;
+                        do_write();
+                        return;
+                    }
+                    auto keys = object["params"]["keys"].get<std::vector<std::string>>();
+                    std::vector<block> blocks = bc.getBlocksByKeys(keys);
                     nlohmann::json response;
-                    response["jsonrpc"] = "2.0";
-                    response["result"] = b.hash;
-                    response["id"] = object["id"];
-                    outputStream << response << std::endl;
+
+                    for(auto &b : blocks)
+                    {
+                        response.push_back(b.toJson());
+                    }
+                    
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], response.dump()) << std::endl;
                     do_write();
                     return;
                 }
                 
-                buffer.consume(buffer.size());  // Clear the buffer
+                buffer.consume(buffer.size());
+                outputStream << invalidMethodMessage(object["id"], object["method"]) << std::endl;
                 do_write();
             }
         });
@@ -78,4 +121,53 @@ void session::do_write()
                 do_read();  // Wait for the next message from the client
             }
         });
+}
+
+nlohmann::json session::invalidJsonRpcMessage()
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32600;
+    response["error"]["message"] = "Invalid JSON-RPC message";
+    response["id"] = nullptr;
+    return response;
+}
+
+nlohmann::json session::noIdMessage()
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32600;
+    response["error"]["message"] = "JSON-RPC requests must include an 'id'";
+    response["id"] = nullptr;
+    return response;
+}
+
+nlohmann::json session::invalidMethodMessage(std::string id, std::string method)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32601;
+    response["error"]["message"] = "Invalid method: " + method;
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json session::invalidParamsMessage(std::string id)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32602;
+    response["error"]["message"] = "Invalid parameters";
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json session::resultMessage(std::string id, std::string result)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["result"] = result;
+    response["id"] = id;
+    return response;
 }

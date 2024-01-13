@@ -35,3 +35,14 @@ void block::dump()
     std::cout << "Created at (human readable): " << std::ctime((const time_t *)&this->timestamp) << std::endl;
     std::cout << std::endl;
 }
+
+nlohmann::json block::toJson() const
+{
+    nlohmann::json j;
+    j["index"] = this->index;
+    j["timestamp"] = this->timestamp;
+    j["data"] = this->data;
+    j["prevHash"] = this->prevHash;
+    j["hash"] = this->hash;
+    return j;
+}
