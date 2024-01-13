@@ -59,7 +59,7 @@ void session::do_read()
                     bc.saveChunk(b.index / bc.chunkSize);
                     bc.saveKeys();
                     buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], b.hash) << std::endl;
+                    outputStream << resultMessage(object["id"], b.index) << std::endl;
                     do_write();
                     return;
                 }
@@ -118,7 +118,7 @@ void session::do_write()
     boost::asio::async_write(ssl_socket, buffer,
         [this, self](const boost::system::error_code& ec, std::size_t) {
             if (!ec) {
-                do_read();  // Wait for the next message from the client
+                do_read();
             }
         });
 }

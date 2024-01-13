@@ -30,25 +30,16 @@ server::server(boost::asio::io_context &io_context, unsigned short port, std::st
 
 void server::start_accept()
 {
-    // Create a new socket for the next connection as a shared pointer
     auto socket = std::make_shared<ssl::stream<tcp::socket>>(io_context, ssl_context);
     
-    // Accept the next connection.
     acceptor_.async_accept(socket->lowest_layer(),
-    [this, socket](const boost::system::error_code &error)  // capture socket as shared_ptr by value
+    [this, socket](const boost::system::error_code &error)
     {
         if (!error) {
-            // Handle the connection with `socket`.
-            std::cout << "Connection accepted" << std::endl;
             socket->async_handshake(ssl::stream_base::server,
-            [this, socket](const boost::system::error_code &error)  // capture socket as shared_ptr by value
+            [this, socket](const boost::system::error_code &error)
             {
                 if (!error) {
-                    std::cout << "Handshake successful" << std::endl;
-
-                    // You may need to adapt the `session` constructor to accept
-                    // a `std::shared_ptr<ssl::stream<tcp::socket>>` instead of
-                    // a moved `ssl::stream<tcp::socket>` depending on its implementation.
                     std::make_shared<session>(socket, this->bc)->start();
                 } else {
                     std::cerr << "Handshake failed: " << error.message() << std::endl;
@@ -58,7 +49,6 @@ void server::start_accept()
             std::cerr << "Accept failed: " << error.message() << std::endl;
         }
 
-        // Call `start_accept()` to accept the next connection.
         this->start_accept();
     });
 }
