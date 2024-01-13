@@ -59,7 +59,7 @@ void session::do_read()
                     bc.saveChunk(b.index / bc.chunkSize);
                     bc.saveKeys();
                     buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], b.index) << std::endl;
+                    outputStream << resultMessage(object["id"], b.toJson()) << std::endl;
                     do_write();
                     return;
                 }
