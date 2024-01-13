@@ -1,5 +1,5 @@
 #include "server.hpp"
-#include "session.hpp"
+#include "client_session.hpp"
 
 server::server(boost::asio::io_context &io_context, unsigned short port, std::string cert_chain_file, std::string private_key_file, blockchain &bc)
     : io_context(io_context),
@@ -40,7 +40,7 @@ void server::start_accept()
             [this, socket](const boost::system::error_code &error)
             {
                 if (!error) {
-                    std::make_shared<session>(socket, this->bc)->start();
+                    std::make_shared<client_session>(socket, this->bc)->start();
                 } else {
                     std::cerr << "Handshake failed: " << error.message() << std::endl;
                 }

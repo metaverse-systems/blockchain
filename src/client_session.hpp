@@ -1,3 +1,4 @@
+#include "session_handler.hpp"
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <iostream>
@@ -8,7 +9,7 @@
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class session : public std::enable_shared_from_this<session>
+class client_session : public std::enable_shared_from_this<client_session>
 {
   private:
     ssl::stream<tcp::socket> ssl_socket;
@@ -16,7 +17,7 @@ class session : public std::enable_shared_from_this<session>
     blockchain &bc;
 
   public:
-    explicit session(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc);
+    explicit client_session(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc);
     void start();
 
   private:
