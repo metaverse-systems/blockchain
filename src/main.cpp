@@ -2,6 +2,8 @@
 #include "block.hpp"
 #include "blockchain.hpp"
 #include "server.hpp"
+#include "client_session.hpp"
+#include "node_session.hpp"
 #include <chrono>
 
 int main(int argc, char *argv[])
@@ -29,8 +31,11 @@ int main(int argc, char *argv[])
 
     bc.dumpBlocks();
 
-    server s(io_context, port, cert_file, key_file, bc);
-    s.start_accept();
+    server<client_session> rpc_server(io_context, port, cert_file, key_file, bc);
+    rpc_server.start_accept();
+
+    server<node_session> node_server(io_context, port + 1, cert_file, key_file, bc);
+    node_server.start_accept();
     io_context.run();
   
     return 0;

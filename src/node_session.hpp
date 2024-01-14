@@ -11,13 +11,13 @@
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class client_session : public session_handler, public std::enable_shared_from_this<client_session>
+class node_session : public session_handler, public std::enable_shared_from_this<node_session>
 {
   private:
     boost::asio::streambuf buffer;
 
   public:
-    explicit client_session(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc);
+    explicit node_session(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc);
     void start() override;
     static std::shared_ptr<session_handler> create(boost::asio::io_context &io_context, ssl::context &ssl_context, blockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
@@ -25,10 +25,4 @@ class client_session : public session_handler, public std::enable_shared_from_th
   private:
     void do_read();
     void do_write();
-
-    static nlohmann::json invalidJsonRpcMessage();
-    static nlohmann::json noIdMessage();
-    static nlohmann::json invalidMethodMessage(std::string id, std::string method);
-    static nlohmann::json invalidParamsMessage(std::string id);
-    static nlohmann::json resultMessage(std::string id, std::string result);
 };
