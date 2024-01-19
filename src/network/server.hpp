@@ -2,8 +2,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <iostream>
-#include "blockchain.hpp"
-#include "client_session.hpp"
+#include "../blockchain.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;

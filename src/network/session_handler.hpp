@@ -1,6 +1,6 @@
 #pragma once
 
-#include "blockchain.hpp"
+#include "../blockchain.hpp"
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 

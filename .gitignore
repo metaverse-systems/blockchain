@@ -68,3 +68,4 @@ blockchain
 test-chain
 src/.dirstamp
 tests/blockchain_tests
+src/network/.dirstamp
