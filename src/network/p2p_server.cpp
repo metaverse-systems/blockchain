@@ -1,10 +1,10 @@
 #include "p2p_server.hpp"
 #include "../block.hpp"
 
-p2p_server::p2p_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc)
+p2p_server::p2p_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
         : session_handler(std::move(*socket_ptr), bc) {}
 
-std::shared_ptr<session_handler> p2p_server::create(boost::asio::io_context &io_context, ssl::context &ssl_context, blockchain &bc)
+std::shared_ptr<p2p_server> p2p_server::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {
     std::shared_ptr<ssl::stream<tcp::socket>> ssl_stream = std::make_shared<ssl::stream<tcp::socket>>(tcp::socket(io_context), ssl_context);
     return std::make_shared<p2p_server>(std::move(ssl_stream), bc);

@@ -5,7 +5,8 @@
 #include <boost/asio/ssl.hpp>
 #include <iostream>
 #include <memory>
-#include "../blockchain.hpp"
+#include "../IBlockchain.hpp"
+#include "../chunk.hpp"
 #include "../json.hpp"
 
 namespace ssl = boost::asio::ssl;
@@ -17,9 +18,9 @@ class rpc_server : public session_handler, public std::enable_shared_from_this<r
     boost::asio::streambuf buffer;
 
   public:
-    explicit rpc_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc);
+    explicit rpc_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
     void start() override;
-    static std::shared_ptr<session_handler> create(boost::asio::io_context &io_context, ssl::context &ssl_context, blockchain &bc);
+    static std::shared_ptr<rpc_server> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
 
   private:

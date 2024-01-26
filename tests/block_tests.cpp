@@ -1,7 +1,8 @@
 #include <catch2/catch_all.hpp>
 #include "../src/block.hpp"
 
-TEST_CASE("Block Construction", "[block]") {
+TEST_CASE("Block Construction", "[block]")
+{
     // Arrange
     size_t index = 0;
     uint64_t time = 0;

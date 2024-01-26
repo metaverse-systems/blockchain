@@ -2,56 +2,37 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <iostream>
-#include "../blockchain.hpp"
+#include "../IBlockchain.hpp"
+#include "../chunk.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-template<typename SessionHandler>
+template<typename SessionHandler, typename Acceptor>
 class server
 {
   private:
     boost::asio::io_context &io_context;
-    unsigned short port;
-    ssl::context ssl_context;
-    tcp::acceptor acceptor_;
-    std::string cert_chain_file;
-    std::string private_key_file;
-    blockchain &bc;
+    ssl::context &ssl_context;
+    Acceptor &acceptor;
+    IBlockchain &bc;
+    std::shared_ptr<SessionHandler> last_session_handler;
 
   public:
-    server(boost::asio::io_context &io_context, unsigned short port, std::string cert_chain_file, std::string private_key_file, blockchain &bc)
+    server(boost::asio::io_context &io_context, ssl::context &ssl_context, Acceptor &acceptor, IBlockchain &bc)
         : io_context(io_context),
-          port(port),
-          ssl_context(ssl::context::sslv23),
-          acceptor_(io_context),
-          cert_chain_file(cert_chain_file),
-          private_key_file(private_key_file),
+          ssl_context(ssl_context),
+          acceptor(acceptor),
           bc(bc)
     {
-        ssl_context.set_options(
-            ssl::context::default_workarounds |
-            ssl::context::no_sslv2 |
-            ssl::context::single_dh_use);
-
-        ssl_context.use_certificate_chain_file(this->cert_chain_file);
-        ssl_context.use_private_key_file(this->private_key_file, ssl::context::pem);
-
-        // Set up the acceptor to listen on IPv6 and IPv4 in dual-stack mode
-        tcp::resolver resolver(this->io_context);
-        tcp::endpoint endpoint = *resolver.resolve({tcp::v6(), std::to_string(this->port)}).begin();
-        acceptor_.open(endpoint.protocol());
-        acceptor_.set_option(tcp::acceptor::reuse_address(true));
-        acceptor_.set_option(boost::asio::ip::v6_only(false));
-        acceptor_.bind(endpoint);
-        acceptor_.listen();
     }
 
     void start_accept()
     {
         auto new_session = SessionHandler::create(io_context, ssl_context, bc);
+        this->last_session_handler = new_session;
 
-        acceptor_.async_accept(new_session->get_socket_ref().lowest_layer(),
+        acceptor.async_accept(new_session->get_socket_ref().lowest_layer(),
         [this, new_session](const boost::system::error_code& error)
         {
             if (!error) {
@@ -61,5 +42,10 @@ class server
             }
             this->start_accept();
         });
+    }
+
+    std::shared_ptr<SessionHandler> get_last_session_handler() const
+    {
+        return this->last_session_handler;
     }
 };

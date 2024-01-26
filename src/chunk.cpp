@@ -31,17 +31,3 @@ void chunk::load()
 
     std::cout << "Loaded " << this->blocks.size() << " blocks from chunk " << this->index << " in " << path << std::endl;
 }
-
-void chunk::dump()
-{
-    std::cout << "Chunk " << this->index << " has " << this->blocks.size() << " blocks" << std::endl;
-    for(auto &block : this->blocks)
-    {
-        block.dump();
-    }
-}
-
-bool chunk::isBlockPresent(size_t index)
-{
-    return (this->blocks.size() > 0) && (this->blocks.at(index % this->blocks.size()).index == index);
-}

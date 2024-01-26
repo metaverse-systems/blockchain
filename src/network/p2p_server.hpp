@@ -4,7 +4,8 @@
 #include <boost/asio/ssl.hpp>
 #include <iostream>
 #include <memory>
-#include "../blockchain.hpp"
+#include "../IBlockchain.hpp"
+#include "../chunk.hpp"
 #include "../json.hpp"
 #include "session_handler.hpp"
 #include "packet_header.hpp"
@@ -18,9 +19,9 @@ class p2p_server : public session_handler, public std::enable_shared_from_this<p
     boost::asio::streambuf buffer;
 
   public:
-    explicit p2p_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc);
+    explicit p2p_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
     void start() override;
-    static std::shared_ptr<session_handler> create(boost::asio::io_context &io_context, ssl::context &ssl_context, blockchain &bc);
+    static std::shared_ptr<p2p_server> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
 
   private:

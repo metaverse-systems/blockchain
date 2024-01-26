@@ -1,11 +1,12 @@
 #include "rpc_server.hpp"
 #include "../block.hpp"
+#include "../chunk.hpp"
 #include "../json.hpp"
 
-rpc_server::rpc_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, blockchain &bc)
+rpc_server::rpc_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
         : session_handler(std::move(*socket_ptr), bc) {}
 
-std::shared_ptr<session_handler> rpc_server::create(boost::asio::io_context &io_context, ssl::context &ssl_context, blockchain &bc)
+std::shared_ptr<rpc_server> rpc_server::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {
     std::shared_ptr<ssl::stream<tcp::socket>> ssl_stream = std::make_shared<ssl::stream<tcp::socket>>(tcp::socket(io_context), ssl_context);
     return std::make_shared<rpc_server>(std::move(ssl_stream), bc);

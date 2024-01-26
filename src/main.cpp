@@ -1,10 +1,14 @@
 #include <iostream>
+#include <boost/asio.hpp>
+#include <chrono>
 #include "block.hpp"
 #include "blockchain.hpp"
 #include "network/server.hpp"
 #include "network/rpc_server.hpp"
 #include "network/p2p_server.hpp"
-#include <chrono>
+#include "network/MockSessionHandler.hpp"
+
+using boost::asio::ip::tcp;
 
 int main(int argc, char *argv[])
 {
@@ -14,28 +18,45 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    boost::asio::io_context io_context;
+    blockchain<chunk> bc(argv[1]);
+    bc.loadChunk(0);
+    bc.loadKeys();
+    bc.dumpBlocks();
 
     unsigned short port = 12345;
     std::string cert_file = "../ssl-cert-snakeoil.pem";
     std::string key_file = "../ssl-cert-snakeoil.key";
 
-    blockchain bc(argv[1]);
-    bc.loadChunk(0);
-    bc.loadKeys();
+    boost::asio::io_context io_context;
+    boost::asio::ssl::context ssl_context(ssl::context::sslv23);
+    
+    ssl_context.set_options(ssl::context::default_workarounds | ssl::context::no_sslv2 | ssl::context::single_dh_use);
+    ssl_context.use_certificate_chain_file(cert_file);
+    ssl_context.use_private_key_file(key_file, ssl::context::pem);
 
-/*
-    auto blocks = bc.getBlocksByKeys({ "foo"  });
-    for(auto &block : blocks) block.dump();
-*/
+    tcp::acceptor rpc_acceptor(io_context);
+    tcp::resolver resolver(io_context);
+    tcp::endpoint endpoint = *resolver.resolve({tcp::v6(), std::to_string(port)}).begin();
+    rpc_acceptor.open(endpoint.protocol());
+    rpc_acceptor.set_option(tcp::acceptor::reuse_address(true));
+    rpc_acceptor.set_option(boost::asio::ip::v6_only(false));
+    rpc_acceptor.bind(endpoint);
+    rpc_acceptor.listen();
 
-    bc.dumpBlocks();
+    server<rpc_server, tcp::acceptor> rpc(io_context, ssl_context, rpc_acceptor, bc);
+    rpc.start_accept();
 
-    server<rpc_server> rpc_server(io_context, port, cert_file, key_file, bc);
-    rpc_server.start_accept();
+    tcp::acceptor p2p_acceptor(io_context);
+    endpoint = *resolver.resolve({tcp::v6(), std::to_string(port + 1)}).begin();
+    p2p_acceptor.open(endpoint.protocol());
+    p2p_acceptor.set_option(tcp::acceptor::reuse_address(true));
+    p2p_acceptor.set_option(boost::asio::ip::v6_only(false));
+    p2p_acceptor.bind(endpoint);
+    p2p_acceptor.listen();
 
-    server<p2p_server> node_server(io_context, port + 1, cert_file, key_file, bc);
+    server<MockSessionHandler, tcp::acceptor> node_server(io_context, ssl_context, p2p_acceptor, bc);
     node_server.start_accept();
+
     io_context.run();
   
     return 0;

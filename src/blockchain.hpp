@@ -2,17 +2,20 @@
 #include <vector>
 #include <map>
 #include "block.hpp"
-#include "chunk.hpp"
+#include "IChunk.hpp"
+#include "IBlockchain.hpp"
 #include <filesystem>
 
-class blockchain 
+template<typename ChunkHandler>
+class blockchain : public IBlockchain
 {
   private:
-    std::vector<chunk> chain;
+    std::vector<ChunkHandler> chain;
     std::map<std::string, std::vector<size_t>> keyIndexMap;
     bool isValidNewBlock(const block &newBlock, const block &previousBlock);
     std::filesystem::path blockchainPath;
   public:
+    
     blockchain(std::filesystem::path path): blockchainPath(path)
     {
         this->generateGenesisBlock();
@@ -23,7 +26,6 @@ class blockchain
     auto getBlockByIndex(size_t index) -> block;
     void dumpBlocks();
     void dumpKeys();
-    const size_t chunkSize = 100;
     void saveChunk(size_t chunkIndex);
     void loadChunk(size_t chunkIndex);
     void freeChunk(size_t chunkIndex);
