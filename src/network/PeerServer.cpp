@@ -76,7 +76,7 @@ void PeerServer::do_read_body(const PacketHeader &header)
 
                 std::ostream outputStream(&buffer);
                 buffer.consume(buffer.size());
-                outputStream << "blockchain node Server" << std::endl;
+                outputStream << "blockchain node server" << std::endl;
                 this->do_write();
             }
         });

@@ -7,7 +7,7 @@
 #include <filesystem>
 
 template<typename ChunkHandler>
-class blockchain : public IBlockchain
+class Blockchain : public IBlockchain
 {
   private:
     std::vector<ChunkHandler> chain;
@@ -16,7 +16,7 @@ class blockchain : public IBlockchain
     std::filesystem::path blockchainPath;
   public:
     
-    blockchain(std::filesystem::path path): blockchainPath(path)
+    Blockchain(std::filesystem::path path): blockchainPath(path)
     {
         this->generateGenesisBlock();
     };

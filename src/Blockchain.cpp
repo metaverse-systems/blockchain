@@ -1,4 +1,4 @@
-#include "blockchain.hpp"
+#include "Blockchain.hpp"
 #include "Chunk.hpp"
 #include "MockChunk.hpp"
 #include <iostream>
@@ -11,14 +11,14 @@
 #include <boost/archive/binary_iarchive.hpp>
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::generateGenesisBlock()
+void Blockchain<ChunkHandler>::generateGenesisBlock()
 {
     this->chain.emplace_back(ChunkHandler(0, this->blockchainPath));
     this->chain.at(0).emplace_back(Block(0, 0, "", "GENESIS ~~DEVICE~~BLOCK"));
 }
 
 template<typename ChunkHandler>
-Block blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vector<std::string> &keys)
+Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vector<std::string> &keys)
 {
     auto unix_timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
@@ -39,7 +39,7 @@ Block blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vec
 }
 
 template<typename ChunkHandler>
-auto blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
+auto Blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
 {
     size_t chunkIndex = index / this->chunkSize;
 
@@ -59,7 +59,7 @@ auto blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
 }
 
 template<typename ChunkHandler>
-std::vector<Block> blockchain<ChunkHandler>::getBlocksByKeys(const std::vector<std::string> &keys)
+std::vector<Block> Blockchain<ChunkHandler>::getBlocksByKeys(const std::vector<std::string> &keys)
 {
     std::vector<Block> blocks;
     for(auto &key : keys)
@@ -73,25 +73,25 @@ std::vector<Block> blockchain<ChunkHandler>::getBlocksByKeys(const std::vector<s
 }
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::saveChunk(size_t chunkIndex)
+void Blockchain<ChunkHandler>::saveChunk(size_t chunkIndex)
 {
     this->chain.at(chunkIndex).save();
 }
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::freeChunk(size_t chunkIndex)
+void Blockchain<ChunkHandler>::freeChunk(size_t chunkIndex)
 {
     this->chain.at(chunkIndex).clear();
 }
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::loadChunk(size_t chunkIndex)
+void Blockchain<ChunkHandler>::loadChunk(size_t chunkIndex)
 {
     this->chain.at(chunkIndex).load();
 }
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::saveKeys()
+void Blockchain<ChunkHandler>::saveKeys()
 {
     std::ofstream ofs(this->blockchainPath.string() + "/keys.dat", std::ios::binary);
     boost::archive::binary_oarchive oa(ofs);
@@ -99,7 +99,7 @@ void blockchain<ChunkHandler>::saveKeys()
 }
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::loadKeys()
+void Blockchain<ChunkHandler>::loadKeys()
 {
     std::ifstream ifs(this->blockchainPath.string() + "/keys.dat", std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);
@@ -107,7 +107,7 @@ void blockchain<ChunkHandler>::loadKeys()
 }
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::dumpBlocks()
+void Blockchain<ChunkHandler>::dumpBlocks()
 {
     for (size_t index = 0; index < this->chain.size(); index++)
     {
@@ -120,7 +120,7 @@ void blockchain<ChunkHandler>::dumpBlocks()
 }
 
 template<typename ChunkHandler>
-void blockchain<ChunkHandler>::dumpKeys()
+void Blockchain<ChunkHandler>::dumpKeys()
 {
     for(auto &key : this->keyIndexMap)
     {
@@ -133,5 +133,5 @@ void blockchain<ChunkHandler>::dumpKeys()
     }
 }
 
-template class blockchain<Chunk>;
-template class blockchain<MockChunk>;
+template class Blockchain<Chunk>;
+template class Blockchain<MockChunk>;

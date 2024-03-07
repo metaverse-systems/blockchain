@@ -2,7 +2,7 @@
 #include <boost/asio.hpp>
 #include <chrono>
 #include "Block.hpp"
-#include "blockchain.hpp"
+#include "Blockchain.hpp"
 #include "network/Server.hpp"
 #include "network/RpcServer.hpp"
 #include "network/PeerServer.hpp"
@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    blockchain<Chunk> bc(argv[1]);
+    Blockchain<Chunk> bc(argv[1]);
     bc.loadChunk(0);
     bc.loadKeys();
     bc.dumpBlocks();

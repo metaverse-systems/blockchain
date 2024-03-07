@@ -17,7 +17,7 @@ TEST_CASE("Server Construction", "[Server]")
     boost::asio::io_context io_context;
     boost::asio::ssl::context ssl_context(ssl::context::sslv23);
     MockAcceptor acceptor(io_context);
-    blockchain<MockChunk> bc(".");
+    Blockchain<MockChunk> bc(".");
 
     // Act
     Server<RpcServer, MockAcceptor> rpc(io_context, ssl_context, acceptor, bc);
@@ -38,7 +38,7 @@ TEST_CASE("Server uses SessionHandler correctly", "[Server]")
     ssl_context.use_certificate_chain_file(cert_file);
     ssl_context.use_private_key_file(key_file, ssl::context::pem);
     MockAcceptor acceptor(io_context);
-    blockchain<MockChunk> bc(".");
+    Blockchain<MockChunk> bc(".");
     Server<MockSessionHandler, MockAcceptor> RpcServer(io_context, ssl_context, acceptor, bc);
 
     SECTION("Server initializes SessionHandler on new connection")
