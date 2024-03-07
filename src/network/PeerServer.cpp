@@ -33,12 +33,12 @@ void PeerServer::do_read_header()
 {
     auto self(shared_from_this());
     boost::asio::async_read(this->ssl_socket, this->buffer,
-        boost::asio::transfer_exactly(sizeof(packet_header)),
+        boost::asio::transfer_exactly(sizeof(PacketHeader)),
         [this, self](const boost::system::error_code& ec, std::size_t /*length*/) {
             if (!ec) {
                 std::istream is(&this->buffer);
-                packet_header header;
-                is.read(reinterpret_cast<char*>(&header), sizeof(packet_header));
+                PacketHeader header;
+                is.read(reinterpret_cast<char*>(&header), sizeof(PacketHeader));
 
                 this->do_read_body(header);
             } else {
@@ -47,7 +47,7 @@ void PeerServer::do_read_header()
         });
 }
 
-void PeerServer::do_read_body(const packet_header &header) 
+void PeerServer::do_read_body(const PacketHeader &header) 
 {
     auto self(shared_from_this());
     boost::asio::async_read(this->ssl_socket, this->buffer, boost::asio::transfer_exactly(header.length),
@@ -60,7 +60,7 @@ void PeerServer::do_read_body(const packet_header &header)
                 std::istringstream iss(serialized_str);
                 switch(header.type)
                 {
-                    case packet_type::BLOCK:
+                    case PacketType::BLOCK:
                     {
                         boost::archive::binary_iarchive ia(iss);
                         Block b;

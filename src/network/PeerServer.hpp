@@ -8,7 +8,7 @@
 #include "../Chunk.hpp"
 #include "../json.hpp"
 #include "session_handler.hpp"
-#include "packet_header.hpp"
+#include "PacketHeader.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
@@ -26,6 +26,6 @@ class PeerServer : public session_handler, public std::enable_shared_from_this<P
 
   private:
     void do_read_header();
-    void do_read_body(const packet_header &header);
+    void do_read_body(const PacketHeader &header);
     void do_write();
 };

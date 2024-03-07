@@ -1,5 +1,5 @@
 #include "PeerClient.hpp"
-#include "packet_header.hpp"
+#include "PacketHeader.hpp"
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 
@@ -37,7 +37,7 @@ void PeerClient::send(const T &obj, uint64_t packet_type)
     oa << obj;
     std::string serialized_str = ss.str();
 
-    packet_header header(serialized_str.size(), packet_type);
+    PacketHeader header(serialized_str.size(), packet_type);
     std::vector<char> header_data(sizeof(header));
     std::memcpy(header_data.data(), &header, sizeof(header));
 
