@@ -1,6 +1,6 @@
 #include "RpcServer.hpp"
 #include "../Block.hpp"
-#include "../chunk.hpp"
+#include "../Chunk.hpp"
 #include "../json.hpp"
 
 RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)

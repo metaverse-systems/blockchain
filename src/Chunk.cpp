@@ -1,6 +1,6 @@
-#include "chunk.hpp"
+#include "Chunk.hpp"
 
-void chunk::save()
+void Chunk::save()
 {
     std::stringstream ss;
     ss << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
@@ -18,7 +18,7 @@ void chunk::save()
     }
 }
 
-void chunk::load()
+void Chunk::load()
 {
     std::stringstream ss;
     ss << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";

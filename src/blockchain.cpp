@@ -1,5 +1,5 @@
 #include "blockchain.hpp"
-#include "chunk.hpp"
+#include "Chunk.hpp"
 #include "MockChunk.hpp"
 #include <iostream>
 #include <fstream>
@@ -48,9 +48,9 @@ auto blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
         this->chain.resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, this->blockchainPath));
     }
 
-    ChunkHandler chunk = this->chain.at(chunkIndex);
+    ChunkHandler Chunk = this->chain.at(chunkIndex);
     
-    if(!chunk.isBlockPresent(index % this->chunkSize))
+    if(!Chunk.isBlockPresent(index % this->chunkSize))
     {
         this->loadChunk(chunkIndex);
     }
@@ -133,5 +133,5 @@ void blockchain<ChunkHandler>::dumpKeys()
     }
 }
 
-template class blockchain<chunk>;
+template class blockchain<Chunk>;
 template class blockchain<MockChunk>;

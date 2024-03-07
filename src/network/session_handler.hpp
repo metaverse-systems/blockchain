@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../IBlockchain.hpp"
-#include "../chunk.hpp"
+#include "../Chunk.hpp"
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <memory>
 #include "../IBlockchain.hpp"
-#include "../chunk.hpp"
+#include "../Chunk.hpp"
 #include "../json.hpp"
 #include "session_handler.hpp"
 #include "packet_header.hpp"

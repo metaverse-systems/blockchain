@@ -17,7 +17,7 @@ std::string sha256(const std::string &str) {
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned int lengthOfHash = 0;
 
-    EVP_MD_CTX* mdctx;
+    EVP_MD_CTX *mdctx;
     if((mdctx = EVP_MD_CTX_new()) == nullptr)
     {
         throw std::runtime_error("Failed to create EVP_MD_CTX");

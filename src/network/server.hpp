@@ -3,7 +3,7 @@
 #include <boost/asio/ssl.hpp>
 #include <iostream>
 #include "../IBlockchain.hpp"
-#include "../chunk.hpp"
+#include "../Chunk.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;

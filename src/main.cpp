@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    blockchain<chunk> bc(argv[1]);
+    blockchain<Chunk> bc(argv[1]);
     bc.loadChunk(0);
     bc.loadKeys();
     bc.dumpBlocks();
