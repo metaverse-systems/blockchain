@@ -1,14 +1,14 @@
-#include "p2p_client.hpp"
+#include "PeerClient.hpp"
 #include "packet_header.hpp"
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 
-ssl::stream<tcp::socket> &p2p_client::get_socket_ref()
+ssl::stream<tcp::socket> &PeerClient::get_socket_ref()
 {
     return socket;
 }
 
-void p2p_client::connect()
+void PeerClient::connect()
 {
     auto endpoints = this->resolver.resolve(this->host, this->port);
     boost::asio::async_connect(this->socket.lowest_layer(), endpoints,
@@ -30,7 +30,7 @@ void p2p_client::connect()
 }
 
 template<typename T>
-void p2p_client::send(const T &obj, uint64_t packet_type)
+void PeerClient::send(const T &obj, uint64_t packet_type)
 {
     std::stringstream ss;
     boost::archive::binary_oarchive oa(ss);

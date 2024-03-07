@@ -8,10 +8,10 @@
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class p2p_client
+class PeerClient
 {
   public:
-    p2p_client(boost::asio::io_context &io_context,
+    PeerClient(boost::asio::io_context &io_context,
                       ssl::context &ssl_context,
                       const std::string &host,
                       unsigned short port)

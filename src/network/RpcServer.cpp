@@ -1,23 +1,23 @@
-#include "rpc_server.hpp"
+#include "RpcServer.hpp"
 #include "../block.hpp"
 #include "../chunk.hpp"
 #include "../json.hpp"
 
-rpc_server::rpc_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
+RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
         : session_handler(std::move(*socket_ptr), bc) {}
 
-std::shared_ptr<rpc_server> rpc_server::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
+std::shared_ptr<RpcServer> RpcServer::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {
     std::shared_ptr<ssl::stream<tcp::socket>> ssl_stream = std::make_shared<ssl::stream<tcp::socket>>(tcp::socket(io_context), ssl_context);
-    return std::make_shared<rpc_server>(std::move(ssl_stream), bc);
+    return std::make_shared<RpcServer>(std::move(ssl_stream), bc);
 }
 
-ssl::stream<tcp::socket> &rpc_server::get_socket_ref()
+ssl::stream<tcp::socket> &RpcServer::get_socket_ref()
 {
     return ssl_socket;
 };
 
-void rpc_server::start()
+void RpcServer::start()
 {
     auto self(shared_from_this());
     ssl_socket.async_handshake(ssl::stream_base::server,
@@ -31,7 +31,7 @@ void rpc_server::start()
     );
 }
 
-void rpc_server::do_read() 
+void RpcServer::do_read() 
 {
     auto self(shared_from_this());
     boost::asio::async_read_until(this->ssl_socket, this->buffer, '\n',
@@ -134,7 +134,7 @@ void rpc_server::do_read()
         });
 }
 
-void rpc_server::do_write()
+void RpcServer::do_write()
 {
     auto self(shared_from_this());
     boost::asio::async_write(ssl_socket, buffer,
@@ -145,7 +145,7 @@ void rpc_server::do_write()
         });
 }
 
-nlohmann::json rpc_server::invalidJsonRpcMessage()
+nlohmann::json RpcServer::invalidJsonRpcMessage()
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -155,7 +155,7 @@ nlohmann::json rpc_server::invalidJsonRpcMessage()
     return response;
 }
 
-nlohmann::json rpc_server::noIdMessage()
+nlohmann::json RpcServer::noIdMessage()
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -165,7 +165,7 @@ nlohmann::json rpc_server::noIdMessage()
     return response;
 }
 
-nlohmann::json rpc_server::invalidMethodMessage(std::string id, std::string method)
+nlohmann::json RpcServer::invalidMethodMessage(std::string id, std::string method)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -175,7 +175,7 @@ nlohmann::json rpc_server::invalidMethodMessage(std::string id, std::string meth
     return response;
 }
 
-nlohmann::json rpc_server::invalidParamsMessage(std::string id)
+nlohmann::json RpcServer::invalidParamsMessage(std::string id)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -185,7 +185,7 @@ nlohmann::json rpc_server::invalidParamsMessage(std::string id)
     return response;
 }
 
-nlohmann::json rpc_server::resultMessage(std::string id, std::string result)
+nlohmann::json RpcServer::resultMessage(std::string id, std::string result)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";

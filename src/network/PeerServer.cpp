@@ -1,21 +1,21 @@
-#include "p2p_server.hpp"
+#include "PeerServer.hpp"
 #include "../block.hpp"
 
-p2p_server::p2p_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
+PeerServer::PeerServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
         : session_handler(std::move(*socket_ptr), bc) {}
 
-std::shared_ptr<p2p_server> p2p_server::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
+std::shared_ptr<PeerServer> PeerServer::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {
     std::shared_ptr<ssl::stream<tcp::socket>> ssl_stream = std::make_shared<ssl::stream<tcp::socket>>(tcp::socket(io_context), ssl_context);
-    return std::make_shared<p2p_server>(std::move(ssl_stream), bc);
+    return std::make_shared<PeerServer>(std::move(ssl_stream), bc);
 }
 
-ssl::stream<tcp::socket> &p2p_server::get_socket_ref()
+ssl::stream<tcp::socket> &PeerServer::get_socket_ref()
 {
     return ssl_socket;
 };
 
-void p2p_server::start()
+void PeerServer::start()
 {
     auto self(shared_from_this());
     ssl_socket.async_handshake(ssl::stream_base::server,
@@ -29,7 +29,7 @@ void p2p_server::start()
     );
 }
 
-void p2p_server::do_read_header()
+void PeerServer::do_read_header()
 {
     auto self(shared_from_this());
     boost::asio::async_read(this->ssl_socket, this->buffer,
@@ -47,7 +47,7 @@ void p2p_server::do_read_header()
         });
 }
 
-void p2p_server::do_read_body(const packet_header &header) 
+void PeerServer::do_read_body(const packet_header &header) 
 {
     auto self(shared_from_this());
     boost::asio::async_read(this->ssl_socket, this->buffer, boost::asio::transfer_exactly(header.length),
@@ -82,7 +82,7 @@ void p2p_server::do_read_body(const packet_header &header)
         });
 }
 
-void p2p_server::do_write()
+void PeerServer::do_write()
 {
     auto self(shared_from_this());
     boost::asio::async_write(ssl_socket, buffer,

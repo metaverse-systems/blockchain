@@ -4,8 +4,8 @@
 #include "block.hpp"
 #include "blockchain.hpp"
 #include "network/server.hpp"
-#include "network/rpc_server.hpp"
-#include "network/p2p_server.hpp"
+#include "network/RpcServer.hpp"
+#include "network/PeerServer.hpp"
 #include "network/MockSessionHandler.hpp"
 
 using boost::asio::ip::tcp;
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     rpc_acceptor.bind(endpoint);
     rpc_acceptor.listen();
 
-    server<rpc_server, tcp::acceptor> rpc(io_context, ssl_context, rpc_acceptor, bc);
+    server<RpcServer, tcp::acceptor> rpc(io_context, ssl_context, rpc_acceptor, bc);
     rpc.start_accept();
 
     tcp::acceptor p2p_acceptor(io_context);

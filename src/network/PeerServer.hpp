@@ -13,15 +13,15 @@
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class p2p_server : public session_handler, public std::enable_shared_from_this<p2p_server>
+class PeerServer : public session_handler, public std::enable_shared_from_this<PeerServer>
 {
   private:
     boost::asio::streambuf buffer;
 
   public:
-    explicit p2p_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
+    explicit PeerServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
     void start() override;
-    static std::shared_ptr<p2p_server> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
+    static std::shared_ptr<PeerServer> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
 
   private:

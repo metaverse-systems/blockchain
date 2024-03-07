@@ -1,7 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include "../src/network/server.hpp"
-#include "../src/network/rpc_server.hpp"
-#include "../src/network/p2p_server.hpp"
+#include "../src/network/RpcServer.hpp"
+#include "../src/network/PeerServer.hpp"
 #include "../src/network/MockSessionHandler.hpp"
 #include "../src/network/MockAcceptor.hpp"
 #include "../src/blockchain.hpp"
@@ -20,8 +20,8 @@ TEST_CASE("Server Construction", "[server]")
     blockchain<MockChunk> bc(".");
 
     // Act
-    server<rpc_server, MockAcceptor> rpc(io_context, ssl_context, acceptor, bc);
-    server<p2p_server, MockAcceptor> node_server(io_context, ssl_context, acceptor, bc);
+    server<RpcServer, MockAcceptor> rpc(io_context, ssl_context, acceptor, bc);
+    server<PeerServer, MockAcceptor> node_server(io_context, ssl_context, acceptor, bc);
 
     // Assert
     REQUIRE(true);
@@ -34,17 +34,17 @@ TEST_CASE("Server uses SessionHandler correctly", "[server]")
     ssl::context ssl_context(ssl::context::sslv23);
     MockAcceptor acceptor(io_context);
     blockchain<MockChunk> bc(".");
-    server<MockSessionHandler, MockAcceptor> test_server(io_context, ssl_context, acceptor, bc);
+    server<MockSessionHandler, MockAcceptor> RpcServer(io_context, ssl_context, acceptor, bc);
 
     SECTION("Server initializes SessionHandler on new connection")
     {
         // Act
-        // Simulate a new connection; this might involve calling a method on your test_server
+        // Simulate a new connection; this might involve calling a method on your RpcServer
         // that simulates the acceptance of a new connection.
-        test_server.start_accept(); // You'll need to replace this with actual code
+        RpcServer.start_accept(); // You'll need to replace this with actual code
 
         // Get the instance of the MockSessionHandler used by the server
-        auto last_session_handler = test_server.get_last_session_handler(); // This is hypothetical; implement accordingly
+        auto last_session_handler = RpcServer.get_last_session_handler(); // This is hypothetical; implement accordingly
 
         // Assert
         // Verify that the MockSessionHandler's start method was called on the instance

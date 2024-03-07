@@ -12,15 +12,15 @@
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class rpc_server : public session_handler, public std::enable_shared_from_this<rpc_server>
+class RpcServer : public session_handler, public std::enable_shared_from_this<RpcServer>
 {
   private:
     boost::asio::streambuf buffer;
 
   public:
-    explicit rpc_server(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
+    explicit RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
     void start() override;
-    static std::shared_ptr<rpc_server> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
+    static std::shared_ptr<RpcServer> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
 
   private:
