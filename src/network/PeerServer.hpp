@@ -7,13 +7,13 @@
 #include "../IBlockchain.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
-#include "session_handler.hpp"
+#include "SessionHandler.hpp"
 #include "PacketHeader.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class PeerServer : public session_handler, public std::enable_shared_from_this<PeerServer>
+class PeerServer : public SessionHandler, public std::enable_shared_from_this<PeerServer>
 {
   private:
     boost::asio::streambuf buffer;

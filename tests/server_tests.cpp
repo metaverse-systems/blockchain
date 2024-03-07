@@ -1,5 +1,5 @@
 #include <catch2/catch_all.hpp>
-#include "../src/network/server.hpp"
+#include "../src/network/Server.hpp"
 #include "../src/network/RpcServer.hpp"
 #include "../src/network/PeerServer.hpp"
 #include "../src/network/MockSessionHandler.hpp"
@@ -11,7 +11,7 @@ namespace ssl = boost::asio::ssl;
 using boost::asio::io_context;
 using boost::asio::ip::tcp;
 
-TEST_CASE("Server Construction", "[server]")
+TEST_CASE("Server Construction", "[Server]")
 {
     // Arrange
     boost::asio::io_context io_context;
@@ -20,14 +20,14 @@ TEST_CASE("Server Construction", "[server]")
     blockchain<MockChunk> bc(".");
 
     // Act
-    server<RpcServer, MockAcceptor> rpc(io_context, ssl_context, acceptor, bc);
-    server<PeerServer, MockAcceptor> node_server(io_context, ssl_context, acceptor, bc);
+    Server<RpcServer, MockAcceptor> rpc(io_context, ssl_context, acceptor, bc);
+    Server<PeerServer, MockAcceptor> node_server(io_context, ssl_context, acceptor, bc);
 
     // Assert
     REQUIRE(true);
 }
 
-TEST_CASE("Server uses SessionHandler correctly", "[server]")
+TEST_CASE("Server uses SessionHandler correctly", "[Server]")
 {
     std::string cert_file = "../ssl-cert-snakeoil.pem";
     std::string key_file = "../ssl-cert-snakeoil.key";
@@ -39,7 +39,7 @@ TEST_CASE("Server uses SessionHandler correctly", "[server]")
     ssl_context.use_private_key_file(key_file, ssl::context::pem);
     MockAcceptor acceptor(io_context);
     blockchain<MockChunk> bc(".");
-    server<MockSessionHandler, MockAcceptor> RpcServer(io_context, ssl_context, acceptor, bc);
+    Server<MockSessionHandler, MockAcceptor> RpcServer(io_context, ssl_context, acceptor, bc);
 
     SECTION("Server initializes SessionHandler on new connection")
     {
@@ -48,7 +48,7 @@ TEST_CASE("Server uses SessionHandler correctly", "[server]")
         // that simulates the acceptance of a new connection.
         RpcServer.start_accept(); // You'll need to replace this with actual code
 
-        // Get the instance of the MockSessionHandler used by the server
+        // Get the instance of the MockSessionHandler used by the Server
         auto last_session_handler = RpcServer.get_last_session_handler(); // This is hypothetical; implement accordingly
 
         // Assert

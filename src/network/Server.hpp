@@ -9,7 +9,7 @@ namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
 template<typename SessionHandler, typename Acceptor>
-class server
+class Server
 {
   private:
     boost::asio::io_context &io_context;
@@ -19,7 +19,7 @@ class server
     std::shared_ptr<SessionHandler> last_session_handler;
 
   public:
-    server(boost::asio::io_context &io_context, ssl::context &ssl_context, Acceptor &acceptor, IBlockchain &bc)
+    Server(boost::asio::io_context &io_context, ssl::context &ssl_context, Acceptor &acceptor, IBlockchain &bc)
         : io_context(io_context),
           ssl_context(ssl_context),
           acceptor(acceptor),

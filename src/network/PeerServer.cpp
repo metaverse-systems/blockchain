@@ -2,7 +2,7 @@
 #include "../Block.hpp"
 
 PeerServer::PeerServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
-        : session_handler(std::move(*socket_ptr), bc) {}
+        : SessionHandler(std::move(*socket_ptr), bc) {}
 
 std::shared_ptr<PeerServer> PeerServer::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {
@@ -76,7 +76,7 @@ void PeerServer::do_read_body(const PacketHeader &header)
 
                 std::ostream outputStream(&buffer);
                 buffer.consume(buffer.size());
-                outputStream << "blockchain node server" << std::endl;
+                outputStream << "blockchain node Server" << std::endl;
                 this->do_write();
             }
         });

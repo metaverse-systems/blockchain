@@ -1,6 +1,6 @@
 #pragma once
 
-#include "session_handler.hpp"
+#include "SessionHandler.hpp"
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <iostream>
@@ -12,7 +12,7 @@
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class RpcServer : public session_handler, public std::enable_shared_from_this<RpcServer>
+class RpcServer : public SessionHandler, public std::enable_shared_from_this<RpcServer>
 {
   private:
     boost::asio::streambuf buffer;

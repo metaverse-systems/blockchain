@@ -2,7 +2,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
-#include "../src/network/session_handler.hpp"
+#include "SessionHandler.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -10,7 +10,7 @@
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
-class MockSessionHandler : public session_handler {
+class MockSessionHandler : public SessionHandler {
 public:
     // Track calls to each method
     int start_called_count = 0;
@@ -19,7 +19,7 @@ public:
 
     // Constructor
     MockSessionHandler(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
-    : session_handler(std::move(*socket_ptr), bc) {}
+    : SessionHandler(std::move(*socket_ptr), bc) {}
 
     // Override the start method to track calls and simulate behavior
     void start() override {

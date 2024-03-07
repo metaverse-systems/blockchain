@@ -4,7 +4,7 @@
 #include "../json.hpp"
 
 RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
-        : session_handler(std::move(*socket_ptr), bc) {}
+        : SessionHandler(std::move(*socket_ptr), bc) {}
 
 std::shared_ptr<RpcServer> RpcServer::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {

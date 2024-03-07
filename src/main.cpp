@@ -3,7 +3,7 @@
 #include <chrono>
 #include "Block.hpp"
 #include "blockchain.hpp"
-#include "network/server.hpp"
+#include "network/Server.hpp"
 #include "network/RpcServer.hpp"
 #include "network/PeerServer.hpp"
 #include "network/MockSessionHandler.hpp"
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     rpc_acceptor.bind(endpoint);
     rpc_acceptor.listen();
 
-    server<RpcServer, tcp::acceptor> rpc(io_context, ssl_context, rpc_acceptor, bc);
+    Server<RpcServer, tcp::acceptor> rpc(io_context, ssl_context, rpc_acceptor, bc);
     rpc.start_accept();
 
     tcp::acceptor p2p_acceptor(io_context);
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     p2p_acceptor.bind(endpoint);
     p2p_acceptor.listen();
 
-    server<MockSessionHandler, tcp::acceptor> node_server(io_context, ssl_context, p2p_acceptor, bc);
+    Server<MockSessionHandler, tcp::acceptor> node_server(io_context, ssl_context, p2p_acceptor, bc);
     node_server.start_accept();
 
     io_context.run();
