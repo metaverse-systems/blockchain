@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <map>
-#include "block.hpp"
+#include "Block.hpp"
 #include "IChunk.hpp"
 #include "IBlockchain.hpp"
 #include <filesystem>
@@ -12,7 +12,7 @@ class blockchain : public IBlockchain
   private:
     std::vector<ChunkHandler> chain;
     std::map<std::string, std::vector<size_t>> keyIndexMap;
-    bool isValidNewBlock(const block &newBlock, const block &previousBlock);
+    bool isValidNewBlock(const Block &newBlock, const Block &previousBlock);
     std::filesystem::path blockchainPath;
   public:
     
@@ -21,9 +21,9 @@ class blockchain : public IBlockchain
         this->generateGenesisBlock();
     };
     void generateGenesisBlock();
-    block addBlock(const std::string &data, const std::vector<std::string> &keys);
-    std::vector<block> getBlocksByKeys(const std::vector<std::string> &keys);
-    auto getBlockByIndex(size_t index) -> block;
+    Block addBlock(const std::string &data, const std::vector<std::string> &keys);
+    std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys);
+    auto getBlockByIndex(size_t index) -> Block;
     void dumpBlocks();
     void dumpKeys();
     void saveChunk(size_t chunkIndex);

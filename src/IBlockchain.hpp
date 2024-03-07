@@ -4,7 +4,7 @@
 #include <string>
 #include <filesystem>
 #include <iostream>
-#include "block.hpp"
+#include "Block.hpp"
 
 class IBlockchain
 {
@@ -23,10 +23,10 @@ class IBlockchain
     virtual void dumpBlocks() = 0;
     virtual void dumpKeys() = 0;
     virtual void generateGenesisBlock() = 0;
-    virtual block addBlock(const std::string &data, const std::vector<std::string> &keys) = 0;
-    virtual std::vector<block> getBlocksByKeys(const std::vector<std::string> &keys) = 0;
-    virtual block getBlockByIndex(size_t index) = 0;
-    static bool isValidNewBlock(const block &newBlock, const block &previousBlock)
+    virtual Block addBlock(const std::string &data, const std::vector<std::string> &keys) = 0;
+    virtual std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys) = 0;
+    virtual Block getBlockByIndex(size_t index) = 0;
+    static bool isValidNewBlock(const Block &newBlock, const Block &previousBlock)
     {
         if (previousBlock.index + 1 != newBlock.index) {
             std::cerr << "Invalid index" << std::endl;

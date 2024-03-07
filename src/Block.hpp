@@ -7,15 +7,15 @@
 #include <boost/serialization/string.hpp>
 #include "json.hpp"
 
-struct block {
+struct Block {
     size_t index;
     uint64_t timestamp;
     std::string data;
     std::string prevHash;
     std::string hash;
 
-    block();
-    block(size_t, uint64_t, std::string, std::string);
+    Block();
+    Block(size_t, uint64_t, std::string, std::string);
     std::string calculateHash() const;
     void dump();
 

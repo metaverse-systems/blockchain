@@ -1,7 +1,7 @@
 #include <iostream>
 #include <boost/asio.hpp>
 #include <chrono>
-#include "block.hpp"
+#include "Block.hpp"
 #include "blockchain.hpp"
 #include "network/server.hpp"
 #include "network/RpcServer.hpp"

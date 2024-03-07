@@ -1,5 +1,5 @@
 #include "RpcServer.hpp"
-#include "../block.hpp"
+#include "../Block.hpp"
 #include "../chunk.hpp"
 #include "../json.hpp"
 
@@ -75,7 +75,7 @@ void RpcServer::do_read()
 
                 if(object["method"] == "addBlock")
                 {
-                    block b = bc.addBlock(object["params"]["data"], object["params"]["keys"]);
+                    Block b = bc.addBlock(object["params"]["data"], object["params"]["keys"]);
                     b.dump();
                     bc.saveChunk(b.index / bc.chunkSize);
                     bc.saveKeys();
@@ -95,7 +95,7 @@ void RpcServer::do_read()
                         return;
                     }
                     auto index = object["params"]["index"].get<size_t>();
-                    block b = bc.getBlockByIndex(index);
+                    Block b = bc.getBlockByIndex(index);
                     b.dump();
                     buffer.consume(buffer.size());
                     outputStream << resultMessage(object["id"], b.toJson().dump()) << std::endl;
@@ -113,7 +113,7 @@ void RpcServer::do_read()
                         return;
                     }
                     auto keys = object["params"]["keys"].get<std::vector<std::string>>();
-                    std::vector<block> blocks = bc.getBlocksByKeys(keys);
+                    std::vector<Block> blocks = bc.getBlocksByKeys(keys);
                     nlohmann::json response;
 
                     for(auto &b : blocks)

@@ -1,9 +1,9 @@
-#include "block.hpp"
+#include "Block.hpp"
 #include <sstream>
 #include <iostream>
 #include <ctime>
 
-block::block()
+Block::Block()
 {
     this->index = 0;
     this->timestamp = 0;
@@ -12,19 +12,19 @@ block::block()
     this->hash = "";
 }
 
-block::block(size_t index, uint64_t time, std::string prev_hash, std::string block_data)
+Block::Block(size_t index, uint64_t time, std::string prev_hash, std::string block_data)
     : index(index), timestamp(time), data(std::move(block_data)), prevHash(std::move(prev_hash)) {
     this->hash = calculateHash();
 }
 
-std::string block::calculateHash() const
+std::string Block::calculateHash() const
 {
     std::stringstream ss;
     ss << this->index << this->timestamp << this->data << this->prevHash;
     return sha256(ss.str());
 }
 
-void block::dump()
+void Block::dump()
 {
     std::cout << "Block #" << this->index << std::endl;
     std::cout << "Hash: " << this->hash << std::endl;
@@ -36,7 +36,7 @@ void block::dump()
     std::cout << std::endl;
 }
 
-nlohmann::json block::toJson() const
+nlohmann::json Block::toJson() const
 {
     nlohmann::json j;
     j["index"] = this->index;

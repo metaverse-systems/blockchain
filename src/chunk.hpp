@@ -6,7 +6,7 @@
 #include <sstream>
 #include <iomanip>
 
-#include "block.hpp"
+#include "Block.hpp"
 #include "IChunk.hpp"
 
 class chunk : public IChunk

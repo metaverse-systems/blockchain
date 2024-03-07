@@ -29,9 +29,14 @@ TEST_CASE("Server Construction", "[server]")
 
 TEST_CASE("Server uses SessionHandler correctly", "[server]")
 {
+    std::string cert_file = "../ssl-cert-snakeoil.pem";
+    std::string key_file = "../ssl-cert-snakeoil.key";
     // Arrange
     io_context io_context;
     ssl::context ssl_context(ssl::context::sslv23);
+    ssl_context.set_options(ssl::context::default_workarounds | ssl::context::no_sslv2 | ssl::context::single_dh_use);
+    ssl_context.use_certificate_chain_file(cert_file);
+    ssl_context.use_private_key_file(key_file, ssl::context::pem);
     MockAcceptor acceptor(io_context);
     blockchain<MockChunk> bc(".");
     server<MockSessionHandler, MockAcceptor> RpcServer(io_context, ssl_context, acceptor, bc);

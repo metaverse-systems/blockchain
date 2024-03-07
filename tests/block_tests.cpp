@@ -1,7 +1,7 @@
 #include <catch2/catch_all.hpp>
-#include "../src/block.hpp"
+#include "../src/Block.hpp"
 
-TEST_CASE("Block Construction", "[block]")
+TEST_CASE("Block Construction", "[Block]")
 {
     // Arrange
     size_t index = 0;
@@ -10,7 +10,7 @@ TEST_CASE("Block Construction", "[block]")
     std::string data = "";
 
     // Act
-    block b(index, time, prev_hash, data);
+    Block b(index, time, prev_hash, data);
 
     // Assert
     REQUIRE(b.index == index);

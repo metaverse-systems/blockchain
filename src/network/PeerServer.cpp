@@ -1,5 +1,5 @@
 #include "PeerServer.hpp"
-#include "../block.hpp"
+#include "../Block.hpp"
 
 PeerServer::PeerServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
         : session_handler(std::move(*socket_ptr), bc) {}
@@ -63,7 +63,7 @@ void PeerServer::do_read_body(const packet_header &header)
                     case packet_type::BLOCK:
                     {
                         boost::archive::binary_iarchive ia(iss);
-                        block b;
+                        Block b;
                         ia >> b;
                         std::cout << "Received block: " << std::endl;
                         b.dump();
