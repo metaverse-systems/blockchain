@@ -16,6 +16,7 @@ namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
 class PeerManager;
+class BlockPropagation;
 
 class PeerClient : public std::enable_shared_from_this<PeerClient>
 {
@@ -40,6 +41,7 @@ class PeerClient : public std::enable_shared_from_this<PeerClient>
     bool is_connected() const { return connected; }
 
     void set_peer_manager(PeerManager *pm) { peer_manager = pm; }
+    void set_block_propagation(BlockPropagation *bp) { block_propagation_ = bp; }
 
     template<typename T>
     void send(const T &obj, uint64_t packet_type);
@@ -61,6 +63,7 @@ class PeerClient : public std::enable_shared_from_this<PeerClient>
     std::vector<char> read_header_buf;
     std::vector<char> read_body_buf;
     PeerManager *peer_manager = nullptr;
+    BlockPropagation *block_propagation_ = nullptr;
 
     void send_peer_exchange();
     void send_sync_query();

@@ -3,6 +3,7 @@
 #include "SyncMessages.hpp"
 #include "PeerMessages.hpp"
 #include "../PeerManager.hpp"
+#include "../BlockPropagation.hpp"
 #include "../utils.hpp"
 #include "../ConsensusConfig.hpp"
 #include <boost/archive/binary_oarchive.hpp>
@@ -129,10 +130,21 @@ void PeerClient::do_read_body(const PacketHeader &header)
                     }
                     case PacketType::BLOCK:
                     {
-                        boost::archive::binary_iarchive ia(iss);
-                        Block b;
-                        ia >> b;
-                        logMessage("INFO", "Received block #" + std::to_string(b.index));
+                        try {
+                            boost::archive::binary_iarchive ia(iss);
+                            Block b;
+                            ia >> b;
+                            logMessage("INFO", "Received block #" + std::to_string(b.index));
+                            if (block_propagation_) {
+                                auto sender_key = host + ":" + port;
+                                block_propagation_->on_block_received(b, sender_key);
+                            }
+                        } catch (const std::exception &e) {
+                            logMessage("ERROR", "Failed to deserialize BLOCK: " + std::string(e.what()));
+                            if (peer_manager) {
+                                peer_manager->increment_error(host, static_cast<uint16_t>(std::stoi(port)));
+                            }
+                        }
                         break;
                     }
                     case PacketType::PEER_EXCHANGE_RESPONSE:
@@ -273,6 +285,9 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
     } else {
         logMessage("INFO", "Chain sync complete, local height=" + std::to_string(new_local_height));
         sync_status.isSyncing.store(false);
+        if (block_propagation_) {
+            block_propagation_->process_sync_queue();
+        }
     }
 }
 

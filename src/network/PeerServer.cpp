@@ -1,6 +1,7 @@
 #include "PeerServer.hpp"
 #include "../Block.hpp"
 #include "../PeerManager.hpp"
+#include "../BlockPropagation.hpp"
 #include "SyncMessages.hpp"
 #include "PeerMessages.hpp"
 #include <boost/archive/binary_oarchive.hpp>
@@ -40,7 +41,7 @@ void PeerServer::on_handshake_complete()
             ssl_socket.lowest_layer().close(ec);
             return;
         }
-        peer_manager->on_inbound_connected(rhost, rport);
+        peer_manager->on_inbound_connected(rhost, rport, shared_from_this());
     }
 
     this->do_read_header();
@@ -79,11 +80,21 @@ void PeerServer::do_read_body(const PacketHeader &header)
                 {
                     case PacketType::BLOCK:
                     {
-                        boost::archive::binary_iarchive ia(iss);
-                        Block b;
-                        ia >> b;
-                        logMessage("INFO", "Received block #" + std::to_string(b.index));
-                        b.dump();
+                        try {
+                            boost::archive::binary_iarchive ia(iss);
+                            Block b;
+                            ia >> b;
+                            logMessage("INFO", "Received block #" + std::to_string(b.index));
+                            if (block_propagation_) {
+                                auto sender_key = remote_host() + ":" + std::to_string(remote_port());
+                                block_propagation_->on_block_received(b, sender_key);
+                            }
+                        } catch (const std::exception &e) {
+                            logMessage("ERROR", "Failed to deserialize BLOCK: " + std::string(e.what()));
+                            if (peer_manager) {
+                                peer_manager->increment_error(remote_host(), remote_port());
+                            }
+                        }
                         break;
                     }
                     case PacketType::BLOCKCHAIN_QUERY:
@@ -302,3 +313,7 @@ uint16_t PeerServer::remote_port() const {
         return 0;
     }
 }
+
+// Explicit template instantiations
+template void PeerServer::send_packet<Block>(const Block &obj, uint64_t packet_type);
+template void PeerServer::send_packet<PeerExchangeResponse>(const PeerExchangeResponse &obj, uint64_t packet_type);

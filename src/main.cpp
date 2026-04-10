@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include "Block.hpp"
 #include "Blockchain.hpp"
+#include "BlockPropagation.hpp"
 #include "ConsensusConfig.hpp"
 #include "NodeConfig.hpp"
 #include "PeerManager.hpp"
@@ -76,6 +77,14 @@ int main(int argc, char *argv[])
     // Create PeerManager
     PeerManager peer_manager(io_context, p2p_ssl_context, node_config.to_peer_config(), blockchainDir, bc, sync_status, node_config.network.p2p_port);
 
+    // Create BlockPropagation with relay callback
+    BlockPropagation block_propagation(bc, sync_status,
+        [&peer_manager](const Block &block, const std::string &exclude_key) {
+            peer_manager.relay_block(block, exclude_key);
+        });
+    block_propagation.set_peer_manager(&peer_manager);
+    peer_manager.set_block_propagation(&block_propagation);
+
     tcp::acceptor rpc_acceptor(io_context);
     tcp::endpoint endpoint(tcp::v6(), node_config.network.rpc_port);
     rpc_acceptor.open(endpoint.protocol());
@@ -100,6 +109,7 @@ int main(int argc, char *argv[])
     Server<PeerServer, tcp::acceptor> node_server(io_context, p2p_ssl_context, p2p_acceptor, bc);
     node_server.set_timeout(std::chrono::seconds(timeout_seconds));
     node_server.set_peer_manager(&peer_manager);
+    node_server.set_block_propagation(&block_propagation);
     node_server.start_accept();
 
     // Start peer manager (connects to seeds, starts exchange timer)

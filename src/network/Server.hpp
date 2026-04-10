@@ -9,6 +9,7 @@ namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
 class PeerManager;
+class BlockPropagation;
 
 template<typename SessionHandler, typename Acceptor>
 class Server
@@ -21,6 +22,7 @@ class Server
     std::shared_ptr<SessionHandler> last_session_handler;
     std::chrono::seconds timeout_duration{30};
     PeerManager *peer_manager = nullptr;
+    BlockPropagation *block_propagation = nullptr;
 
   public:
     Server(boost::asio::io_context &io_context, ssl::context &ssl_context, Acceptor &acceptor, IBlockchain &bc)
@@ -33,6 +35,7 @@ class Server
 
     void set_timeout(std::chrono::seconds timeout) { timeout_duration = timeout; }
     void set_peer_manager(PeerManager *pm) { peer_manager = pm; }
+    void set_block_propagation(BlockPropagation *bp) { block_propagation = bp; }
 
     void start_accept()
     {
@@ -40,6 +43,11 @@ class Server
         new_session->set_timeout(timeout_duration);
         if (peer_manager) {
             new_session->set_peer_manager(peer_manager);
+        }
+        if constexpr (requires(SessionHandler &s, BlockPropagation *bp) { s.set_block_propagation(bp); }) {
+            if (block_propagation) {
+                new_session->set_block_propagation(block_propagation);
+            }
         }
         this->last_session_handler = new_session;
 

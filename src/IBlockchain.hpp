@@ -26,6 +26,7 @@ class IBlockchain
     virtual void dumpKeys() = 0;
     virtual void generateGenesisBlock() = 0;
     virtual Block addBlock(const std::string &data, const std::vector<std::string> &keys) = 0;
+    virtual void appendBlock(const Block &block) = 0;
     virtual std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys) = 0;
     virtual Block getBlockByIndex(size_t index) = 0;
     virtual void replaceChain(const std::vector<Block> &candidateBlocks) = 0;

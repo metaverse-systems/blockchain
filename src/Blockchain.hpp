@@ -25,6 +25,7 @@ class Blockchain : public IBlockchain
     };
     void generateGenesisBlock();
     Block addBlock(const std::string &data, const std::vector<std::string> &keys);
+    void appendBlock(const Block &block);
     std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys);
     auto getBlockByIndex(size_t index) -> Block;
     void dumpBlocks();

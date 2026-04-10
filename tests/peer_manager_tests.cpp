@@ -278,9 +278,9 @@ TEST_CASE("PeerManager connection limit checks", "[PeerManager]") {
     pm.load_peers();
 
     REQUIRE(pm.can_accept_inbound());
-    pm.on_inbound_connected("10.0.0.1", 1);
+    pm.on_inbound_connected("10.0.0.1", 1, nullptr);
     REQUIRE(pm.can_accept_inbound());
-    pm.on_inbound_connected("10.0.0.2", 2);
+    pm.on_inbound_connected("10.0.0.2", 2, nullptr);
     REQUIRE(!pm.can_accept_inbound());
 
     pm.on_inbound_disconnected("10.0.0.1", 1);

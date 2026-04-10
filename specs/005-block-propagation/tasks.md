@@ -15,7 +15,7 @@
 
 **Purpose**: Build system changes and new file scaffolding
 
-- [ ] T001 Add `BlockPropagation.cpp` to `src/Makefile.am` source list and `block_propagation_tests.cpp` to `tests/Makefile.am` test binary
+- [x] T001 Add `BlockPropagation.cpp` to `src/Makefile.am` source list and `block_propagation_tests.cpp` to `tests/Makefile.am` test binary
 
 ---
 
@@ -25,10 +25,10 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Create `BlockPropagation.hpp` in `src/BlockPropagation.hpp` with class declaration: constructor taking `IBlockchain&`, `SyncStatus&`, and a relay callback `std::function<void(const Block&, const std::string&)>`; declare `on_block_received(const Block&, const std::string& sender_key)` and `process_sync_queue()` public methods; declare private members for RecentBlockCache (`std::unordered_set<std::string>` + `std::deque<std::string>`, max 512), PendingBlock pool (`std::unordered_map<std::string, PendingBlock>`, max 64, 60s TTL), SyncBlockQueue (`std::deque<std::pair<Block, std::string>>`, max 128), and per-peer BlockRateState map (`std::unordered_map<std::string, BlockRateState>`); define `PendingBlock` and `BlockRateState` structs per data-model.md
-- [ ] T003 Create `BlockPropagation.cpp` in `src/BlockPropagation.cpp` with constructor implementation storing references and relay callback; implement empty stubs for `on_block_received()` and `process_sync_queue()` that compile and link
-- [ ] T026 Add inbound session tracking to `PeerManager` in `src/PeerManager.hpp` and `src/PeerManager.cpp`: add a `std::map<std::string, std::weak_ptr<PeerServer>> inbound_sessions_` member; in `on_inbound_connected()` store the session `shared_ptr` (passed from `Server::start_accept()`); in `on_inbound_disconnected()` remove the entry. Update `Server` template in `src/network/Server.hpp` to pass the session `shared_ptr` to PeerManager on accept
-- [ ] T027 Add `virtual void appendBlock(const Block &block) = 0` to `IBlockchain` in `src/IBlockchain.hpp`; implement in `Blockchain` in `src/Blockchain.hpp` and `src/Blockchain.cpp` to insert a pre-mined block at the correct chunk position, save the chunk, and update difficulty — without running the mining loop. Mirrors `addBlock()` logic after the mining loop
+- [x] T002 Create `BlockPropagation.hpp` in `src/BlockPropagation.hpp` with class declaration: constructor taking `IBlockchain&`, `SyncStatus&`, and a relay callback `std::function<void(const Block&, const std::string&)>`; declare `on_block_received(const Block&, const std::string& sender_key)` and `process_sync_queue()` public methods; declare private members for RecentBlockCache (`std::unordered_set<std::string>` + `std::deque<std::string>`, max 512), PendingBlock pool (`std::unordered_map<std::string, PendingBlock>`, max 64, 60s TTL), SyncBlockQueue (`std::deque<std::pair<Block, std::string>>`, max 128), and per-peer BlockRateState map (`std::unordered_map<std::string, BlockRateState>`); define `PendingBlock` and `BlockRateState` structs per data-model.md
+- [x] T003 Create `BlockPropagation.cpp` in `src/BlockPropagation.cpp` with constructor implementation storing references and relay callback; implement empty stubs for `on_block_received()` and `process_sync_queue()` that compile and link
+- [x] T026 Add inbound session tracking to `PeerManager` in `src/PeerManager.hpp` and `src/PeerManager.cpp`: add a `std::map<std::string, std::weak_ptr<PeerServer>> inbound_sessions_` member; in `on_inbound_connected()` store the session `shared_ptr` (passed from `Server::start_accept()`); in `on_inbound_disconnected()` remove the entry. Update `Server` template in `src/network/Server.hpp` to pass the session `shared_ptr` to PeerManager on accept
+- [x] T027 Add `virtual void appendBlock(const Block &block) = 0` to `IBlockchain` in `src/IBlockchain.hpp`; implement in `Blockchain` in `src/Blockchain.hpp` and `src/Blockchain.cpp` to insert a pre-mined block at the correct chunk position, save the chunk, and update difficulty — without running the mining loop. Mirrors `addBlock()` logic after the mining loop
 
 **Checkpoint**: BlockPropagation compiles and links; PeerManager tracks inbound sessions; IBlockchain has appendBlock(); stubs are callable from tests
 
@@ -42,8 +42,8 @@
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Add `broadcast_block(const Block &block)` method to `PeerManager` in `src/PeerManager.hpp` and `src/PeerManager.cpp` that iterates all outbound connections (`outbound_connections_`) and all tracked inbound sessions (`inbound_sessions_`) and sends the block via `PacketType::BLOCK` to each connected peer
-- [ ] T005 [US1] Modify `RpcServer::do_read()` addBlock handler in `src/network/RpcServer.cpp` to call `peer_manager->broadcast_block(block)` after successful block creation and chunk/key save, before writing the RPC response
+- [x] T004 [US1] Add `broadcast_block(const Block &block)` method to `PeerManager` in `src/PeerManager.hpp` and `src/PeerManager.cpp` that iterates all outbound connections (`outbound_connections_`) and all tracked inbound sessions (`inbound_sessions_`) and sends the block via `PacketType::BLOCK` to each connected peer
+- [x] T005 [US1] Modify `RpcServer::do_read()` addBlock handler in `src/network/RpcServer.cpp` to call `peer_manager->broadcast_block(block)` after successful block creation and chunk/key save, before writing the RPC response
 
 **Checkpoint**: A block created via RPC is broadcast to all connected peers. US1 acceptance scenarios 1–3 satisfied.
 
@@ -57,13 +57,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T006 [US2] Implement the RecentBlockCache private methods in `src/BlockPropagation.cpp`: `cache_contains(const std::string &hash)` returning bool with O(1) lookup, and `cache_insert(const std::string &hash)` that inserts into the set and deque with FIFO eviction when capacity (512) is reached
-- [ ] T007 [US2] Implement per-peer rate limiting private method in `src/BlockPropagation.cpp`: `check_rate_limit(const std::string &sender_key)` returning bool (true if allowed); uses lazy 1-second sliding window with limit of 10 blocks/sec per research R3
-- [ ] T008 [US2] Implement the core `on_block_received()` method in `src/BlockPropagation.cpp`: check rate limit (drop + log if exceeded), check dedup cache (discard silently if seen), check sync status (enqueue if syncing), validate via `IBlockchain::isValidNewBlock()` against the current chain tip obtained from `bc.getBlockByIndex(bc.getChainBlockCount() - 1)` with `ConsensusConfig`, append valid block via `bc.appendBlock(block)`, add hash to dedup cache, invoke relay callback; for invalid blocks log and return without appending
-- [ ] T009 [US2] Implement `appendReceivedBlock()` private helper in `src/BlockPropagation.cpp` that calls `bc.appendBlock(block)` (the new IBlockchain method from T027) to insert the pre-validated block without re-mining, then calls `bc.saveChunk()` and `bc.saveKeys()`
-- [ ] T010 [US2] Modify `PeerServer::do_read_body()` BLOCK case in `src/network/PeerServer.cpp` to call `block_propagation->on_block_received(block, sender_key)` instead of just logging; construct sender_key from `remote_host()` and `remote_port()`; add `BlockPropagation*` member and setter to PeerServer
-- [ ] T011 [US2] Modify `PeerClient::do_read_body()` BLOCK case in `src/network/PeerClient.cpp` to call `block_propagation->on_block_received(block, sender_key)` instead of just logging; construct sender_key from `host` and `port`; add `BlockPropagation*` member and setter to PeerClient
-- [ ] T012 [US2] Wire `BlockPropagation` into `main()` in `src/main.cpp`: construct after `Blockchain` and `PeerManager`, pass relay callback that calls `PeerManager::relay_block()`, set `BlockPropagation*` on PeerServer and PeerClient via PeerManager or Server template
+- [x] T006 [US2] Implement the RecentBlockCache private methods in `src/BlockPropagation.cpp`: `cache_contains(const std::string &hash)` returning bool with O(1) lookup, and `cache_insert(const std::string &hash)` that inserts into the set and deque with FIFO eviction when capacity (512) is reached
+- [x] T007 [US2] Implement per-peer rate limiting private method in `src/BlockPropagation.cpp`: `check_rate_limit(const std::string &sender_key)` returning bool (true if allowed); uses lazy 1-second sliding window with limit of 10 blocks/sec per research R3
+- [x] T008 [US2] Implement the core `on_block_received()` method in `src/BlockPropagation.cpp`: check rate limit (drop + log if exceeded), check dedup cache (discard silently if seen), check sync status (enqueue if syncing), validate via `IBlockchain::isValidNewBlock()` against the current chain tip obtained from `bc.getBlockByIndex(bc.getChainBlockCount() - 1)` with `ConsensusConfig`, append valid block via `bc.appendBlock(block)`, add hash to dedup cache, invoke relay callback; for invalid blocks log and return without appending
+- [x] T009 [US2] Implement `appendReceivedBlock()` private helper in `src/BlockPropagation.cpp` that calls `bc.appendBlock(block)` (the new IBlockchain method from T027) to insert the pre-validated block without re-mining, then calls `bc.saveChunk()` and `bc.saveKeys()`
+- [x] T010 [US2] Modify `PeerServer::do_read_body()` BLOCK case in `src/network/PeerServer.cpp` to call `block_propagation->on_block_received(block, sender_key)` instead of just logging; construct sender_key from `remote_host()` and `remote_port()`; add `BlockPropagation*` member and setter to PeerServer
+- [x] T011 [US2] Modify `PeerClient::do_read_body()` BLOCK case in `src/network/PeerClient.cpp` to call `block_propagation->on_block_received(block, sender_key)` instead of just logging; construct sender_key from `host` and `port`; add `BlockPropagation*` member and setter to PeerClient
+- [x] T012 [US2] Wire `BlockPropagation` into `main()` in `src/main.cpp`: construct after `Blockchain` and `PeerManager`, pass relay callback that calls `PeerManager::relay_block()`, set `BlockPropagation*` on PeerServer and PeerClient via PeerManager or Server template
 
 **Checkpoint**: Received blocks are validated and appended or rejected. US2 acceptance scenarios 1–5 satisfied.
 
@@ -77,8 +77,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T013 [US3] Add `relay_block(const Block &block, const std::string &exclude_key)` method to `PeerManager` in `src/PeerManager.hpp` and `src/PeerManager.cpp` that sends the block to all connected outbound peers and all tracked inbound sessions except the one matching `exclude_key`
-- [ ] T014 [US3] Update the relay callback wired in `main()` (`src/main.cpp`) to call `peer_manager.relay_block(block, exclude_key)` so that `BlockPropagation::on_block_received()` triggers relay after successful append
+- [x] T013 [US3] Add `relay_block(const Block &block, const std::string &exclude_key)` method to `PeerManager` in `src/PeerManager.hpp` and `src/PeerManager.cpp` that sends the block to all connected outbound peers and all tracked inbound sessions except the one matching `exclude_key`
+- [x] T014 [US3] Update the relay callback wired in `main()` (`src/main.cpp`) to call `peer_manager.relay_block(block, exclude_key)` so that `BlockPropagation::on_block_received()` triggers relay after successful append
 
 **Checkpoint**: Blocks propagate through multi-hop relay. US3 acceptance scenarios 1–3 satisfied.
 
@@ -92,8 +92,8 @@
 
 ### Implementation for User Story 4
 
-- [ ] T015 [P] [US4] Add chain-tip index check at the start of `on_block_received()` in `src/BlockPropagation.cpp`: if `block.index < bc.getChainBlockCount()`, the block is already in the chain — discard silently (covers blocks that aged out of the dedup cache but exist on chain)
-- [ ] T016 [US4] Verify dedup cache integration in `on_block_received()` in `src/BlockPropagation.cpp`: confirm that after a block is appended the hash is inserted into the cache before relay, and that duplicate arrivals hit the cache check and return early without relay
+- [x] T015 [P] [US4] Add chain-tip index check at the start of `on_block_received()` in `src/BlockPropagation.cpp`: if `block.index < bc.getChainBlockCount()`, the block is already in the chain — discard silently (covers blocks that aged out of the dedup cache but exist on chain)
+- [x] T016 [US4] Verify dedup cache integration in `on_block_received()` in `src/BlockPropagation.cpp`: confirm that after a block is appended the hash is inserted into the cache before relay, and that duplicate arrivals hit the cache check and return early without relay
 
 **Checkpoint**: Duplicate blocks never double-append or double-relay. US4 acceptance scenarios 1–3 satisfied.
 
@@ -107,8 +107,8 @@
 
 ### Implementation for User Story 5
 
-- [ ] T017 [US5] Add `PeerManager*` member to `BlockPropagation` in `src/BlockPropagation.hpp` (set via constructor or setter); in `on_block_received()` in `src/BlockPropagation.cpp`, call `peer_manager->increment_error(host, port)` when validation fails or rate limit is exceeded; parse host and port from sender_key
-- [ ] T018 [US5] Handle deserialization failures in BLOCK case of `PeerServer::do_read_body()` in `src/network/PeerServer.cpp` and `PeerClient::do_read_body()` in `src/network/PeerClient.cpp`: wrap block deserialization in try/catch, increment peer error on failure
+- [x] T017 [US5] Add `PeerManager*` member to `BlockPropagation` in `src/BlockPropagation.hpp` (set via constructor or setter); in `on_block_received()` in `src/BlockPropagation.cpp`, call `peer_manager->increment_error(host, port)` when validation fails or rate limit is exceeded; parse host and port from sender_key
+- [x] T018 [US5] Handle deserialization failures in BLOCK case of `PeerServer::do_read_body()` in `src/network/PeerServer.cpp` and `PeerClient::do_read_body()` in `src/network/PeerClient.cpp`: wrap block deserialization in try/catch, increment peer error on failure
 
 **Checkpoint**: Invalid block senders are penalized. US5 acceptance scenarios 1–2 satisfied.
 
@@ -118,9 +118,9 @@
 
 **Purpose**: Gap-block deferral and sync-aware queueing — supports FR-009 and FR-012
 
-- [ ] T019 Implement pending pool logic in `src/BlockPropagation.cpp`: `defer_block(const Block&, const std::string& sender_key)` inserts into `pending_pool_` keyed by `block.prevHash`; `resolve_pending(const std::string& new_block_hash)` checks pool for entries matching `new_block_hash`, removes and runs `on_block_received()` recursively (with cascade); `evict_expired()` lazily removes entries older than 60s TTL; call `resolve_pending()` after every successful append; call `evict_expired()` on each insertion when pool is full
-- [ ] T020 Implement `process_sync_queue()` in `src/BlockPropagation.cpp`: iterate `sync_queue_`, for each entry re-check dedup cache then call the core validation/append/relay flow; clear queue after processing; wire call-site in `PeerClient::handle_sync_response()` in `src/network/PeerClient.cpp` to call `block_propagation->process_sync_queue()` when sync completes (`sync_status.isSyncing` transitions to false)
-- [ ] T021 Update `on_block_received()` in `src/BlockPropagation.cpp` to route gap blocks (where `block.prevHash` does not match the current chain tip's hash) into `defer_block()` instead of rejecting
+- [x] T019 Implement pending pool logic in `src/BlockPropagation.cpp`: `defer_block(const Block&, const std::string& sender_key)` inserts into `pending_pool_` keyed by `block.prevHash`; `resolve_pending(const std::string& new_block_hash)` checks pool for entries matching `new_block_hash`, removes and runs `on_block_received()` recursively (with cascade); `evict_expired()` lazily removes entries older than 60s TTL; call `resolve_pending()` after every successful append; call `evict_expired()` on each insertion when pool is full
+- [x] T020 Implement `process_sync_queue()` in `src/BlockPropagation.cpp`: iterate `sync_queue_`, for each entry re-check dedup cache then call the core validation/append/relay flow; clear queue after processing; wire call-site in `PeerClient::handle_sync_response()` in `src/network/PeerClient.cpp` to call `block_propagation->process_sync_queue()` when sync completes (`sync_status.isSyncing` transitions to false)
+- [x] T021 Update `on_block_received()` in `src/BlockPropagation.cpp` to route gap blocks (where `block.prevHash` does not match the current chain tip's hash) into `defer_block()` instead of rejecting
 
 ---
 
@@ -128,13 +128,13 @@
 
 **Purpose**: Tests, validation, cleanup
 
-- [ ] T022 [P] Create `tests/block_propagation_tests.cpp` with Catch2 unit tests: test RecentBlockCache insert/contains/eviction at capacity; test BlockRateState allows up to limit then rejects; test PendingBlock pool insert/resolve/TTL eviction; test SyncBlockQueue enqueue/process; test `on_block_received()` with valid block (mock blockchain, verify append called); test `on_block_received()` with invalid block (verify not appended, error incremented); test duplicate block (verify discarded silently)
-- [ ] T028 [P] Create `src/MockBlockchain.hpp` implementing `IBlockchain` with deterministic stubs: `appendBlock()` records the block in a `std::vector<Block>`, `addBlock()` returns a pre-built block, `getBlockByIndex()` / `getChainBlockCount()` return controlled values. Use in `block_propagation_tests.cpp` and `block_propagation_integration_tests.cpp` for test isolation per constitution §III
-- [ ] T023 [P] Update `tests/Makefile.am` to build and link `block_propagation_tests` and `block_propagation_integration_tests` binaries with `BlockPropagation.cpp` and required dependencies
-- [ ] T029 Create `tests/block_propagation_integration_tests.cpp` with Catch2 integration tests runnable via `make check`: test the full pipeline — BlockPropagation + MockBlockchain + PeerManager (with mock network) — for multi-component scenarios: (a) valid block received → validated → appended → relayed, (b) invalid block → rejected → error incremented → not relayed, (c) duplicate block → dedup cache hit → discarded, (d) gap block → deferred in pending pool → resolved when predecessor arrives. Uses MockBlockchain and mock session handlers for deterministic control
-- [ ] T030 Add a throughput benchmark test case in `tests/block_propagation_tests.cpp` (or `block_propagation_integration_tests.cpp`): feed 100 valid blocks through `on_block_received()` in a tight loop using MockBlockchain, measure wall-clock time, assert completion within 10 seconds (validates SC-007: ≥10 blocks/sec)
-- [ ] T024 Run `make check` to verify all existing and new tests pass (including integration tests and throughput benchmark)
-- [ ] T025 Run quickstart.md two-node validation scenario to confirm end-to-end block propagation
+- [x] T022 [P] Create `tests/block_propagation_tests.cpp` with Catch2 unit tests: test RecentBlockCache insert/contains/eviction at capacity; test BlockRateState allows up to limit then rejects; test PendingBlock pool insert/resolve/TTL eviction; test SyncBlockQueue enqueue/process; test `on_block_received()` with valid block (mock blockchain, verify append called); test `on_block_received()` with invalid block (verify not appended, error incremented); test duplicate block (verify discarded silently)
+- [x] T028 [P] Create `src/MockBlockchain.hpp` implementing `IBlockchain` with deterministic stubs: `appendBlock()` records the block in a `std::vector<Block>`, `addBlock()` returns a pre-built block, `getBlockByIndex()` / `getChainBlockCount()` return controlled values. Use in `block_propagation_tests.cpp` and `block_propagation_integration_tests.cpp` for test isolation per constitution §III
+- [x] T023 [P] Update `tests/Makefile.am` to build and link `block_propagation_tests` and `block_propagation_integration_tests` binaries with `BlockPropagation.cpp` and required dependencies
+- [x] T029 Create `tests/block_propagation_integration_tests.cpp` with Catch2 integration tests runnable via `make check`: test the full pipeline — BlockPropagation + MockBlockchain + PeerManager (with mock network) — for multi-component scenarios: (a) valid block received → validated → appended → relayed, (b) invalid block → rejected → error incremented → not relayed, (c) duplicate block → dedup cache hit → discarded, (d) gap block → deferred in pending pool → resolved when predecessor arrives. Uses MockBlockchain and mock session handlers for deterministic control
+- [x] T030 Add a throughput benchmark test case in `tests/block_propagation_tests.cpp` (or `block_propagation_integration_tests.cpp`): feed 100 valid blocks through `on_block_received()` in a tight loop using MockBlockchain, measure wall-clock time, assert completion within 10 seconds (validates SC-007: ≥10 blocks/sec)
+- [x] T024 Run `make check` to verify all existing and new tests pass (including integration tests and throughput benchmark)
+- [x] T025 Run quickstart.md two-node validation scenario to confirm end-to-end block propagation
 
 ---
 

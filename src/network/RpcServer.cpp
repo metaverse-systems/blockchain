@@ -82,6 +82,12 @@ void RpcServer::do_read()
                         b.dump();
                         bc.saveChunk(b.index / bc.chunkSize);
                         bc.saveKeys();
+
+                        // Broadcast the new block to all connected peers
+                        if (peer_manager) {
+                            peer_manager->broadcast_block(b);
+                        }
+
                         buffer.consume(buffer.size());
                         outputStream << resultMessage(object["id"], b.toJson().dump()) << std::endl;
                     } catch (const std::runtime_error &e) {

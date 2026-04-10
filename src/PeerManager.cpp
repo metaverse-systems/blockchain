@@ -1,5 +1,7 @@
 #include "PeerManager.hpp"
+#include "BlockPropagation.hpp"
 #include "network/PeerClient.hpp"
+#include "network/PeerServer.hpp"
 #include "network/PeerMessages.hpp"
 #include "network/PacketHeader.hpp"
 #include "utils.hpp"
@@ -225,6 +227,9 @@ void PeerManager::connect_to(const std::string &host, uint16_t port) {
 
     auto client = std::make_shared<PeerClient>(io_context_, ssl_context_, host, port, bc_, sync_status_);
     client->set_peer_manager(this);
+    if (block_propagation_) {
+        client->set_block_propagation(block_propagation_);
+    }
     outbound_connections_[key] = client;
     client->connect();
 
@@ -265,14 +270,18 @@ void PeerManager::on_peer_disconnected(const std::string &host, uint16_t port) {
     }
 }
 
-void PeerManager::on_inbound_connected(const std::string &host, uint16_t port) {
+void PeerManager::on_inbound_connected(const std::string &host, uint16_t port, std::shared_ptr<PeerServer> session) {
+    auto key = peer_key(host, port);
+    inbound_sessions_[key] = session;
     inbound_count_++;
-    logMessage("INFO", "Inbound connection from " + peer_key(host, port) + " (total: " + std::to_string(inbound_count_) + ")");
+    logMessage("INFO", "Inbound connection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
 }
 
 void PeerManager::on_inbound_disconnected(const std::string &host, uint16_t port) {
+    auto key = peer_key(host, port);
+    inbound_sessions_.erase(key);
     if (inbound_count_ > 0) inbound_count_--;
-    logMessage("INFO", "Inbound disconnection from " + peer_key(host, port) + " (total: " + std::to_string(inbound_count_) + ")");
+    logMessage("INFO", "Inbound disconnection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
 }
 
 // --- Peer Exchange ---
@@ -533,4 +542,49 @@ void PeerManager::disconnect_and_remove(const std::string &host, uint16_t port) 
     outbound_connections_.erase(key);
     remove_peer(host, port);
     save_peers();
+}
+
+// --- Block Propagation ---
+
+void PeerManager::broadcast_block(const Block &block) {
+    // Send to all outbound connections
+    for (auto &[key, client] : outbound_connections_) {
+        if (client && client->is_connected()) {
+            client->send(block, PacketType::BLOCK);
+        }
+    }
+
+    // Send to all tracked inbound sessions
+    for (auto it = inbound_sessions_.begin(); it != inbound_sessions_.end(); ) {
+        auto session = it->second.lock();
+        if (session) {
+            session->send_packet_public(block, PacketType::BLOCK);
+            ++it;
+        } else {
+            it = inbound_sessions_.erase(it);
+        }
+    }
+}
+
+void PeerManager::relay_block(const Block &block, const std::string &exclude_key) {
+    // Send to all outbound connections except the sender
+    for (auto &[key, client] : outbound_connections_) {
+        if (key == exclude_key) continue;
+        if (client && client->is_connected()) {
+            client->send(block, PacketType::BLOCK);
+        }
+    }
+
+    // Send to all tracked inbound sessions except the sender
+    for (auto it = inbound_sessions_.begin(); it != inbound_sessions_.end(); ) {
+        auto session = it->second.lock();
+        if (session) {
+            if (it->first != exclude_key) {
+                session->send_packet_public(block, PacketType::BLOCK);
+            }
+            ++it;
+        } else {
+            it = inbound_sessions_.erase(it);
+        }
+    }
 }

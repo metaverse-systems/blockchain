@@ -75,6 +75,25 @@ Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vec
 }
 
 template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::appendBlock(const Block &block)
+{
+    size_t chunkIndex = block.index / this->chunkSize;
+
+    while (this->chain.size() <= chunkIndex) {
+        this->chain.emplace_back(ChunkHandler(this->chain.size(), this->blockchainPath));
+    }
+
+    Block b = block;
+    this->chain[chunkIndex].push_back(b);
+
+    // Check if difficulty adjustment is needed
+    size_t totalBlocks = this->getChainBlockCount();
+    if (totalBlocks > 1 && (totalBlocks - 1) % this->config.adjustmentWindow == 0) {
+        this->calculateNewDifficulty();
+    }
+}
+
+template<typename ChunkHandler>
 auto Blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
 {
     size_t chunkIndex = index / this->chunkSize;

@@ -16,6 +16,8 @@
 #include "json.hpp"
 
 class PeerClient;
+class PeerServer;
+class BlockPropagation;
 
 class PeerManager {
 public:
@@ -46,7 +48,7 @@ public:
     void connect_to(const std::string &host, uint16_t port);
     bool can_accept_inbound() const;
     void on_peer_disconnected(const std::string &host, uint16_t port);
-    void on_inbound_connected(const std::string &host, uint16_t port);
+    void on_inbound_connected(const std::string &host, uint16_t port, std::shared_ptr<PeerServer> session);
     void on_inbound_disconnected(const std::string &host, uint16_t port);
 
     // Peer exchange
@@ -86,6 +88,11 @@ public:
     // Disconnect and remove a peer (used by removePeer RPC)
     void disconnect_and_remove(const std::string &host, uint16_t port);
 
+    // Block propagation
+    void broadcast_block(const Block &block);
+    void relay_block(const Block &block, const std::string &exclude_key);
+    void set_block_propagation(BlockPropagation *bp) { block_propagation_ = bp; }
+
     // Per-peer backoff state
     struct BackoffState {
         uint32_t current_delay = 0;
@@ -107,7 +114,9 @@ private:
 
     // Connection tracking
     std::map<std::string, std::shared_ptr<PeerClient>> outbound_connections_; // "host:port" -> PeerClient
+    std::map<std::string, std::weak_ptr<PeerServer>> inbound_sessions_; // "host:port" -> PeerServer
     size_t inbound_count_ = 0;
+    BlockPropagation *block_propagation_ = nullptr;
 
     // Exchange timer
     std::shared_ptr<boost::asio::steady_timer> exchange_timer_;

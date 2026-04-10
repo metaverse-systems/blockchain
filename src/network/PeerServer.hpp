@@ -16,12 +16,14 @@ namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
 
 class PeerManager;
+class BlockPropagation;
 
 class PeerServer : public SessionHandler, public std::enable_shared_from_this<PeerServer>
 {
   private:
     boost::asio::streambuf buffer;
     PeerManager *peer_manager = nullptr;
+    BlockPropagation *block_propagation_ = nullptr;
 
   protected:
     std::shared_ptr<SessionHandler> shared_self() override { return shared_from_this(); }
@@ -32,6 +34,10 @@ class PeerServer : public SessionHandler, public std::enable_shared_from_this<Pe
     static std::shared_ptr<PeerServer> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
     void set_peer_manager(PeerManager *pm) { peer_manager = pm; }
+    void set_block_propagation(BlockPropagation *bp) { block_propagation_ = bp; }
+
+    template<typename T>
+    void send_packet_public(const T &obj, uint64_t packet_type) { send_packet(obj, packet_type); }
 
   private:
     void do_read_header();
