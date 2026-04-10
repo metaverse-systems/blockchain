@@ -9,6 +9,10 @@ void Chunk::save()
     std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << " in " << path << std::endl;
     
     std::ofstream ofs(path, std::ios::binary);
+    if(!ofs.good())
+    {
+        throw std::runtime_error("Error: Could not write to file " + ss.str());
+    }
     boost::archive::binary_oarchive oa(ofs);
     oa << *this;
 

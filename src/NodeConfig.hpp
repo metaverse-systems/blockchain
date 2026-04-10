@@ -31,6 +31,11 @@ public:
     // Peer discovery settings
     PeerConfig peers;
 
+    // Streams settings
+    struct StreamsConfig {
+        std::vector<std::string> allowed_streams;
+    } streams;
+
     // Load config from a JSON file; throws on parse/validation errors
     static NodeConfig load(const std::filesystem::path &config_path);
 

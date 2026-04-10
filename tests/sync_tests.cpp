@@ -3,6 +3,7 @@
 #include "../src/Blockchain.hpp"
 #include "../src/MockChunk.hpp"
 #include "../src/ConsensusConfig.hpp"
+#include "../src/StreamEntry.hpp"
 #include "../src/SyncState.hpp"
 #include "../src/network/SyncMessages.hpp"
 #include "../src/network/PacketHeader.hpp"
@@ -17,10 +18,15 @@
 static Block mineTestBlock(size_t index, uint64_t timestamp, const std::string &prevHash,
                            const std::string &data, uint32_t difficulty)
 {
+    StreamEntry entry;
+    entry.stream = "test";
+    entry.key = "k";
+    entry.data = data;
+
     Block b;
     b.index = index;
     b.timestamp = timestamp;
-    b.data = data;
+    b.entries = {entry};
     b.prevHash = prevHash;
     b.difficulty = difficulty;
     b.nonce = 0;
@@ -36,7 +42,7 @@ static Block mineTestBlock(size_t index, uint64_t timestamp, const std::string &
 static std::vector<Block> buildValidChain(size_t numBlocks, uint32_t difficulty = 1)
 {
     std::vector<Block> chain;
-    Block genesis(0, 0, "", "GENESIS ~~DEVICE~~BLOCK", 0, 0);
+    Block genesis(0, 0, "", {}, 0, 0);
     chain.push_back(genesis);
 
     for (size_t i = 1; i < numBlocks; i++) {
@@ -154,7 +160,7 @@ TEST_CASE("PeerServer builds correct SyncResponse for BLOCKCHAIN_QUERY", "[Sync]
 
     // Add 5 blocks (total = 6 including genesis)
     for (int i = 0; i < 5; i++) {
-        bc.addBlock("block " + std::to_string(i + 1), {"key"});
+        bc.publish("test", "key", "block " + std::to_string(i + 1), {"key"});
     }
 
     REQUIRE(bc.getChainBlockCount() == 6);
@@ -184,7 +190,7 @@ TEST_CASE("PeerServer sends only missing chunks for incremental sync", "[Sync][P
 
     // Chain has 6 blocks (1 chunk, since < 100)
     for (int i = 0; i < 5; i++) {
-        bc.addBlock("block " + std::to_string(i + 1), {"key"});
+        bc.publish("test", "key", "block " + std::to_string(i + 1), {"key"});
     }
 
     // If requester has height=6 (equal), no sync needed
@@ -293,7 +299,7 @@ TEST_CASE("PeerClient sends BLOCKCHAIN_QUERY with height > 1 for incremental syn
 
     // Add blocks so height > 1
     for (int i = 0; i < 3; i++) {
-        bc.addBlock("block " + std::to_string(i + 1), {"key"});
+        bc.publish("test", "key", "block " + std::to_string(i + 1), {"key"});
     }
 
     SyncQuery query;
@@ -410,8 +416,8 @@ TEST_CASE("PeerClient keeps local chain when peer chain is same length", "[Sync]
     Blockchain<MockChunk> bc(".", config);
 
     // Add 2 blocks (total 3)
-    bc.addBlock("local block 1", {"key"});
-    bc.addBlock("local block 2", {"key"});
+    bc.publish("test", "key", "local block 1", {"key"});
+    bc.publish("test", "key", "local block 2", {"key"});
     REQUIRE(bc.getChainBlockCount() == 3);
 
     // Build candidate chain of same length
@@ -430,8 +436,8 @@ TEST_CASE("PeerClient skips sync when peer total_chain_height <= local height", 
     config.miningTimeout = 30;
     Blockchain<MockChunk> bc(".", config);
 
-    bc.addBlock("block 1", {"key"});
-    bc.addBlock("block 2", {"key"});
+    bc.publish("test", "key", "block 1", {"key"});
+    bc.publish("test", "key", "block 2", {"key"});
 
     size_t local_height = bc.getChainBlockCount(); // 3
 

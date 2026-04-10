@@ -3,8 +3,11 @@
 #include "../Block.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
+#include "../StreamEntry.hpp"
 #include "../PeerManager.hpp"
 #include <stdexcept>
+#include <algorithm>
+#include <regex>
 
 RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
         : SessionHandler(std::move(*socket_ptr), bc) {}
@@ -67,9 +70,9 @@ void RpcServer::do_read()
                     return;
                 }
 
-                if(object["method"] == "addBlock")
+                if(object["method"] == "publish")
                 {
-                    // Gate addBlock during sync
+                    // Gate publish during sync
                     if (sync_status && sync_status->isSyncing.load()) {
                         buffer.consume(buffer.size());
                         outputStream << syncInProgressMessage(object["id"]) << std::endl;
@@ -77,8 +80,74 @@ void RpcServer::do_read()
                         return;
                     }
 
+                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    // Validate stream param
+                    if (!object["params"].contains("stream") || !object["params"]["stream"].is_string()
+                        || object["params"]["stream"].get<std::string>().empty()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream is required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto stream = object["params"]["stream"].get<std::string>();
+
+                    // Validate stream name format
+                    if (!isValidStreamName(stream)) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream name invalid") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    // Validate key param
+                    if (!object["params"].contains("key") || !object["params"]["key"].is_string()
+                        || object["params"]["key"].get<std::string>().empty()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: key is required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto key = object["params"]["key"].get<std::string>();
+
+                    // Get data (optional, defaults to empty)
+                    std::string data;
+                    if (object["params"].contains("data") && object["params"]["data"].is_string()) {
+                        data = object["params"]["data"].get<std::string>();
+                    }
+
+                    // Validate data size
+                    static constexpr size_t kMaxDataSize = 128ULL * 1024 * 1024;
+                    if (data.size() > kMaxDataSize) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: data exceeds 128 MB limit") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    // Per-node stream permissions
+                    if (!allowed_streams.empty()) {
+                        if (std::find(allowed_streams.begin(), allowed_streams.end(), stream) == allowed_streams.end()) {
+                            buffer.consume(buffer.size());
+                            outputStream << errorMessage(object["id"], -32003, "Stream not permitted on this node") << std::endl;
+                            this->do_write();
+                            return;
+                        }
+                    }
+
+                    // Get optional keys for index
+                    std::vector<std::string> keys;
+                    if (object["params"].contains("keys") && object["params"]["keys"].is_array()) {
+                        keys = object["params"]["keys"].get<std::vector<std::string>>();
+                    }
+
                     try {
-                        Block b = bc.addBlock(object["params"]["data"], object["params"]["keys"]);
+                        Block b = bc.publish(stream, key, data, keys);
                         b.dump();
                         bc.saveChunk(b.index / bc.chunkSize);
                         bc.saveKeys();
@@ -93,6 +162,110 @@ void RpcServer::do_read()
                     } catch (const std::runtime_error &e) {
                         buffer.consume(buffer.size());
                         outputStream << miningTimeoutMessage(object["id"], e.what()) << std::endl;
+                    }
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "createStream")
+                {
+                    if (object["params"] == nullptr || !object["params"].contains("name")
+                        || !object["params"]["name"].is_string()
+                        || object["params"]["name"].get<std::string>().empty()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: name is required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto name = object["params"]["name"].get<std::string>();
+                    if (!isValidStreamName(name)) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream name invalid") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    try {
+                        bc.createStream(name);
+                        buffer.consume(buffer.size());
+                        outputStream << resultMessage(object["id"], "Stream '" + name + "' created") << std::endl;
+                    } catch (const std::runtime_error &) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32004, "Stream already exists") << std::endl;
+                    }
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "listStreams")
+                {
+                    auto streams = bc.listStreams();
+                    nlohmann::json arr = nlohmann::json::array();
+                    for (const auto &s : streams) {
+                        arr.push_back(s);
+                    }
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], arr.dump()) << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "getStreamEntries")
+                {
+                    if (object["params"] == nullptr || !object["params"].contains("stream")
+                        || !object["params"]["stream"].is_string()
+                        || object["params"]["stream"].get<std::string>().empty()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream is required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto stream = object["params"]["stream"].get<std::string>();
+                    std::string key;
+                    if (object["params"].contains("key") && object["params"]["key"].is_string()) {
+                        key = object["params"]["key"].get<std::string>();
+                    }
+                    auto entries = bc.getStreamEntries(stream, key);
+                    nlohmann::json arr = nlohmann::json::array();
+                    for (const auto &[blockIdx, entry] : entries) {
+                        nlohmann::json ej;
+                        ej["block_index"] = blockIdx;
+                        ej["stream"] = entry.stream;
+                        ej["key"] = entry.key;
+                        ej["data"] = entry.data;
+                        arr.push_back(ej);
+                    }
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], arr.dump()) << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "getStreamEntry")
+                {
+                    if (object["params"] == nullptr
+                        || !object["params"].contains("stream") || !object["params"]["stream"].is_string()
+                        || object["params"]["stream"].get<std::string>().empty()
+                        || !object["params"].contains("key") || !object["params"]["key"].is_string()
+                        || object["params"]["key"].get<std::string>().empty()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream and key are required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto stream = object["params"]["stream"].get<std::string>();
+                    auto key = object["params"]["key"].get<std::string>();
+                    try {
+                        auto [blockIdx, entry] = bc.getStreamEntry(stream, key);
+                        nlohmann::json ej;
+                        ej["block_index"] = blockIdx;
+                        ej["stream"] = entry.stream;
+                        ej["key"] = entry.key;
+                        ej["data"] = entry.data;
+                        buffer.consume(buffer.size());
+                        outputStream << resultMessage(object["id"], ej.dump()) << std::endl;
+                    } catch (const std::runtime_error &) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32601, "Entry not found") << std::endl;
                     }
                     this->do_write();
                     return;
@@ -432,7 +605,7 @@ nlohmann::json RpcServer::syncInProgressMessage(std::string id)
     response["jsonrpc"] = "2.0";
     response["error"]["code"] = -32001;
     response["error"]["message"] = "Node is syncing";
-    response["error"]["data"] = "addBlock is unavailable while chain synchronization is in progress";
+    response["error"]["data"] = "publish is unavailable while chain synchronization is in progress";
     response["id"] = id;
     return response;
 }

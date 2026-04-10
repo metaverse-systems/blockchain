@@ -162,26 +162,26 @@ TEST_CASE("requestSync RPC returns error -32002 when sync in progress", "[RPC][S
     REQUIRE(msg["error"]["message"] == "Sync already in progress");
 }
 
-TEST_CASE("addBlock RPC returns error -32001 when sync is active", "[RPC][Sync]")
+TEST_CASE("publish RPC returns error -32001 when sync is active", "[RPC][Sync]")
 {
     nlohmann::json msg;
     msg["jsonrpc"] = "2.0";
     msg["error"]["code"] = -32001;
     msg["error"]["message"] = "Node is syncing";
-    msg["error"]["data"] = "addBlock is unavailable while chain synchronization is in progress";
+    msg["error"]["data"] = "publish is unavailable while chain synchronization is in progress";
     msg["id"] = "1";
 
     REQUIRE(msg["error"]["code"] == -32001);
     REQUIRE(msg["error"]["message"] == "Node is syncing");
-    REQUIRE(msg["error"]["data"] == "addBlock is unavailable while chain synchronization is in progress");
+    REQUIRE(msg["error"]["data"] == "publish is unavailable while chain synchronization is in progress");
 }
 
-TEST_CASE("addBlock RPC succeeds when sync is not active", "[RPC][Sync]")
+TEST_CASE("publish RPC succeeds when sync is not active", "[RPC][Sync]")
 {
     SyncStatus status;
     REQUIRE_FALSE(status.isSyncing.load());
 
-    // When not syncing, addBlock should proceed normally
+    // When not syncing, publish should proceed normally
     // Verify the flag is false by default
     bool should_block = status.isSyncing.load();
     REQUIRE_FALSE(should_block);
@@ -222,4 +222,107 @@ TEST_CASE("requestSync RPC returns error -32003 when no peer connected", "[RPC][
 
     REQUIRE(msg["error"]["code"] == -32003);
     REQUIRE(msg["error"]["message"] == "No peer connected");
+}
+
+// ==========================================================================
+// Publish RPC Tests
+// ==========================================================================
+
+TEST_CASE("publish RPC error codes are correct", "[RPC][publish]")
+{
+    SECTION("Missing stream param returns -32602") {
+        nlohmann::json msg;
+        msg["jsonrpc"] = "2.0";
+        msg["error"]["code"] = -32602;
+        msg["error"]["message"] = "Invalid params: stream is required";
+        msg["id"] = "1";
+        REQUIRE(msg["error"]["code"] == -32602);
+    }
+
+    SECTION("Missing key param returns -32602") {
+        nlohmann::json msg;
+        msg["jsonrpc"] = "2.0";
+        msg["error"]["code"] = -32602;
+        msg["error"]["message"] = "Invalid params: key is required";
+        msg["id"] = "1";
+        REQUIRE(msg["error"]["code"] == -32602);
+    }
+
+    SECTION("Invalid stream name returns -32602") {
+        nlohmann::json msg;
+        msg["jsonrpc"] = "2.0";
+        msg["error"]["code"] = -32602;
+        msg["error"]["message"] = "Invalid params: stream name invalid";
+        msg["id"] = "1";
+        REQUIRE(msg["error"]["code"] == -32602);
+    }
+
+    SECTION("Data exceeding 128 MB returns -32602") {
+        nlohmann::json msg;
+        msg["jsonrpc"] = "2.0";
+        msg["error"]["code"] = -32602;
+        msg["error"]["message"] = "Invalid params: data exceeds 128 MB limit";
+        msg["id"] = "1";
+        REQUIRE(msg["error"]["code"] == -32602);
+    }
+
+    SECTION("Stream not permitted returns -32003") {
+        nlohmann::json msg;
+        msg["jsonrpc"] = "2.0";
+        msg["error"]["code"] = -32003;
+        msg["error"]["message"] = "Stream not permitted on this node";
+        msg["id"] = "1";
+        REQUIRE(msg["error"]["code"] == -32003);
+    }
+
+    SECTION("Publish during sync returns -32001") {
+        nlohmann::json msg;
+        msg["jsonrpc"] = "2.0";
+        msg["error"]["code"] = -32001;
+        msg["error"]["message"] = "Node is syncing";
+        msg["id"] = "1";
+        REQUIRE(msg["error"]["code"] == -32001);
+    }
+}
+
+TEST_CASE("Stream entry validation on blocks", "[RPC][StreamEntry]")
+{
+    REQUIRE(isValidStreamName("valid-name_123"));
+    REQUIRE_FALSE(isValidStreamName(""));
+    REQUIRE_FALSE(isValidStreamName("bad name with spaces"));
+    REQUIRE_FALSE(isValidStreamName(std::string(257, 'x')));
+}
+
+// ==========================================================================
+// Stream Query RPC Tests
+// ==========================================================================
+
+TEST_CASE("getStreamEntries error codes", "[RPC][streams]")
+{
+    nlohmann::json msg;
+    msg["jsonrpc"] = "2.0";
+    msg["error"]["code"] = -32602;
+    msg["error"]["message"] = "Invalid params: stream is required";
+    msg["id"] = "1";
+    REQUIRE(msg["error"]["code"] == -32602);
+}
+
+TEST_CASE("getStreamEntry error for nonexistent", "[RPC][streams]")
+{
+    nlohmann::json msg;
+    msg["jsonrpc"] = "2.0";
+    msg["error"]["code"] = -32601;
+    msg["error"]["message"] = "Entry not found";
+    msg["id"] = "1";
+    REQUIRE(msg["error"]["code"] == -32601);
+}
+
+TEST_CASE("createStream duplicate error", "[RPC][streams]")
+{
+    nlohmann::json msg;
+    msg["jsonrpc"] = "2.0";
+    msg["error"]["code"] = -32004;
+    msg["error"]["message"] = "Stream already exists";
+    msg["id"] = "1";
+    REQUIRE(msg["error"]["code"] == -32004);
 }

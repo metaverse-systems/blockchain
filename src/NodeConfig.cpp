@@ -35,6 +35,9 @@ nlohmann::json NodeConfig::default_json() {
             {"reconnect_max_delay_seconds", 300},
             {"ban_threshold_errors", 10},
             {"ban_duration_seconds", 3600}
+        }},
+        {"streams", {
+            {"allowed_streams", nlohmann::json::array()}
         }}
     };
 }
@@ -125,6 +128,14 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
         if (p.contains("reconnect_max_delay_seconds")) p["reconnect_max_delay_seconds"].get_to(cfg.peers.reconnect_max_delay_seconds);
         if (p.contains("ban_threshold_errors")) p["ban_threshold_errors"].get_to(cfg.peers.ban_threshold_errors);
         if (p.contains("ban_duration_seconds")) p["ban_duration_seconds"].get_to(cfg.peers.ban_duration_seconds);
+    }
+
+    // Streams
+    if (j.contains("streams")) {
+        auto &s = j["streams"];
+        if (s.contains("allowed_streams") && s["allowed_streams"].is_array()) {
+            cfg.streams.allowed_streams = s["allowed_streams"].get<std::vector<std::string>>();
+        }
     }
 
     cfg.validate();

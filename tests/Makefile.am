@@ -4,6 +4,7 @@ check_PROGRAMS = blockchain_tests block_propagation_tests block_propagation_inte
 TESTS = $(check_PROGRAMS)
 blockchain_tests_SOURCES = block_tests.cpp server_tests.cpp consensus_tests.cpp sync_tests.cpp \
     node_config_tests.cpp peer_manager_tests.cpp peer_discovery_tests.cpp \
+    stream_entry_tests.cpp stream_tests.cpp \
     ../src/Chunk.cpp ../src/Block.cpp ../src/Blockchain.cpp ../src/utils.cpp ../src/NodeConfig.cpp ../src/PeerManager.cpp \
     ../src/BlockPropagation.cpp \
     ../src/network/PeerClient.cpp ../src/network/PeerServer.cpp ../src/network/RpcServer.cpp

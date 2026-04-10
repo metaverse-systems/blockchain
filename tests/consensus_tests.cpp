@@ -3,6 +3,7 @@
 #include "../src/Blockchain.hpp"
 #include "../src/MockChunk.hpp"
 #include "../src/ConsensusConfig.hpp"
+#include "../src/StreamEntry.hpp"
 #include "../src/utils.hpp"
 #include <chrono>
 #include <cstdlib>
@@ -11,10 +12,15 @@
 static Block mineBlock(size_t index, uint64_t timestamp, const std::string &prevHash,
                        const std::string &data, uint32_t difficulty)
 {
+    StreamEntry entry;
+    entry.stream = "test";
+    entry.key = "k";
+    entry.data = data;
+
     Block b;
     b.index = index;
     b.timestamp = timestamp;
-    b.data = data;
+    b.entries = {entry};
     b.prevHash = prevHash;
     b.difficulty = difficulty;
     b.nonce = 0;
@@ -77,7 +83,7 @@ TEST_CASE("isValidNewBlock accepts block with valid PoW", "[Consensus][US1]")
     config.maxFutureTimestamp = 120;
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block genesis(0, 0, "", "GENESIS BLOCK", 0, 0);
+    Block genesis(0, 0, "", {}, 0, 0);
     Block valid = mineBlock(1, now, genesis.hash, "test data", 1);
 
     REQUIRE(IBlockchain::isValidNewBlock(valid, genesis, config));
@@ -90,13 +96,18 @@ TEST_CASE("isValidNewBlock rejects block with invalid PoW", "[Consensus][US1]")
     config.maxFutureTimestamp = 120;
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block genesis(0, 0, "", "GENESIS BLOCK", 0, 0);
+    Block genesis(0, 0, "", {}, 0, 0);
 
     // Create a block with difficulty=4 but don't actually mine it
+    StreamEntry entry;
+    entry.stream = "test";
+    entry.key = "k";
+    entry.data = "bad block";
+
     Block invalid;
     invalid.index = 1;
     invalid.timestamp = now;
-    invalid.data = "bad block";
+    invalid.entries = {entry};
     invalid.prevHash = genesis.hash;
     invalid.difficulty = 4;
     invalid.nonce = 0;
@@ -116,7 +127,7 @@ TEST_CASE("isValidNewBlock rejects block with incorrect prevHash", "[Consensus][
     config.maxFutureTimestamp = 120;
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block genesis(0, 0, "", "GENESIS BLOCK", 0, 0);
+    Block genesis(0, 0, "", {}, 0, 0);
     Block bad = mineBlock(1, now, "wrong_prev_hash", "test data", 1);
 
     REQUIRE_FALSE(IBlockchain::isValidNewBlock(bad, genesis, config));
@@ -129,7 +140,7 @@ TEST_CASE("isValidNewBlock exempts genesis block from PoW", "[Consensus][US1]")
     config.maxFutureTimestamp = 120;
 
     // Genesis block with difficulty=0, nonce=0 — no PoW needed
-    Block genesis(0, 0, "", "GENESIS BLOCK", 0, 0);
+    Block genesis(0, 0, "", {}, 0, 0);
     Block dummy; // dummy previous block for genesis validation
     dummy.index = 0; // Will fail index check for non-genesis, but genesis is index 0
     // Genesis block check: index == 0 means exempt from PoW
@@ -147,7 +158,7 @@ TEST_CASE("isValidNewBlock rejects block with future timestamp", "[Consensus][US
     config.maxFutureTimestamp = 120;
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block genesis(0, 0, "", "GENESIS BLOCK", 0, 0);
+    Block genesis(0, 0, "", {}, 0, 0);
 
     // Create block with timestamp 200s in the future (> 120s allowed)
     Block futureBlock = mineBlock(1, now + 200, genesis.hash, "future data", 1);
@@ -162,7 +173,7 @@ TEST_CASE("isValidNewBlock rejects block below minDifficulty", "[Consensus][US1]
     config.maxFutureTimestamp = 120;
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block genesis(0, 0, "", "GENESIS BLOCK", 0, 0);
+    Block genesis(0, 0, "", {}, 0, 0);
 
     // Mine a block with difficulty=1 but config requires minDifficulty=4
     Block lowDiff = mineBlock(1, now, genesis.hash, "low diff", 1);
@@ -173,7 +184,7 @@ TEST_CASE("isValidNewBlock rejects block below minDifficulty", "[Consensus][US1]
 // ==========================================================================
 // US2: Mining tests
 // ==========================================================================
-TEST_CASE("addBlock returns block with valid PoW at difficulty 1", "[Consensus][US2]")
+TEST_CASE("publish returns block with valid PoW at difficulty 1", "[Consensus][US2]")
 {
     ConsensusConfig config;
     config.initialDifficulty = 1;
@@ -181,7 +192,7 @@ TEST_CASE("addBlock returns block with valid PoW at difficulty 1", "[Consensus][
     config.miningTimeout = 10;
     Blockchain<MockChunk> bc(".", config);
 
-    Block b = bc.addBlock("mining test", {"key1"});
+    Block b = bc.publish("test", "key1", "mining test", {"key1"});
 
     REQUIRE(b.index == 1);
     REQUIRE(b.difficulty == 1);
@@ -197,7 +208,7 @@ TEST_CASE("Mined block hash has required leading zero bits", "[Consensus][US2]")
     config.miningTimeout = 10;
     Blockchain<MockChunk> bc(".", config);
 
-    Block b = bc.addBlock("difficulty 2 test", {"key2"});
+    Block b = bc.publish("test", "key2", "difficulty 2 test", {"key2"});
 
     REQUIRE(b.difficulty == 2);
     REQUIRE(checkLeadingZeroBits(b.hash, 2));
@@ -214,7 +225,7 @@ TEST_CASE("Mined block nonce is non-zero for difficulty >= 1", "[Consensus][US2]
     // Mine several blocks — at least some should have non-zero nonce
     bool foundNonZero = false;
     for (int i = 0; i < 10; i++) {
-        Block b = bc.addBlock("nonce_test_" + std::to_string(i), {"k"});
+        Block b = bc.publish("test", "k", "nonce_test_" + std::to_string(i), {"k"});
         if (b.nonce > 0) foundNonZero = true;
     }
     // With difficulty 1, statistically very likely to have non-zero nonce
@@ -230,7 +241,7 @@ TEST_CASE("Mining timeout throws when difficulty impossibly high", "[Consensus][
     config.miningTimeout = 1; // 1 second timeout
     Blockchain<MockChunk> bc(".", config);
 
-    REQUIRE_THROWS_AS(bc.addBlock("impossible", {"key"}), std::runtime_error);
+    REQUIRE_THROWS_AS(bc.publish("test", "key", "impossible", {"key"}), std::runtime_error);
 }
 
 // ==========================================================================
@@ -256,8 +267,8 @@ TEST_CASE("Longer valid chain replaces shorter chain", "[Consensus][US3]")
 
     bc.replaceChain(candidate);
     REQUIRE(bc.getChainBlockCount() == 3);
-    REQUIRE(bc.getBlockByIndex(1).data == "candidate block 1");
-    REQUIRE(bc.getBlockByIndex(2).data == "candidate block 2");
+    REQUIRE(bc.getBlockByIndex(1).entries[0].data == "candidate block 1");
+    REQUIRE(bc.getBlockByIndex(2).entries[0].data == "candidate block 2");
 }
 
 TEST_CASE("Shorter chain does not replace longer chain", "[Consensus][US3]")
@@ -269,8 +280,8 @@ TEST_CASE("Shorter chain does not replace longer chain", "[Consensus][US3]")
     config.maxReorgDepth = 100;
     Blockchain<MockChunk> bc(".", config);
 
-    bc.addBlock("block 1", {"k"});
-    bc.addBlock("block 2", {"k"});
+    bc.publish("test", "k", "block 1", {"k"});
+    bc.publish("test", "k", "block 2", {"k"});
     size_t countBefore = bc.getChainBlockCount();
 
     // Try to replace with a shorter chain (just genesis + 1 block)
@@ -337,7 +348,7 @@ TEST_CASE("keyIndexMap is rebuilt after chain replacement", "[Consensus][US3]")
     Blockchain<MockChunk> bc(".", config);
 
     // Add blocks with keys
-    bc.addBlock("old data", {"old_key"});
+    bc.publish("test", "old_key", "old data", {"old_key"});
 
     // Build longer candidate chain
     Block genesis = bc.getBlockByIndex(0);

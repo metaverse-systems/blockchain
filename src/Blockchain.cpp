@@ -8,20 +8,36 @@
 #include <iomanip>
 #include <cmath>
 #include <stdexcept>
+#include <algorithm>
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/set.hpp>
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::generateGenesisBlock()
 {
     this->chain.emplace_back(ChunkHandler(0, this->blockchainPath));
-    this->chain.at(0).emplace_back(Block(0, 0, "", "GENESIS ~~DEVICE~~BLOCK", 0, 0));
+    this->chain.at(0).emplace_back(Block(0, 0, "", {}, 0, 0));
 }
 
 template<typename ChunkHandler>
-Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vector<std::string> &keys)
+Block Blockchain<ChunkHandler>::publish(const std::string &stream, const std::string &key,
+                                         const std::string &data, const std::vector<std::string> &keys)
 {
+    // Auto-create stream if needed
+    if (this->streamRegistry.find(stream) == this->streamRegistry.end()) {
+        this->streamRegistry.insert(stream);
+    }
+
+    StreamEntry entry;
+    entry.stream = stream;
+    entry.key = key;
+    entry.data = data;
+
+    std::vector<StreamEntry> entries;
+    entries.push_back(entry);
+
     auto unix_timestamp = static_cast<uint64_t>(
         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
@@ -29,15 +45,13 @@ Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vec
     auto previousBlock = currentChunk.back();
 
     if (currentChunk.size() == this->chunkSize) {
-        currentChunk = ChunkHandler(this->chain.size(), this->blockchainPath);
-        this->chain.push_back(currentChunk);
+        this->chain.emplace_back(ChunkHandler(this->chain.size(), this->blockchainPath));
     }
 
-    // Create candidate block with current difficulty
     Block candidate;
     candidate.index = previousBlock.index + 1;
     candidate.timestamp = unix_timestamp;
-    candidate.data = data;
+    candidate.entries = entries;
     candidate.prevHash = previousBlock.hash;
     candidate.difficulty = this->currentDifficulty;
     candidate.nonce = 0;
@@ -60,9 +74,13 @@ Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vec
         }
     }
 
-    for (auto &key : keys) {
-        this->keyIndexMap[key].push_back(candidate.index);
+    for (auto &k : keys) {
+        this->keyIndexMap[k].push_back(candidate.index);
     }
+
+    // Update stream index
+    this->streamKeyIndex[stream][key].push_back(candidate.index);
+
     this->chain.at(candidate.index / this->chunkSize).push_back(candidate);
 
     // Check if difficulty adjustment is needed
@@ -72,6 +90,99 @@ Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vec
     }
 
     return candidate;
+}
+
+template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::createStream(const std::string &name)
+{
+    if (this->streamRegistry.find(name) != this->streamRegistry.end()) {
+        throw std::runtime_error("Stream already exists: " + name);
+    }
+    this->streamRegistry.insert(name);
+}
+
+template<typename ChunkHandler>
+std::set<std::string> Blockchain<ChunkHandler>::listStreams() const
+{
+    return this->streamRegistry;
+}
+
+template<typename ChunkHandler>
+std::vector<std::pair<size_t, StreamEntry>> Blockchain<ChunkHandler>::getStreamEntries(
+    const std::string &stream, const std::string &key) const
+{
+    std::vector<std::pair<size_t, StreamEntry>> results;
+    auto streamIt = this->streamKeyIndex.find(stream);
+    if (streamIt == this->streamKeyIndex.end()) {
+        return results;
+    }
+
+    if (!key.empty()) {
+        auto keyIt = streamIt->second.find(key);
+        if (keyIt == streamIt->second.end()) {
+            return results;
+        }
+        for (auto blockIdx : keyIt->second) {
+            size_t chunkIdx = blockIdx / this->chunkSize;
+            if (chunkIdx < this->chain.size()) {
+                const auto &chunk = this->chain[chunkIdx];
+                size_t offsetInChunk = blockIdx % this->chunkSize;
+                if (offsetInChunk < chunk.blocks.size()) {
+                    const Block &blk = chunk.blocks[offsetInChunk];
+                    for (const auto &e : blk.entries) {
+                        if (e.stream == stream && e.key == key) {
+                            results.emplace_back(blockIdx, e);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        for (const auto &[k, indices] : streamIt->second) {
+            for (auto blockIdx : indices) {
+                size_t chunkIdx = blockIdx / this->chunkSize;
+                if (chunkIdx < this->chain.size()) {
+                    const auto &chunk = this->chain[chunkIdx];
+                    size_t offsetInChunk = blockIdx % this->chunkSize;
+                    if (offsetInChunk < chunk.blocks.size()) {
+                        const Block &blk = chunk.blocks[offsetInChunk];
+                        for (const auto &e : blk.entries) {
+                            if (e.stream == stream) {
+                                results.emplace_back(blockIdx, e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        std::sort(results.begin(), results.end(),
+                  [](const auto &a, const auto &b) { return a.first < b.first; });
+    }
+    return results;
+}
+
+template<typename ChunkHandler>
+std::pair<size_t, StreamEntry> Blockchain<ChunkHandler>::getStreamEntry(
+    const std::string &stream, const std::string &key) const
+{
+    auto streamIt = this->streamKeyIndex.find(stream);
+    if (streamIt == this->streamKeyIndex.end()) {
+        throw std::runtime_error("Entry not found");
+    }
+    auto keyIt = streamIt->second.find(key);
+    if (keyIt == streamIt->second.end() || keyIt->second.empty()) {
+        throw std::runtime_error("Entry not found");
+    }
+    size_t lastBlockIdx = keyIt->second.back();
+    size_t chunkIdx = lastBlockIdx / this->chunkSize;
+    const auto &chunk = this->chain[chunkIdx];
+    const Block &blk = chunk.blocks[lastBlockIdx % this->chunkSize];
+    for (auto it = blk.entries.rbegin(); it != blk.entries.rend(); ++it) {
+        if (it->stream == stream && it->key == key) {
+            return {lastBlockIdx, *it};
+        }
+    }
+    throw std::runtime_error("Entry not found");
 }
 
 template<typename ChunkHandler>
@@ -85,6 +196,12 @@ void Blockchain<ChunkHandler>::appendBlock(const Block &block)
 
     Block b = block;
     this->chain[chunkIndex].push_back(b);
+
+    // Update stream index and registry from block entries
+    for (const auto &entry : block.entries) {
+        this->streamRegistry.insert(entry.stream);
+        this->streamKeyIndex[entry.stream][entry.key].push_back(block.index);
+    }
 
     // Check if difficulty adjustment is needed
     size_t totalBlocks = this->getChainBlockCount();
@@ -189,6 +306,46 @@ void Blockchain<ChunkHandler>::loadKeys()
 }
 
 template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::saveStreams()
+{
+    std::ofstream ofs(this->blockchainPath / "streams.dat", std::ios::binary);
+    boost::archive::binary_oarchive oa(ofs);
+    oa << this->streamRegistry;
+}
+
+template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::loadStreams()
+{
+    auto path = this->blockchainPath / "streams.dat";
+    if (!std::filesystem::exists(path)) {
+        return;
+    }
+    std::ifstream ifs(path, std::ios::binary);
+    boost::archive::binary_iarchive ia(ifs);
+    ia >> this->streamRegistry;
+}
+
+template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::saveStreamIndex()
+{
+    std::ofstream ofs(this->blockchainPath / "stream_index.dat", std::ios::binary);
+    boost::archive::binary_oarchive oa(ofs);
+    oa << this->streamKeyIndex;
+}
+
+template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::loadStreamIndex()
+{
+    auto path = this->blockchainPath / "stream_index.dat";
+    if (!std::filesystem::exists(path)) {
+        return;
+    }
+    std::ifstream ifs(path, std::ios::binary);
+    boost::archive::binary_iarchive ia(ifs);
+    ia >> this->streamKeyIndex;
+}
+
+template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::dumpBlocks()
 {
     for (size_t index = 0; index < this->chain.size(); index++)
@@ -266,6 +423,8 @@ void Blockchain<ChunkHandler>::replaceChain(const std::vector<Block> &candidateB
     // Clear current chain
     this->chain.clear();
     this->keyIndexMap.clear();
+    this->streamRegistry.clear();
+    this->streamKeyIndex.clear();
 
     // Rebuild chain from candidate blocks
     for (const auto &block : candidateBlocks) {
@@ -275,6 +434,12 @@ void Blockchain<ChunkHandler>::replaceChain(const std::vector<Block> &candidateB
         }
         Block b = block;
         this->chain[chunkIndex].push_back(b);
+
+        // Rebuild stream index
+        for (const auto &entry : block.entries) {
+            this->streamRegistry.insert(entry.stream);
+            this->streamKeyIndex[entry.stream][entry.key].push_back(block.index);
+        }
     }
 
     logMessage("INFO", "Chain replaced with candidate chain of length "

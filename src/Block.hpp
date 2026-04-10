@@ -1,6 +1,8 @@
 #pragma once
 #include "utils.hpp"
+#include "StreamEntry.hpp"
 #include <cstdint>
+#include <vector>
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/map.hpp>
@@ -10,14 +12,15 @@
 struct Block {
     size_t index;
     uint64_t timestamp;
-    std::string data;
+    std::vector<StreamEntry> entries;
     std::string prevHash;
     std::string hash;
     uint64_t nonce;
     uint32_t difficulty;
 
     Block();
-    Block(size_t, uint64_t, std::string, std::string, uint64_t nonce = 0, uint32_t difficulty = 0);
+    Block(size_t index, uint64_t timestamp, std::string prevHash,
+          std::vector<StreamEntry> entries, uint64_t nonce = 0, uint32_t difficulty = 0);
     std::string calculateHash() const;
     void dump();
 
@@ -28,7 +31,7 @@ struct Block {
     {
         ar & index;
         ar & timestamp;
-        ar & data;
+        ar & entries;
         ar & prevHash;
         ar & hash;
         ar & nonce;

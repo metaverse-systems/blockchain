@@ -23,6 +23,7 @@ class Server
     std::chrono::seconds timeout_duration{30};
     PeerManager *peer_manager = nullptr;
     BlockPropagation *block_propagation = nullptr;
+    std::vector<std::string> allowed_streams;
 
   public:
     Server(boost::asio::io_context &io_context, ssl::context &ssl_context, Acceptor &acceptor, IBlockchain &bc)
@@ -36,6 +37,7 @@ class Server
     void set_timeout(std::chrono::seconds timeout) { timeout_duration = timeout; }
     void set_peer_manager(PeerManager *pm) { peer_manager = pm; }
     void set_block_propagation(BlockPropagation *bp) { block_propagation = bp; }
+    void set_allowed_streams(const std::vector<std::string> &streams) { allowed_streams = streams; }
 
     void start_accept()
     {
@@ -49,13 +51,18 @@ class Server
                 new_session->set_block_propagation(block_propagation);
             }
         }
-        this->last_session_handler = new_session;
+        if constexpr (requires(SessionHandler &s, const std::vector<std::string> &v) { s.set_allowed_streams(v); }) {
+            if (!allowed_streams.empty()) {
+                new_session->set_allowed_streams(allowed_streams);
+            }
+        }
 
         acceptor.async_accept(new_session->get_socket_ref().lowest_layer(),
         [this, new_session](const boost::system::error_code& error)
         {
             if (!error) {
                 new_session->start();
+                this->last_session_handler = new_session;
             } else {
                 std::cerr << "Accept failed: " << error.message() << std::endl;
             }

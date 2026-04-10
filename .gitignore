@@ -124,3 +124,9 @@ src/network/.dirstamp
 .DS_Store
 Thumbs.db
 bc-dir
+tests/block_propagation_tests
+.gitignore
+tests/block_propagation_integration_tests
+tests/block_propagation_integration_tests.trs
+tests/block_propagation_tests.trs
+tests/blockchain_tests.trs

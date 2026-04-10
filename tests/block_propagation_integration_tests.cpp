@@ -2,6 +2,7 @@
 #include "../src/BlockPropagation.hpp"
 #include "../src/PeerManager.hpp"
 #include "../src/Block.hpp"
+#include "../src/StreamEntry.hpp"
 #include "../src/SyncState.hpp"
 #include "MockBlockchain.hpp"
 
@@ -26,7 +27,7 @@ TEST_CASE("Integration: valid block received, validated, appended, relayed", "[i
     bp.on_block_received(b, "node_a:9000");
 
     REQUIRE(bc.appended_blocks.size() == 1);
-    REQUIRE(bc.appended_blocks[0].data == "integration_test");
+    REQUIRE(bc.appended_blocks[0].entries[0].data == "integration_test");
     REQUIRE(bc.save_chunk_called);
     REQUIRE(bc.save_keys_called);
     REQUIRE(relay_called);
@@ -44,10 +45,15 @@ TEST_CASE("Integration: invalid block rejected, not relayed", "[integration][blo
     });
 
     // Create a block with wrong prevHash (will go to pending pool as gap block)
+    StreamEntry bad_entry;
+    bad_entry.stream = "test";
+    bad_entry.key = "k";
+    bad_entry.data = "bad_block";
+
     Block b;
     b.index = 1;
     b.timestamp = static_cast<uint64_t>(std::time(nullptr));
-    b.data = "bad_block";
+    b.entries = {bad_entry};
     b.prevHash = "nonexistent_hash";
     b.difficulty = 0;
     b.nonce = 0;
@@ -108,8 +114,8 @@ TEST_CASE("Integration: gap block deferred, resolved when predecessor arrives", 
 
     // Both should now be appended: b1 directly, b2 via pending pool resolution
     REQUIRE(bc.appended_blocks.size() == 2);
-    REQUIRE(bc.appended_blocks[0].data == "block_1");
-    REQUIRE(bc.appended_blocks[1].data == "block_2");
+    REQUIRE(bc.appended_blocks[0].entries[0].data == "block_1");
+    REQUIRE(bc.appended_blocks[1].entries[0].data == "block_2");
     REQUIRE(relay_count == 2);
 }
 

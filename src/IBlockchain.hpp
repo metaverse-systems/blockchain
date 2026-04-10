@@ -2,10 +2,13 @@
 
 #include <vector>
 #include <string>
+#include <set>
+#include <map>
 #include <filesystem>
 #include <iostream>
 #include <chrono>
 #include "Block.hpp"
+#include "StreamEntry.hpp"
 #include "ConsensusConfig.hpp"
 
 class IBlockchain
@@ -25,7 +28,14 @@ class IBlockchain
     virtual void dumpBlocks() = 0;
     virtual void dumpKeys() = 0;
     virtual void generateGenesisBlock() = 0;
-    virtual Block addBlock(const std::string &data, const std::vector<std::string> &keys) = 0;
+    virtual Block publish(const std::string &stream, const std::string &key,
+                          const std::string &data, const std::vector<std::string> &keys) = 0;
+    virtual void createStream(const std::string &name) = 0;
+    virtual std::set<std::string> listStreams() const = 0;
+    virtual std::vector<std::pair<size_t, StreamEntry>> getStreamEntries(
+        const std::string &stream, const std::string &key = "") const = 0;
+    virtual std::pair<size_t, StreamEntry> getStreamEntry(
+        const std::string &stream, const std::string &key) const = 0;
     virtual void appendBlock(const Block &block) = 0;
     virtual std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys) = 0;
     virtual Block getBlockByIndex(size_t index) = 0;
@@ -67,6 +77,26 @@ class IBlockchain
                 logMessage("ERROR", "Block " + std::to_string(newBlock.index)
                            + " timestamp too far in the future");
                 return false;
+            }
+
+            // Validate stream entries in the block
+            for (const auto &entry : newBlock.entries) {
+                if (!isValidStreamName(entry.stream)) {
+                    logMessage("ERROR", "Block " + std::to_string(newBlock.index)
+                               + " contains entry with invalid stream name: " + entry.stream);
+                    return false;
+                }
+                if (entry.key.empty()) {
+                    logMessage("ERROR", "Block " + std::to_string(newBlock.index)
+                               + " contains entry with empty key");
+                    return false;
+                }
+                static constexpr size_t kMaxDataSize = 128ULL * 1024 * 1024;
+                if (entry.data.size() > kMaxDataSize) {
+                    logMessage("ERROR", "Block " + std::to_string(newBlock.index)
+                               + " contains entry with oversized data: " + std::to_string(entry.data.size()));
+                    return false;
+                }
             }
         }
         return true;

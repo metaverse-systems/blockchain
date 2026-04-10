@@ -166,15 +166,13 @@ TEST_CASE("Invalid block is rejected and not appended", "[block_propagation][inv
     Block b;
     b.index = 1;
     b.timestamp = static_cast<uint64_t>(std::time(nullptr));
-    b.data = "invalid";
+    b.entries = {{.stream = "test", .key = "k", .data = "invalid"}};
     b.prevHash = "wrong_hash";
     b.difficulty = 1;
     b.nonce = 0;
     b.hash = b.calculateHash();
 
     bp.on_block_received(b, "peer1:9000");
-    // Block should not be appended (it's a gap block or invalid)
-    // With wrong prevHash, it goes to pending pool as a gap block
     REQUIRE(bc.appended_blocks.empty());
     REQUIRE_FALSE(relay_called);
 }
@@ -232,4 +230,71 @@ TEST_CASE("Throughput benchmark: 100 blocks in under 10 seconds", "[block_propag
     REQUIRE(bc.appended_blocks.size() == 100);
     REQUIRE(elapsed < 10000); // Must complete within 10 seconds
     INFO("Processed 100 blocks in " << elapsed << "ms");
+}
+
+// --- P2P Stream Entry Validation Tests (T018) ---
+
+TEST_CASE("Block with valid stream entries is accepted via P2P", "[block_propagation][stream_validation]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    Block b = bc.createValidNextBlock("valid_entry");
+    bp.on_block_received(b, "peer1:9000");
+    REQUIRE(bc.appended_blocks.size() == 1);
+}
+
+TEST_CASE("Block with empty stream name is rejected via P2P", "[block_propagation][stream_validation]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    // Build a block that connects to chain tip but has invalid stream entry
+    auto &prev = bc.blocks.back();
+    Block b;
+    b.index = prev.index + 1;
+    b.timestamp = static_cast<uint64_t>(std::time(nullptr));
+    StreamEntry bad_entry;
+    bad_entry.stream = ""; // invalid: empty stream name
+    bad_entry.key = "k";
+    bad_entry.data = "d";
+    b.entries = {bad_entry};
+    b.prevHash = prev.hash;
+    b.difficulty = 1;
+    b.nonce = 0;
+    b.hash = b.calculateHash();
+    while (!checkLeadingZeroBits(b.hash, b.difficulty)) {
+        b.nonce++;
+        b.hash = b.calculateHash();
+    }
+
+    bp.on_block_received(b, "peer1:9000");
+    REQUIRE(bc.appended_blocks.empty());
+}
+
+TEST_CASE("Block with empty key is rejected via P2P", "[block_propagation][stream_validation]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    auto &prev = bc.blocks.back();
+    Block b;
+    b.index = prev.index + 1;
+    b.timestamp = static_cast<uint64_t>(std::time(nullptr));
+    StreamEntry bad_entry;
+    bad_entry.stream = "valid";
+    bad_entry.key = ""; // invalid: empty key
+    bad_entry.data = "d";
+    b.entries = {bad_entry};
+    b.prevHash = prev.hash;
+    b.difficulty = 1;
+    b.nonce = 0;
+    b.hash = b.calculateHash();
+    while (!checkLeadingZeroBits(b.hash, b.difficulty)) {
+        b.nonce++;
+        b.hash = b.calculateHash();
+    }
+
+    bp.on_block_received(b, "peer1:9000");
+    REQUIRE(bc.appended_blocks.empty());
 }

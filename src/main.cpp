@@ -52,6 +52,8 @@ int main(int argc, char *argv[])
     Blockchain<Chunk> bc(blockchainDir, node_config.to_consensus_config());
     bc.loadChunk(0);
     bc.loadKeys();
+    bc.loadStreams();
+    bc.loadStreamIndex();
     bc.dumpBlocks();
 
     SyncStatus sync_status;
@@ -96,6 +98,7 @@ int main(int argc, char *argv[])
     Server<RpcServer, tcp::acceptor> rpc(io_context, rpc_ssl_context, rpc_acceptor, bc);
     rpc.set_timeout(std::chrono::seconds(timeout_seconds));
     rpc.set_peer_manager(&peer_manager);
+    rpc.set_allowed_streams(node_config.streams.allowed_streams);
     rpc.start_accept();
 
     tcp::acceptor p2p_acceptor(io_context);
@@ -121,6 +124,8 @@ int main(int argc, char *argv[])
         peer_manager.save_peers();
         bc.saveChunk(0);
         bc.saveKeys();
+        bc.saveStreams();
+        bc.saveStreamIndex();
         io_context.stop();
     });
 

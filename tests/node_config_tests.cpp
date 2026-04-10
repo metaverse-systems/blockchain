@@ -137,3 +137,49 @@ TEST_CASE("NodeConfig merges missing keys with defaults", "[NodeConfig]") {
 
     std::filesystem::remove_all(dir);
 }
+
+TEST_CASE("NodeConfig parses allowed_streams from config", "[NodeConfig][streams]") {
+    auto dir = make_temp_dir();
+    auto cfg_path = dir / "config.json";
+
+    nlohmann::json j = {
+        {"tls", {{"cert_file", "c.pem"}, {"key_file", "k.pem"}}},
+        {"network", {{"rpc_port", 8000}, {"p2p_port", 8001}}},
+        {"streams", {{"allowed_streams", {"assets", "logs"}}}}
+    };
+    std::ofstream(cfg_path) << j.dump(2);
+
+    NodeConfig cfg = NodeConfig::load(cfg_path);
+    REQUIRE(cfg.streams.allowed_streams.size() == 2);
+    REQUIRE(cfg.streams.allowed_streams[0] == "assets");
+    REQUIRE(cfg.streams.allowed_streams[1] == "logs");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("NodeConfig empty allowed_streams means all permitted", "[NodeConfig][streams]") {
+    auto dir = make_temp_dir();
+    auto cfg_path = dir / "config.json";
+
+    nlohmann::json j = {
+        {"tls", {{"cert_file", "c.pem"}, {"key_file", "k.pem"}}},
+        {"network", {{"rpc_port", 8000}, {"p2p_port", 8001}}},
+        {"streams", {{"allowed_streams", nlohmann::json::array()}}}
+    };
+    std::ofstream(cfg_path) << j.dump(2);
+
+    NodeConfig cfg = NodeConfig::load(cfg_path);
+    REQUIRE(cfg.streams.allowed_streams.empty());
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("NodeConfig default has empty allowed_streams", "[NodeConfig][streams]") {
+    auto dir = make_temp_dir();
+    auto cfg_path = dir / "config.json";
+
+    NodeConfig cfg = NodeConfig::load(cfg_path);
+    REQUIRE(cfg.streams.allowed_streams.empty());
+
+    std::filesystem::remove_all(dir);
+}

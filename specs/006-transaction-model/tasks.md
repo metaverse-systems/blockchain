@@ -17,9 +17,9 @@
 
 **Purpose**: Core data structures — StreamEntry struct and Block struct migration
 
-- [ ] T001 Create StreamEntry struct with Boost.Serialization and validation helpers in src/StreamEntry.hpp
-- [ ] T002 Update Block struct in src/Block.hpp — remove `data` field, add `std::vector<StreamEntry> entries`, include StreamEntry.hpp, update serialize template and constructor declarations
-- [ ] T003 Update Block implementation in src/Block.cpp — update constructors (replace data param with entries), update calculateHash to include serialized entries, update toJson to output entries array, update dump
+- [X] T001 Create StreamEntry struct with Boost.Serialization and validation helpers in src/StreamEntry.hpp
+- [X] T002 Update Block struct in src/Block.hpp — remove `data` field, add `std::vector<StreamEntry> entries`, include StreamEntry.hpp, update serialize template and constructor declarations
+- [X] T003 Update Block implementation in src/Block.cpp — update constructors (replace data param with entries), update calculateHash to include serialized entries, update toJson to output entries array, update dump
 
 ---
 
@@ -29,11 +29,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Update IBlockchain interface in src/IBlockchain.hpp — replace `addBlock` virtual method with `publish(const std::string &stream, const std::string &key, const std::string &data, const std::vector<std::string> &keys)`, add virtual methods for `createStream`, `listStreams`, `getStreamEntries`, `getStreamEntry`, add stream entry validation (name regex, key non-empty, data size) to `isValidNewBlock`
-- [ ] T005 Update Blockchain template in src/Blockchain.hpp — add `std::set<std::string>` stream registry, add `std::map<std::string, std::map<std::string, std::vector<size_t>>>` stream index, replace `addBlock` with `publish`, declare `createStream`, `listStreams`, `getStreamEntries`, `getStreamEntry`, declare `saveStreams`/`loadStreams` and `saveStreamIndex`/`loadStreamIndex`
-- [ ] T006 Implement Blockchain stream methods in src/Blockchain.cpp — implement `publish` (validate entry, auto-create stream, mine block with entries, update stream index), implement `createStream` (duplicate check), `listStreams`, `getStreamEntries` (history mode), `getStreamEntry` (latest mode), implement stream/index persistence via Boost.Serialization to `streams.dat`/`stream_index.dat`, update `appendBlock` to maintain stream index and registry, update `generateGenesisBlock` for Block without data field
-- [ ] T007 [P] Update tests/MockBlockchain.hpp — replace `addBlock` with `publish`, add `createStream`/`listStreams`/`getStreamEntries`/`getStreamEntry` stubs, update `createValidNextBlock` helper to use entries instead of data
-- [ ] T008 [P] Update tests/Makefile.am — add `stream_entry_tests.cpp` and `stream_tests.cpp` to `blockchain_tests_SOURCES`
+- [X] T004 Update IBlockchain interface in src/IBlockchain.hpp — replace `addBlock` virtual method with `publish(const std::string &stream, const std::string &key, const std::string &data, const std::vector<std::string> &keys)`, add virtual methods for `createStream`, `listStreams`, `getStreamEntries`, `getStreamEntry`, add stream entry validation (name regex, key non-empty, data size) to `isValidNewBlock`
+- [X] T005 Update Blockchain template in src/Blockchain.hpp — add `std::set<std::string>` stream registry, add `std::map<std::string, std::map<std::string, std::vector<size_t>>>` stream index, replace `addBlock` with `publish`, declare `createStream`, `listStreams`, `getStreamEntries`, `getStreamEntry`, declare `saveStreams`/`loadStreams` and `saveStreamIndex`/`loadStreamIndex`
+- [X] T006 Implement Blockchain stream methods in src/Blockchain.cpp — implement `publish` (validate entry, auto-create stream, mine block with entries, update stream index), implement `createStream` (duplicate check), `listStreams`, `getStreamEntries` (history mode), `getStreamEntry` (latest mode), implement stream/index persistence via Boost.Serialization to `streams.dat`/`stream_index.dat`, update `appendBlock` to maintain stream index and registry, update `generateGenesisBlock` for Block without data field
+- [X] T007 [P] Update tests/MockBlockchain.hpp — replace `addBlock` with `publish`, add `createStream`/`listStreams`/`getStreamEntries`/`getStreamEntry` stubs, update `createValidNextBlock` helper to use entries instead of data
+- [X] T008 [P] Update tests/Makefile.am — add `stream_entry_tests.cpp` and `stream_tests.cpp` to `blockchain_tests_SOURCES`
 
 **Checkpoint**: Foundation ready — all new data structures, interfaces, and core methods in place. User story phases can now begin.
 
@@ -47,10 +47,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Replace addBlock RPC handler with publish handler in src/network/RpcServer.cpp and src/network/RpcServer.hpp — parse `stream`, `key`, `data`, `keys` params from JSON-RPC request, validate stream name format (regex `^[a-zA-Z0-9_-]{1,256}$`), validate key non-empty, validate data size ≤ 128 MB, call `blockchain.publish()`, return block JSON with entries array
-- [ ] T010 [P] [US1] Create tests/stream_entry_tests.cpp — test StreamEntry Boost.Serialization round-trip, test stream name validation helper accepts valid names and rejects invalid (empty, too long, special chars), test data size limit check
-- [ ] T011 [P] [US1] Update tests/block_tests.cpp — test Block construction with StreamEntry entries vector, test Block serialization round-trip preserves entries, test calculateHash changes when entries differ
-- [ ] T012 [US1] Add publish RPC tests in tests/server_tests.cpp — test publish success returns block with entries, test missing stream param returns -32602, test missing key returns -32602, test invalid stream name returns -32602, test data exceeding 128 MB returns -32602, test publish during sync returns -32001
+- [X] T009 [US1] Replace addBlock RPC handler with publish handler in src/network/RpcServer.cpp and src/network/RpcServer.hpp — parse `stream`, `key`, `data`, `keys` params from JSON-RPC request, validate stream name format (regex `^[a-zA-Z0-9_-]{1,256}$`), validate key non-empty, validate data size ≤ 128 MB, call `blockchain.publish()`, return block JSON with entries array
+- [X] T010 [P] [US1] Create tests/stream_entry_tests.cpp — test StreamEntry Boost.Serialization round-trip, test stream name validation helper accepts valid names and rejects invalid (empty, too long, special chars), test data size limit check
+- [X] T011 [P] [US1] Update tests/block_tests.cpp — test Block construction with StreamEntry entries vector, test Block serialization round-trip preserves entries, test calculateHash changes when entries differ
+- [X] T012 [US1] Add publish RPC tests in tests/server_tests.cpp — test publish success returns block with entries, test missing stream param returns -32602, test missing key returns -32602, test invalid stream name returns -32602, test data exceeding 128 MB returns -32602, test publish during sync returns -32001
 
 **Checkpoint**: At this point, clients can publish data to streams and blocks contain structured StreamEntry payloads. This is the MVP.
 
@@ -64,10 +64,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Implement getStreamEntries RPC handler in src/network/RpcServer.cpp — parse `stream` (required) and `key` (optional) params, return JSON array of matching entries with block_index in chain order (history mode), return -32602 for missing stream param
-- [ ] T014 [US2] Implement getStreamEntry RPC handler in src/network/RpcServer.cpp — parse `stream` and `key` (both required), return only the latest entry, return -32601 if no entries exist for stream+key
-- [ ] T015 [US2] Update getBlockByIndex and getBlocksByKeys response JSON to include entries array in src/network/RpcServer.cpp
-- [ ] T016 [P] [US2] Add stream query tests in tests/stream_tests.cpp — test getStreamEntries returns all entries for stream+key in chain order, test getStreamEntries returns all entries in a stream when key omitted, test getStreamEntry returns latest entry only, test getStreamEntry returns -32601 for nonexistent stream+key, test getBlockByIndex response includes entries
+- [X] T013 [US2] Implement getStreamEntries RPC handler in src/network/RpcServer.cpp — parse `stream` (required) and `key` (optional) params, return JSON array of matching entries with block_index in chain order (history mode), return -32602 for missing stream param
+- [X] T014 [US2] Implement getStreamEntry RPC handler in src/network/RpcServer.cpp — parse `stream` and `key` (both required), return only the latest entry, return -32601 if no entries exist for stream+key
+- [X] T015 [US2] Update getBlockByIndex and getBlocksByKeys response JSON to include entries array in src/network/RpcServer.cpp
+- [X] T016 [P] [US2] Add stream query tests in tests/stream_tests.cpp — test getStreamEntries returns all entries for stream+key in chain order, test getStreamEntries returns all entries in a stream when key omitted, test getStreamEntry returns latest entry only, test getStreamEntry returns -32601 for nonexistent stream+key, test getBlockByIndex response includes entries
 
 **Checkpoint**: Clients can publish AND query stream data. Both history and latest modes work.
 
@@ -81,8 +81,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Verify P2P block acceptance invokes stream entry validation from `isValidNewBlock` (added in T004) in src/network/PeerServer.cpp — add entry-specific rejection logging with the failing field (stream name, key, or data size), ensure block is rejected when any entry fails validation
-- [ ] T018 [P] [US3] Add P2P stream validation tests in tests/block_propagation_tests.cpp — test block with valid entries is accepted, test block with empty stream name is rejected, test block with empty key is rejected, test block with oversized data is rejected
+- [X] T017 [US3] Verify P2P block acceptance invokes stream entry validation from `isValidNewBlock` (added in T004) in src/network/PeerServer.cpp — add entry-specific rejection logging with the failing field (stream name, key, or data size), ensure block is rejected when any entry fails validation
+- [X] T018 [P] [US3] Add P2P stream validation tests in tests/block_propagation_tests.cpp — test block with valid entries is accepted, test block with empty stream name is rejected, test block with empty key is rejected, test block with oversized data is rejected
 
 **Checkpoint**: P2P layer rejects malformed stream entries, protecting chain integrity.
 
@@ -96,9 +96,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T019 [US4] Implement createStream RPC handler in src/network/RpcServer.cpp — parse `name` param, validate stream name format, call `blockchain.createStream()`, return success message, return -32004 for duplicate stream, return -32602 for invalid name
-- [ ] T020 [US4] Implement listStreams RPC handler in src/network/RpcServer.cpp — call `blockchain.listStreams()`, return JSON array of stream names sorted alphabetically
-- [ ] T021 [P] [US4] Add stream management tests in tests/stream_tests.cpp — test explicit createStream success, test duplicate createStream returns -32004, test listStreams returns all streams, test auto-created stream via publish appears in listStreams
+- [X] T019 [US4] Implement createStream RPC handler in src/network/RpcServer.cpp — parse `name` param, validate stream name format, call `blockchain.createStream()`, return success message, return -32004 for duplicate stream, return -32602 for invalid name
+- [X] T020 [US4] Implement listStreams RPC handler in src/network/RpcServer.cpp — call `blockchain.listStreams()`, return JSON array of stream names sorted alphabetically
+- [X] T021 [P] [US4] Add stream management tests in tests/stream_tests.cpp — test explicit createStream success, test duplicate createStream returns -32004, test listStreams returns all streams, test auto-created stream via publish appears in listStreams
 
 **Checkpoint**: Full stream lifecycle — create, auto-create, and list.
 
@@ -112,10 +112,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T022 [US5] Add StreamsConfig struct to src/NodeConfig.hpp — define `struct StreamsConfig { std::vector<std::string> allowed_streams; }` member, add `StreamsConfig streams` field to NodeConfig
-- [ ] T023 [US5] Parse streams config section in src/NodeConfig.cpp — read `streams.allowed_streams` array from config.json, update `default_json()` to include empty streams section, update `validate()` if needed
-- [ ] T024 [US5] Add stream permission check in publish RPC handler in src/network/RpcServer.cpp — if `allowed_streams` is non-empty and stream not in list, return -32003 error; requires passing NodeConfig (or streams config) to RpcServer
-- [ ] T025 [P] [US5] Add per-node permission tests in tests/node_config_tests.cpp — test parsing allowed_streams from config.json, test empty allowed_streams means all permitted; add permission-check tests in tests/stream_tests.cpp — test publish to allowed stream succeeds, test publish to blocked stream returns -32003
+- [X] T022 [US5] Add StreamsConfig struct to src/NodeConfig.hpp — define `struct StreamsConfig { std::vector<std::string> allowed_streams; }` member, add `StreamsConfig streams` field to NodeConfig
+- [X] T023 [US5] Parse streams config section in src/NodeConfig.cpp — read `streams.allowed_streams` array from config.json, update `default_json()` to include empty streams section, update `validate()` if needed
+- [X] T024 [US5] Add stream permission check in publish RPC handler in src/network/RpcServer.cpp — if `allowed_streams` is non-empty and stream not in list, return -32003 error; requires passing NodeConfig (or streams config) to RpcServer
+- [X] T025 [P] [US5] Add per-node permission tests in tests/node_config_tests.cpp — test parsing allowed_streams from config.json, test empty allowed_streams means all permitted; add permission-check tests in tests/stream_tests.cpp — test publish to allowed stream succeeds, test publish to blocked stream returns -32003
 
 **Checkpoint**: Node operators can restrict publishing by stream name. P2P blocks are unaffected by local permissions.
 
@@ -125,10 +125,10 @@
 
 **Purpose**: Ensure all changes integrate cleanly and propagation works end-to-end
 
-- [ ] T026 [P] Update src/BlockPropagation.cpp if any code references `Block::data` directly — ensure block propagation works with entries field
-- [ ] T027 [P] Update any remaining references to `addBlock` across src/ and tests/ — grep for leftover `addBlock` calls and update to use `publish`
-- [ ] T028 Run full test suite via `make check` and fix any compilation or test failures
-- [ ] T029 Run quickstart.md validation — execute each example from specs/006-transaction-model/quickstart.md against a running node
+- [X] T026 [P] Update src/BlockPropagation.cpp if any code references `Block::data` directly — ensure block propagation works with entries field
+- [X] T027 [P] Update any remaining references to `addBlock` across src/ and tests/ — grep for leftover `addBlock` calls and update to use `publish`
+- [X] T028 Run full test suite via `make check` and fix any compilation or test failures
+- [X] T029 Run quickstart.md validation — execute each example from specs/006-transaction-model/quickstart.md against a running node
 
 ---
 
