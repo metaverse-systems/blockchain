@@ -60,14 +60,16 @@ specs/003-chain-sync/
 ```text
 src/
 ├── Block.hpp / .cpp             # Existing — no changes expected
-├── Blockchain.hpp / .cpp        # Modified — add getChainBlockCount() accessor, sync state flag
-├── IBlockchain.hpp              # Modified — add sync state and chain-height query to interface
+├── Blockchain.hpp / .cpp        # Modified — add getChainBlockCount() accessor
+├── IBlockchain.hpp              # Modified — add chain-height query to interface
+├── SyncState.hpp                # New — SyncState enum (IDLE, SYNCING) and std::atomic<bool> isSyncing flag
 ├── ConsensusConfig.hpp          # Existing — no changes expected
 ├── Chunk.hpp / .cpp             # Existing — no changes expected
 ├── IChunk.hpp                   # Existing — no changes expected
 ├── main.cpp                     # Modified — wire sync trigger after PeerClient connects
 ├── network/
 │   ├── PacketHeader.hpp         # Existing — already defines BLOCKCHAIN_QUERY / BLOCKCHAIN_RESPONSE
+│   ├── SyncMessages.hpp         # New — SyncQuery and SyncResponse structs with Boost.Serialization
 │   ├── PeerClient.hpp / .cpp    # Modified — send BLOCKCHAIN_QUERY on connect, handle responses
 │   ├── PeerServer.hpp / .cpp    # Modified — handle BLOCKCHAIN_QUERY, send BLOCKCHAIN_RESPONSE
 │   ├── RpcServer.hpp / .cpp     # Modified — add requestSync method, block addBlock during sync

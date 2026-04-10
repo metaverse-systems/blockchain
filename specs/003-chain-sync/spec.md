@@ -10,7 +10,7 @@
 ### Session 2026-04-10
 
 - Q: How should a syncing node decide between two chains of the same length but different content (a fork)? → A: Longest chain only; if equal length, keep the local chain. Deeper fork resolution is deferred to consensus spec 002.
-- Q: Should validation rejection be per-chunk or for the entire sync? → A: Per-chunk. Reject only the invalid chunk and re-request it; keep previously validated chunks.
+- Q: Should validation rejection be per-chunk or for the entire sync? → A: Per-chunk. Reject only the invalid chunk and abort the sync; keep previously validated chunks. A subsequent sync will resume from the last persisted chunk.
 - Q: What timeout should apply when waiting for a peer's chunk response? → A: 60 seconds per chunk.
 - Q: Should a node allow local block creation via addBlock RPC while syncing? → A: No. Reject addBlock calls during sync with an error indicating the node is syncing.
 - Q: Should sync also be triggerable on demand via an RPC command? → A: Yes. Add an RPC method to manually trigger sync in addition to automatic on-connect sync.
@@ -58,7 +58,7 @@ A node receives chain data from a peer during synchronization. The node validate
 
 **Acceptance Scenarios**:
 
-1. **Given** a peer sends a chain where one block has an invalid hash, **When** the syncing node validates the response, **Then** the node rejects the entire batch and does not modify its local chain.
+1. **Given** a peer sends a chain where one block has an invalid hash, **When** the syncing node validates the response, **Then** the node rejects the invalid chunk and does not modify its local chain.
 2. **Given** a peer sends a chain where a block does not meet the required proof-of-work difficulty, **When** the syncing node validates it, **Then** the node rejects the batch.
 3. **Given** a peer sends a valid chain that is longer than the local chain, **When** the syncing node validates it, **Then** the node accepts and replaces its local chain.
 
@@ -96,18 +96,18 @@ During chain synchronization, the network connection between two nodes drops. Th
 - **FR-003**: System MUST include the requesting node's current chain length in the `BLOCKCHAIN_QUERY` message so the responding peer can determine what data to send.
 - **FR-004**: System MUST transfer chain data at the chunk level (groups of blocks) rather than individual blocks, to align with the existing chunk-based storage model.
 - **FR-005**: System MUST validate every received block against existing validation rules (`isValidNewBlock`) before incorporating it into the local chain.
-- **FR-006**: System MUST reject a chunk if any block within it fails validation. Previously validated and persisted chunks are retained; only the invalid chunk is discarded and may be re-requested.
+- **FR-006**: System MUST reject a chunk if any block within it fails validation. Previously validated and persisted chunks are retained; the invalid chunk is discarded and the sync is aborted. A subsequent auto-sync or manual `requestSync` will resume from the last persisted chunk.
 - **FR-007**: System MUST automatically initiate chain sync upon connecting to a peer, without requiring manual intervention.
 - **FR-008**: System MUST support incremental sync — only requesting blocks the node does not already have, rather than the full chain.
-- **FR-014**: System MUST use a longest-chain rule for sync decisions: only replace the local chain when the peer's chain is strictly longer. Equal-length chains always keep the local version.
-- **FR-015**: System MUST apply a 60-second timeout when waiting for a peer to respond to a chunk request. If the timeout expires, the node treats the peer as unresponsive and aborts the sync attempt with that peer.
-- **FR-009**: System MUST persist synced chunks to disk as they are received and validated, so that progress is not lost on interruption.
-- **FR-010**: System MUST handle connection failures during sync gracefully, preserving already-validated local state.
-- **FR-011**: System MUST allow the node to continue serving read-only RPC requests (e.g., `getBlockByIndex`, `getBlocksByKeys`) during synchronization.
-- **FR-016**: System MUST reject `addBlock` RPC calls while a sync operation is in progress, returning an error that indicates the node is currently syncing.
-- **FR-017**: System MUST expose an RPC method that allows operators to manually trigger a chain sync on demand, in addition to the automatic on-connect sync.
-- **FR-012**: System MUST log sync progress including blocks received, validation outcomes, and any errors encountered.
-- **FR-013**: System MUST handle concurrent sync requests from multiple peers without data corruption.
+- **FR-009**: System MUST use a longest-chain rule for sync decisions: only replace the local chain when the peer's chain is strictly longer. Equal-length chains always keep the local version.
+- **FR-010**: System MUST apply a 60-second timeout when waiting for a peer to respond to a chunk request. If the timeout expires, the node treats the peer as unresponsive and aborts the sync attempt with that peer.
+- **FR-011**: System MUST persist synced chunks to disk as they are received and validated, so that progress is not lost on interruption.
+- **FR-012**: System MUST handle connection failures during sync gracefully, preserving already-validated local state.
+- **FR-013**: System MUST allow the node to continue serving read-only RPC requests (e.g., `getBlockByIndex`, `getBlocksByKeys`) during synchronization.
+- **FR-014**: System MUST reject `addBlock` RPC calls while a sync operation is in progress, returning an error that indicates the node is currently syncing.
+- **FR-015**: System MUST expose an RPC method that allows operators to manually trigger a chain sync on demand, in addition to the automatic on-connect sync.
+- **FR-016**: System MUST log sync progress including blocks received, validation outcomes, and any errors encountered.
+- **FR-017**: System MUST handle concurrent sync requests from multiple peers without data corruption.
 
 ### Key Entities
 
@@ -120,7 +120,7 @@ During chain synchronization, the network connection between two nodes drops. Th
 
 ### Measurable Outcomes
 
-- **SC-001**: A new node joining a network with 1,000 blocks completes initial sync and has a fully verified chain within 60 seconds on a local network.
+- **SC-001**: A new node joining a network with 1,000 blocks completes initial sync and has a fully verified chain within 60 seconds on a same-host loopback or ≤1ms LAN.
 - **SC-002**: A node that was offline while 100 new blocks were added catches up within 10 seconds of reconnecting.
 - **SC-003**: 100% of blocks received during sync are validated before being added to the local chain — no unvalidated blocks are ever persisted.
 - **SC-004**: A sync interrupted at any point does not leave the syncing node's chain in a corrupted or inconsistent state.
