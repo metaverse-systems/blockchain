@@ -61,8 +61,8 @@ specs/007-multi-chunk-persistence/
 src/
 ├── Blockchain.hpp       # MODIFY — add dirty tracking, periodic save timer, multi-chunk save/load, archive on replaceChain
 ├── Blockchain.cpp       # MODIFY — implement all new chunk lifecycle methods
-├── Chunk.hpp            # MODIFY — minor (no changes expected)
-├── Chunk.cpp            # MODIFY — minor (no changes expected)
+├── Chunk.hpp            # NO CHANGE
+├── Chunk.cpp            # MODIFY — make save() atomic (temp file + rename per R5)
 ├── IBlockchain.hpp      # MODIFY — add getChainLength, getChunkCount virtual methods
 ├── IChunk.hpp           # NO CHANGE
 ├── NodeConfig.hpp       # MODIFY — add PersistenceConfig struct
