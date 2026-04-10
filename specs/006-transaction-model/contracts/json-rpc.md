@@ -38,7 +38,7 @@ Publish a stream entry to a named stream. Auto-creates the stream if it does not
 {
   "jsonrpc": "2.0",
   "id": "1",
-  "result": "{\"index\":5,\"timestamp\":...,\"data\":\"\",\"prevHash\":\"...\",\"hash\":\"...\",\"entries\":[{\"stream\":\"assets\",\"key\":\"item-42\",\"data\":\"...\"}]}"
+  "result": "{\"index\":5,\"timestamp\":...,\"prevHash\":\"...\",\"hash\":\"...\",\"nonce\":...,\"difficulty\":...,\"entries\":[{\"stream\":\"assets\",\"key\":\"item-42\",\"data\":\"...\"}]}"
 }
 ```
 
@@ -219,5 +219,3 @@ Block JSON responses now include the `entries` array:
   ]
 }
 ```
-
-Legacy blocks (pre-006) will have an empty `entries` array or the field omitted.

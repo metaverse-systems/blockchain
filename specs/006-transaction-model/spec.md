@@ -27,7 +27,7 @@ As a blockchain client, I want to publish data to a named stream with a user-pro
 
 **Acceptance Scenarios**:
 
-1. **Given** a client with a valid stream name, key, and data, **When** the client submits a publish request via the `addBlock` RPC, **Then** a new block is created containing the stream entry and appended to the chain.
+1. **Given** a client with a valid stream name, key, and data, **When** the client submits a publish request via the `publish` RPC, **Then** a new block is created containing the stream entry and appended to the chain.
 2. **Given** a client submits a publish request with an empty data field, **When** the node receives the request, **Then** the entry is accepted (empty data is valid).
 3. **Given** a client submits a publish request with an empty stream name or key, **When** the node validates the request, **Then** the node rejects it with an error indicating the required field is missing.
 
@@ -119,13 +119,13 @@ As a node operator, I want to configure which streams my node allows publishing 
 - **FR-006**: The system MUST include full stream entry details (stream, key, data) in block query responses (`getBlockByIndex`, `getBlocksByKeys`).
 - **FR-007**: The system MUST support two query modes: (a) history mode — returning all entries for a stream/key in chain order, and (b) latest mode — returning only the most recent entry for a stream/key.
 - **FR-008**: The system MUST serialize and deserialize stream entries as part of the block's Boost.Serialization archive for persistence and P2P transfer.
-- **FR-010**: The system MUST validate stream entry structure in blocks received via P2P before accepting the block into the chain.
-- **FR-011**: The system MUST enforce naming rules on stream names (alphanumeric, hyphens, underscores; max 256 characters).
-- **FR-012**: The system MUST prevent duplicate explicit stream creation (stream names are unique; implicit creation for an existing stream simply publishes to it).
-- **FR-013**: The system MUST support per-node stream permissions configurable by the node operator, controlling which streams accept local RPC publish requests.
-- **FR-014**: Per-node stream permissions MUST default to open (all streams allowed) when no restrictions are configured.
-- **FR-015**: Per-node stream permissions MUST NOT affect P2P block acceptance — blocks from peers are validated for structure only, not against local permission rules.
-- **FR-016**: The system MUST enforce a maximum entry data size of 128 MB.
+- **FR-009**: The system MUST validate stream entry structure in blocks received via P2P before accepting the block into the chain.
+- **FR-010**: The system MUST enforce naming rules on stream names (alphanumeric, hyphens, underscores; max 256 characters).
+- **FR-011**: The system MUST prevent duplicate explicit stream creation (stream names are unique; implicit creation for an existing stream simply publishes to it).
+- **FR-012**: The system MUST support per-node stream permissions configurable by the node operator, controlling which streams accept local RPC publish requests.
+- **FR-013**: Per-node stream permissions MUST default to open (all streams allowed) when no restrictions are configured.
+- **FR-014**: Per-node stream permissions MUST NOT affect P2P block acceptance — blocks from peers are validated for structure only, not against local permission rules.
+- **FR-015**: The system MUST enforce a maximum entry data size of 128 MB.
 
 ### Key Entities
 

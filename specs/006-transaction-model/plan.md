@@ -76,7 +76,7 @@ src/
 tests/
 ├── stream_entry_tests.cpp   # NEW — StreamEntry serialization + validation
 ├── stream_tests.cpp         # NEW — stream index, registry, query, permissions
-├── block_tests.cpp          # MODIFIED — add versioned serialization tests
+├── block_tests.cpp          # MODIFIED — add stream entry serialization tests
 └── server_tests.cpp         # MODIFIED — add RPC stream method tests
 ```
 

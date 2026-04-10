@@ -74,7 +74,7 @@ Tracks known stream names for `listStreams` and duplicate-creation prevention.
 |-------|------|-------------|
 | streams | `std::set<std::string>` | Set of all known stream names |
 
-Persisted to `streams.dat` in the blockchain data directory via Boost.Serialization binary archive.
+Persisted to `streams.dat` in the blockchain data directory via Boost.Serialization binary archive. Loaded at construction time (same pattern as `loadKeys()`).
 
 ### Stream Index (in-memory + persisted)
 
@@ -84,7 +84,7 @@ Maps stream + key to block indices for efficient query.
 |-------|------|-------------|
 | streamKeyIndex | `std::map<std::string, std::map<std::string, std::vector<size_t>>>` | `stream → key → [block indices]` |
 
-Persisted to `stream_index.dat` in the blockchain data directory via Boost.Serialization binary archive.
+Persisted to `stream_index.dat` in the blockchain data directory via Boost.Serialization binary archive. Loaded at construction time (same pattern as `loadKeys()`).
 
 ## Relationships
 
