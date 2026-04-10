@@ -40,9 +40,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::string cert_file(cert_file_env);
-    std::string key_file(key_file_env);
-    std::string ca_file = ca_file_env ? std::string(ca_file_env) : "";
+    // Resolve TLS paths relative to blockchainDir if not absolute
+    auto resolvePath = [&](const std::string &p) -> std::string {
+        std::filesystem::path fp(p);
+        if (fp.is_absolute()) return p;
+        return (blockchainDir / fp).string();
+    };
+    std::string cert_file = resolvePath(cert_file_env);
+    std::string key_file = resolvePath(key_file_env);
+    std::string ca_file = ca_file_env ? resolvePath(ca_file_env) : "";
 
     int timeout_seconds = 30;
     if (timeout_env) {

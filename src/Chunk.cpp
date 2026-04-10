@@ -25,6 +25,10 @@ void Chunk::load()
 
     std::filesystem::path path = this->blockchainPath / ss.str();
 
+    if (!std::filesystem::exists(path)) {
+        return;
+    }
+
     std::ifstream ifs(path, std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);
     ia >> *this;

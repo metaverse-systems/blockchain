@@ -124,7 +124,11 @@ void Blockchain<ChunkHandler>::saveKeys()
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::loadKeys()
 {
-    std::ifstream ifs(this->blockchainPath / "keys.dat", std::ios::binary);
+    auto keysPath = this->blockchainPath / "keys.dat";
+    if (!std::filesystem::exists(keysPath)) {
+        return;
+    }
+    std::ifstream ifs(keysPath, std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);
     ia >> this->keyIndexMap;
 }
