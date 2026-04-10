@@ -129,11 +129,11 @@ A user queries the blockchain for blocks matching multiple keys. The system grou
 
 ### Edge Cases
 
-- What happens when `addBlock` is called concurrently from multiple network handlers?
-- What happens when a chunk file is corrupted or missing during `loadChunk`?
-- What happens when the SSL certificate file is deleted while the server is running?
-- What happens when `getBlocksByKeys` is called with an empty key vector?
-- What happens when a chunk boundary is hit (block 99 → block 100) during concurrent writes?
+- What happens when `addBlock` is called concurrently from multiple network handlers? → **In scope** (FR-013: strand serialization prevents concurrent mutation)
+- What happens when a chunk file is corrupted or missing during `loadChunk`? → **Deferred**: Existing error handling is retained; graceful recovery is not in scope for this feature.
+- What happens when the SSL certificate file is deleted while the server is running? → **Deferred**: Runtime certificate monitoring is not in scope; the server will fail on next handshake attempt with a TLS error.
+- What happens when `getBlocksByKeys` is called with an empty key vector? → **Deferred**: Current behavior (return empty result) is acceptable; no change required.
+- What happens when a chunk boundary is hit (block 99 → block 100) during concurrent writes? → **In scope** (FR-013: strand serialization prevents concurrent chunk-boundary mutations)
 
 ## Requirements *(mandatory)*
 
@@ -141,7 +141,7 @@ A user queries the blockchain for blocks matching multiple keys. The system grou
 
 - **FR-001**: Build system MUST enforce `-std=c++20` in both `src/Makefile.am` and `tests/Makefile.am`.
 - **FR-002**: `configure.ac` MUST validate that the compiler supports C++20 before proceeding.
-- **FR-003**: TLS certificate and key file paths MUST be provided via environment variables (`BLOCKCHAIN_CERT_FILE`, `BLOCKCHAIN_KEY_FILE`). A helper function MUST be provided to load variables from a `.env` file into the process environment at startup.
+- **FR-003**: TLS certificate and key file paths MUST be provided via environment variables (`BLOCKCHAIN_CERT_FILE`, `BLOCKCHAIN_KEY_FILE`). A helper function MUST be provided to load variables from a `.env` file located in the blockchain directory (the path supplied as the first command-line argument) into the process environment at startup.
 - **FR-004a**: The P2P server MUST use mutual TLS — both the server and connecting peer nodes MUST present and verify certificates.
 - **FR-004b**: The RPC server MUST use server-only TLS — the server presents its certificate to clients, but client certificates are not required.
 - **FR-005**: All `#include` directives and Makefile source references MUST use correct filename casing.
@@ -185,12 +185,12 @@ A user queries the blockchain for blocks matching multiple keys. The system grou
 - Q: What should the default async operation timeout be? → A: 30 seconds.
 - Q: What logging approach should the project use for errors and diagnostics? → A: Structured logging (timestamp + severity + message) to stderr, no new dependency.
 - Q: Is thread safety for Blockchain data structures in scope? → A: Yes — add mutex/strand protection to Blockchain and Chunk mutation operations now.
-- Q: How should TLS certificate paths be provided to the daemon? → A: Environment variables (`BLOCKCHAIN_CERT_FILE`, `BLOCKCHAIN_KEY_FILE`) with a helper function to load from a `.env` file.
+- Q: How should TLS certificate paths be provided to the daemon? → A: Environment variables (`BLOCKCHAIN_CERT_FILE`, `BLOCKCHAIN_KEY_FILE`) with a helper function to load from a `.env` file in the blockchain directory (the command-line argument).
 
 ## Assumptions
 
 - The existing test suite (Catch2) is functional and `make check` is the standard way to run tests.
-- Snakeoil certificates are acceptable for local development and testing, but the code must not hard-code them as the only option.
+- Snakeoil (self-signed) certificates are acceptable for local development and testing, but developers must explicitly configure certificate paths (even for self-signed certs) via environment variables or `.env` file. The code must not hard-code any certificate paths.
 - The `MockChunk`, `MockSessionHandler`, and `MockAcceptor` test doubles are correct and can be extended for new test scenarios.
 - The P2P binary protocol's `PacketHeader` structure is stable enough for integration testing even though the protocol may evolve (Principle IX).
 - Cross-platform CI is not yet set up; Windows compatibility will be validated by code-level review of path handling and build definitions until CI is available.

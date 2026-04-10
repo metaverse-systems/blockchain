@@ -117,6 +117,10 @@ This feature modifies existing entities rather than creating new ones. The data 
 | `BLOCKCHAIN_CA_FILE` | For P2P | Path to CA certificate for peer verification |
 | `BLOCKCHAIN_TIMEOUT` | No | Async operation timeout in seconds (default: 30) |
 
+### .env File Location
+
+The `.env` file is read from the **blockchain data directory** (the path supplied as the first command-line argument to the daemon), not the current working directory. For example, if the daemon is started with `./blockchain /data/chain`, the loader reads `/data/chain/.env`.
+
 ### .env File Format
 
 ```

@@ -31,6 +31,8 @@ BLOCKCHAIN_CA_FILE=/path/to/ca-cert.pem    # Required for P2P mutual TLS
 BLOCKCHAIN_TIMEOUT=30                       # Optional, seconds
 ```
 
+**Important**: Place the `.env` file inside the blockchain data directory (the path you pass as the first argument to the daemon), not in the current working directory. For example, if your data directory is `/path/to/blockchain/data`, save the file as `/path/to/blockchain/data/.env`.
+
 For development with self-signed certificates:
 
 ```bash

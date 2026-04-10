@@ -79,12 +79,13 @@ This requires two `ssl::context` instances in `main.cpp` instead of the current 
 
 **Decision**: Hand-written `loadDotEnv()` utility function using `std::filesystem::path` and `std::ifstream`.
 
-**Rationale**: Simple KEY=VALUE format. Handles:
+**Rationale**: Simple KEY=VALUE format. The function accepts a `std::filesystem::path` parameter pointing to the `.env` file. At startup, `main()` constructs the path as `blockchainDir / ".env"` (where `blockchainDir` is `argv[1]`), so the `.env` file is always read from the blockchain data directory — not the process's current working directory. Handles:
 - Comments (`#` at line start)
 - Empty lines (skip)
 - Quoted values (strip surrounding `"` and `'`)
 - Whitespace trimming around key and value
 - Calls `setenv()` (POSIX) / `_putenv_s()` (Windows) to inject into process environment
+- Silently skips loading if the file does not exist (env vars may already be set)
 
 Placed in `src/utils.cpp` alongside existing utility functions.
 
