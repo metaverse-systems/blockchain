@@ -108,7 +108,7 @@ As a network participant, I want the mining difficulty to adjust automatically b
 - **FR-008**: System MUST cap difficulty adjustments to prevent extreme changes in a single adjustment period (maximum adjustment factor).
 - **FR-009**: System MUST enforce a minimum difficulty level so that proof-of-work is never trivially bypassed.
 - **FR-010**: System MUST reject blocks with timestamps more than 120 seconds into the future relative to the node's local clock (configurable threshold, default 120s).
-- **FR-011**: System MUST preserve backward compatibility with the existing block serialization format by extending rather than replacing the `Block` structure.
+- **FR-011**: System MUST extend the existing `Block` structure with consensus fields (nonce, difficulty) rather than creating a separate structure.
 - **FR-012**: System MUST report consensus validation failures with descriptive error information (e.g., "invalid proof-of-work", "difficulty mismatch", "future timestamp").
 - **FR-013**: System MUST enforce a configurable mining timeout (default 30 seconds) and return a descriptive error to the caller if proof-of-work computation does not complete within the limit.
 - **FR-014**: System MUST enforce a configurable maximum chain reorganization depth (default 100 blocks) and reject any competing chain that would require replacing more than that many blocks.
