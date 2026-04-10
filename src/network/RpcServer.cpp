@@ -1,4 +1,5 @@
 #include "RpcServer.hpp"
+#include "PeerClient.hpp"
 #include "../Block.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
@@ -67,6 +68,14 @@ void RpcServer::do_read()
 
                 if(object["method"] == "addBlock")
                 {
+                    // Gate addBlock during sync
+                    if (sync_status && sync_status->isSyncing.load()) {
+                        buffer.consume(buffer.size());
+                        outputStream << syncInProgressMessage(object["id"]) << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
                     try {
                         Block b = bc.addBlock(object["params"]["data"], object["params"]["keys"]);
                         b.dump();
@@ -78,6 +87,29 @@ void RpcServer::do_read()
                         buffer.consume(buffer.size());
                         outputStream << miningTimeoutMessage(object["id"], e.what()) << std::endl;
                     }
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "requestSync")
+                {
+                    if (sync_status && sync_status->isSyncing.load()) {
+                        buffer.consume(buffer.size());
+                        outputStream << syncAlreadyInProgressMessage(object["id"]) << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    if (!peer_client || !peer_client->is_connected()) {
+                        buffer.consume(buffer.size());
+                        outputStream << noPeerMessage(object["id"]) << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    peer_client->start_sync();
+                    buffer.consume(buffer.size());
+                    outputStream << syncStartedMessage(object["id"]) << std::endl;
                     this->do_write();
                     return;
                 }
@@ -197,6 +229,46 @@ nlohmann::json RpcServer::miningTimeoutMessage(std::string id, std::string detai
     response["jsonrpc"] = "2.0";
     response["error"]["code"] = -32000;
     response["error"]["message"] = detail;
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::syncInProgressMessage(std::string id)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32001;
+    response["error"]["message"] = "Node is syncing";
+    response["error"]["data"] = "addBlock is unavailable while chain synchronization is in progress";
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::syncStartedMessage(std::string id)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["result"] = "sync_started";
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::noPeerMessage(std::string id)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32003;
+    response["error"]["message"] = "No peer connected";
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::syncAlreadyInProgressMessage(std::string id)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32002;
+    response["error"]["message"] = "Sync already in progress";
     response["id"] = id;
     return response;
 }

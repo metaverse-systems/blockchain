@@ -8,14 +8,19 @@
 #include "../IBlockchain.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
+#include "../SyncState.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
+
+class PeerClient;
 
 class RpcServer : public SessionHandler, public std::enable_shared_from_this<RpcServer>
 {
   private:
     boost::asio::streambuf buffer;
+    SyncStatus *sync_status = nullptr;
+    PeerClient *peer_client = nullptr;
 
   protected:
     std::shared_ptr<SessionHandler> shared_self() override { return shared_from_this(); }
@@ -25,6 +30,8 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
     explicit RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
     static std::shared_ptr<RpcServer> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
+    void set_sync_status(SyncStatus *status) { sync_status = status; }
+    void set_peer_client(PeerClient *client) { peer_client = client; }
 
   private:
     void do_read();
@@ -36,4 +43,8 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
     static nlohmann::json invalidParamsMessage(std::string id);
     static nlohmann::json resultMessage(std::string id, std::string result);
     static nlohmann::json miningTimeoutMessage(std::string id, std::string detail);
+    static nlohmann::json syncInProgressMessage(std::string id);
+    static nlohmann::json syncStartedMessage(std::string id);
+    static nlohmann::json noPeerMessage(std::string id);
+    static nlohmann::json syncAlreadyInProgressMessage(std::string id);
 };

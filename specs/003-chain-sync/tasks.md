@@ -19,11 +19,11 @@
 
 **Purpose**: Wire format structs, shared sync state, and interface changes needed by all user stories
 
-- [ ] T001 Define `SyncQuery` struct with Boost.Serialization in `src/network/SyncMessages.hpp`
-- [ ] T002 [P] Define `SyncResponse` struct with Boost.Serialization in `src/network/SyncMessages.hpp`
-- [ ] T003 [P] Define `SyncState` enum (`IDLE`, `SYNCING`) and add `std::atomic<bool> isSyncing` flag to a shared location accessible by `PeerClient` and `RpcServer` in `src/SyncState.hpp`
-- [ ] T004 Promote `getChainBlockCount()` from `Blockchain` to `IBlockchain` interface in `src/IBlockchain.hpp`
-- [ ] T005 Update `tests/Makefile.am` to add `sync_tests` target and link new test source file
+- [X] T001 Define `SyncQuery` struct with Boost.Serialization in `src/network/SyncMessages.hpp`
+- [X] T002 [P] Define `SyncResponse` struct with Boost.Serialization in `src/network/SyncMessages.hpp`
+- [X] T003 [P] Define `SyncState` enum (`IDLE`, `SYNCING`) and add `std::atomic<bool> isSyncing` flag to a shared location accessible by `PeerClient` and `RpcServer` in `src/SyncState.hpp`
+- [X] T004 Promote `getChainBlockCount()` from `Blockchain` to `IBlockchain` interface in `src/IBlockchain.hpp`
+- [X] T005 Update `tests/Makefile.am` to add `sync_tests` target and link new test source file
 
 ---
 
@@ -33,9 +33,9 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Handle `BLOCKCHAIN_QUERY` in `PeerServer::do_read_body()` — add case to `switch(header.type)` dispatch, read `SyncQuery`, load requested chunks, send sequential `BLOCKCHAIN_RESPONSE` packets in `src/network/PeerServer.cpp`
-- [ ] T007 Unit test: PeerServer responds to BLOCKCHAIN_QUERY with correct chunks in `tests/sync_tests.cpp`
-- [ ] T008 [P] Unit test: PeerServer handles 3 concurrent BLOCKCHAIN_QUERY packets from separate connections without data corruption in `tests/sync_tests.cpp`
+- [X] T006 Handle `BLOCKCHAIN_QUERY` in `PeerServer::do_read_body()` — add case to `switch(header.type)` dispatch, read `SyncQuery`, load requested chunks, send sequential `BLOCKCHAIN_RESPONSE` packets in `src/network/PeerServer.cpp`
+- [X] T007 Unit test: PeerServer responds to BLOCKCHAIN_QUERY with correct chunks in `tests/sync_tests.cpp`
+- [X] T008 [P] Unit test: PeerServer handles 3 concurrent BLOCKCHAIN_QUERY packets from separate connections without data corruption in `tests/sync_tests.cpp`
 
 **Checkpoint**: A peer can now receive a sync query and respond with chunk data over the existing P2P TLS channel.
 
@@ -49,18 +49,18 @@
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Unit test: PeerClient sends BLOCKCHAIN_QUERY with correct local chain height after connect in `tests/sync_tests.cpp`
-- [ ] T010 [P] [US1] Unit test: PeerClient receives BLOCKCHAIN_RESPONSE, validates blocks, and persists chunk in `tests/sync_tests.cpp`
-- [ ] T011 [P] [US1] Unit test: PeerClient transitions from IDLE to SYNCING on connect and back to IDLE on completion in `tests/sync_tests.cpp`
+- [X] T009 [P] [US1] Unit test: PeerClient sends BLOCKCHAIN_QUERY with correct local chain height after connect in `tests/sync_tests.cpp`
+- [X] T010 [P] [US1] Unit test: PeerClient receives BLOCKCHAIN_RESPONSE, validates blocks, and persists chunk in `tests/sync_tests.cpp`
+- [X] T011 [P] [US1] Unit test: PeerClient transitions from IDLE to SYNCING on connect and back to IDLE on completion in `tests/sync_tests.cpp`
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Add sync initiation logic to `PeerClient` — after TLS handshake completes, send `BLOCKCHAIN_QUERY` with local chain height in `src/network/PeerClient.hpp` and `src/network/PeerClient.cpp`
-- [ ] T013 [US1] Add response handler to `PeerClient` — read `BLOCKCHAIN_RESPONSE` header + body, deserialize `SyncResponse` in `src/network/PeerClient.hpp` and `src/network/PeerClient.cpp`
-- [ ] T014 [US1] Implement chunk validation in `PeerClient` response handler — validate each block in received chunk using `IBlockchain::isValidNewBlock()` in `src/network/PeerClient.cpp`
-- [ ] T015 [US1] Implement chunk persistence in `PeerClient` response handler — on valid chunk, call `IBlockchain::saveChunk()` and request next chunk or transition to IDLE in `src/network/PeerClient.cpp`
-- [ ] T016 [US1] Wire sync trigger in `main.cpp` — pass `IBlockchain` reference and `SyncState` to `PeerClient`, invoke sync after `connect()` handshake completes in `src/main.cpp`
-- [ ] T017 [US1] Add sync progress logging — log chunk received, validation outcome, blocks synced count in `src/network/PeerClient.cpp`
+- [X] T012 [US1] Add sync initiation logic to `PeerClient` — after TLS handshake completes, send `BLOCKCHAIN_QUERY` with local chain height in `src/network/PeerClient.hpp` and `src/network/PeerClient.cpp`
+- [X] T013 [US1] Add response handler to `PeerClient` — read `BLOCKCHAIN_RESPONSE` header + body, deserialize `SyncResponse` in `src/network/PeerClient.hpp` and `src/network/PeerClient.cpp`
+- [X] T014 [US1] Implement chunk validation in `PeerClient` response handler — validate each block in received chunk using `IBlockchain::isValidNewBlock()` in `src/network/PeerClient.cpp`
+- [X] T015 [US1] Implement chunk persistence in `PeerClient` response handler — on valid chunk, call `IBlockchain::saveChunk()` and request next chunk or transition to IDLE in `src/network/PeerClient.cpp`
+- [X] T016 [US1] Wire sync trigger in `main.cpp` — pass `IBlockchain` reference and `SyncState` to `PeerClient`, invoke sync after `connect()` handshake completes in `src/main.cpp`
+- [X] T017 [US1] Add sync progress logging — log chunk received, validation outcome, blocks synced count in `src/network/PeerClient.cpp`
 
 **Checkpoint**: A fresh node connecting to a peer with blocks automatically downloads the full chain. `make check` passes.
 
@@ -74,14 +74,14 @@
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Unit test: PeerClient sends BLOCKCHAIN_QUERY with height > 1 and receives only missing chunks in `tests/sync_tests.cpp`
-- [ ] T019 [P] [US2] Unit test: PeerServer sends only chunks after the requester's chain height in `tests/sync_tests.cpp`
+- [X] T018 [P] [US2] Unit test: PeerClient sends BLOCKCHAIN_QUERY with height > 1 and receives only missing chunks in `tests/sync_tests.cpp`
+- [X] T019 [P] [US2] Unit test: PeerServer sends only chunks after the requester's chain height in `tests/sync_tests.cpp`
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Update PeerServer BLOCKCHAIN_QUERY handler to calculate `start_chunk` from `local_chain_height` and send only missing chunks in `src/network/PeerServer.cpp`
-- [ ] T021 [US2] Update PeerClient to handle partial first chunk (when local height is not chunk-aligned) — append only missing blocks in `src/network/PeerClient.cpp`
-- [ ] T022 [US2] Ensure PeerClient sends the current `getChainBlockCount()` (not hardcoded 1) so incremental sync works on reconnect in `src/network/PeerClient.cpp`
+- [X] T020 [US2] Update PeerServer BLOCKCHAIN_QUERY handler to calculate `start_chunk` from `local_chain_height` and send only missing chunks in `src/network/PeerServer.cpp`
+- [X] T021 [US2] Update PeerClient to handle partial first chunk (when local height is not chunk-aligned) — append only missing blocks in `src/network/PeerClient.cpp`
+- [X] T022 [US2] Ensure PeerClient sends the current `getChainBlockCount()` (not hardcoded 1) so incremental sync works on reconnect in `src/network/PeerClient.cpp`
 
 **Checkpoint**: A node that was offline catches up by downloading only missing blocks. Incremental sync verified.
 
@@ -95,17 +95,17 @@
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] Unit test: PeerClient rejects chunk containing block with invalid hash in `tests/sync_tests.cpp`
-- [ ] T024 [P] [US3] Unit test: PeerClient rejects chunk containing block with insufficient PoW difficulty in `tests/sync_tests.cpp`
-- [ ] T025 [P] [US3] Unit test: PeerClient accepts valid longer chain and replaces local chain in `tests/sync_tests.cpp`
-- [ ] T026 [P] [US3] Unit test: PeerClient keeps local chain when peer chain is same length (longest-chain rule) in `tests/sync_tests.cpp`
-- [ ] T027 [P] [US3] Unit test: PeerClient skips sync when peer's `total_chain_height` is less than local height in `tests/sync_tests.cpp`
+- [X] T023 [P] [US3] Unit test: PeerClient rejects chunk containing block with invalid hash in `tests/sync_tests.cpp`
+- [X] T024 [P] [US3] Unit test: PeerClient rejects chunk containing block with insufficient PoW difficulty in `tests/sync_tests.cpp`
+- [X] T025 [P] [US3] Unit test: PeerClient accepts valid longer chain and replaces local chain in `tests/sync_tests.cpp`
+- [X] T026 [P] [US3] Unit test: PeerClient keeps local chain when peer chain is same length (longest-chain rule) in `tests/sync_tests.cpp`
+- [X] T027 [P] [US3] Unit test: PeerClient skips sync when peer's `total_chain_height` is less than local height in `tests/sync_tests.cpp`
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Add per-chunk rejection logic — on validation failure, discard the invalid chunk, abort sync, return to IDLE, log error in `src/network/PeerClient.cpp`
-- [ ] T029 [US3] Add longest-chain guard — before starting sync, compare peer's `total_chain_height` with local height; skip sync if peer is not strictly longer in `src/network/PeerClient.cpp`
-- [ ] T030 [US3] Add validation error logging — log which block index failed, the validation reason, and the peer identity in `src/network/PeerClient.cpp`
+- [X] T028 [US3] Add per-chunk rejection logic — on validation failure, discard the invalid chunk, abort sync, return to IDLE, log error in `src/network/PeerClient.cpp`
+- [X] T029 [US3] Add longest-chain guard — before starting sync, compare peer's `total_chain_height` with local height; skip sync if peer is not strictly longer in `src/network/PeerClient.cpp`
+- [X] T030 [US3] Add validation error logging — log which block index failed, the validation reason, and the peer identity in `src/network/PeerClient.cpp`
 
 **Checkpoint**: Invalid chain data is rejected per-chunk. Valid longer chains accepted. Equal-length chains not replaced.
 
@@ -119,15 +119,15 @@
 
 ### Tests for User Story 4
 
-- [ ] T031 [P] [US4] Unit test: PeerClient preserves already-persisted chunks when connection drops mid-sync in `tests/sync_tests.cpp`
-- [ ] T032 [P] [US4] Unit test: 60-second per-chunk timeout fires and aborts sync in `tests/sync_tests.cpp`
-- [ ] T033 [P] [US4] Unit test: PeerClient returns to IDLE state on connection error during sync in `tests/sync_tests.cpp`
+- [X] T031 [P] [US4] Unit test: PeerClient preserves already-persisted chunks when connection drops mid-sync in `tests/sync_tests.cpp`
+- [X] T032 [P] [US4] Unit test: 60-second per-chunk timeout fires and aborts sync in `tests/sync_tests.cpp`
+- [X] T033 [P] [US4] Unit test: PeerClient returns to IDLE state on connection error during sync in `tests/sync_tests.cpp`
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] Add 60-second per-chunk `boost::asio::steady_timer` deadline in PeerClient response handler — abort sync on timeout in `src/network/PeerClient.cpp`
-- [ ] T035 [US4] Add connection error handler during sync — on `boost::system::error_code`, preserve local state, transition to IDLE, log error in `src/network/PeerClient.cpp`
-- [ ] T036 [US4] Ensure auto-sync on reconnect uses updated local chain height so sync resumes from last persisted chunk in `src/network/PeerClient.cpp`
+- [X] T034 [US4] Add 60-second per-chunk `boost::asio::steady_timer` deadline in PeerClient response handler — abort sync on timeout in `src/network/PeerClient.cpp`
+- [X] T035 [US4] Add connection error handler during sync — on `boost::system::error_code`, preserve local state, transition to IDLE, log error in `src/network/PeerClient.cpp`
+- [X] T036 [US4] Ensure auto-sync on reconnect uses updated local chain height so sync resumes from last persisted chunk in `src/network/PeerClient.cpp`
 
 **Checkpoint**: Sync is resilient to network interruptions. Timeouts and disconnects handled gracefully.
 
@@ -137,14 +137,14 @@
 
 **Purpose**: `requestSync` RPC method and `addBlock` blocking — depends on sync logic from US1
 
-- [ ] T037 [P] Unit test: `requestSync` RPC returns `sync_started` when not syncing in `tests/server_tests.cpp`
-- [ ] T038 [P] Unit test: `requestSync` RPC returns error `-32002` when sync already in progress in `tests/server_tests.cpp`
-- [ ] T039 [P] Unit test: `addBlock` RPC returns error `-32001` when sync is active in `tests/server_tests.cpp`
-- [ ] T040 [P] Unit test: `addBlock` RPC succeeds normally when sync is not active in `tests/server_tests.cpp`
-- [ ] T041 [P] Unit test: read-only RPCs (`getBlockByIndex`, `getBlocksByKeys`) succeed while `isSyncing` is true in `tests/server_tests.cpp`
-- [ ] T042 Implement `requestSync` RPC method in `RpcServer` — check sync state, trigger `PeerClient` sync, return result in `src/network/RpcServer.cpp`
-- [ ] T043 Gate `addBlock` on `SyncState` — check `isSyncing` flag at start of addBlock handler; return error `-32001` if true in `src/network/RpcServer.cpp`
-- [ ] T044 Add JSON-RPC helper methods: `syncInProgressMessage()`, `syncStartedMessage()`, `noPeerMessage()` in `src/network/RpcServer.hpp` and `src/network/RpcServer.cpp`
+- [X] T037 [P] Unit test: `requestSync` RPC returns `sync_started` when not syncing in `tests/server_tests.cpp`
+- [X] T038 [P] Unit test: `requestSync` RPC returns error `-32002` when sync already in progress in `tests/server_tests.cpp`
+- [X] T039 [P] Unit test: `addBlock` RPC returns error `-32001` when sync is active in `tests/server_tests.cpp`
+- [X] T040 [P] Unit test: `addBlock` RPC succeeds normally when sync is not active in `tests/server_tests.cpp`
+- [X] T041 [P] Unit test: read-only RPCs (`getBlockByIndex`, `getBlocksByKeys`) succeed while `isSyncing` is true in `tests/server_tests.cpp`
+- [X] T042 Implement `requestSync` RPC method in `RpcServer` — check sync state, trigger `PeerClient` sync, return result in `src/network/RpcServer.cpp`
+- [X] T043 Gate `addBlock` on `SyncState` — check `isSyncing` flag at start of addBlock handler; return error `-32001` if true in `src/network/RpcServer.cpp`
+- [X] T044 Add JSON-RPC helper methods: `syncInProgressMessage()`, `syncStartedMessage()`, `noPeerMessage()` in `src/network/RpcServer.hpp` and `src/network/RpcServer.cpp`
 
 **Checkpoint**: `requestSync` RPC works. `addBlock` blocked during sync. Read-only RPCs unaffected.
 
@@ -154,7 +154,7 @@
 
 **Purpose**: Final validation, build integration, cleanup
 
-- [ ] T045 Verify `make check` passes all sync and RPC tests
+- [X] T045 Verify `make check` passes all sync and RPC tests
 - [ ] T046 Run quickstart.md scenario 1 (initial sync) end-to-end manually and verify
 - [ ] T047 Run quickstart.md scenario 3 (addBlock blocked during sync) and verify error response
 - [ ] T048 Verify concurrent sync request handling — PeerServer handles multiple BLOCKCHAIN_QUERY packets from different connections without data corruption

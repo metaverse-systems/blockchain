@@ -50,6 +50,29 @@ autom4te.cache
 Makefile
 
 # C++ build artifacts
+build/
+bin/
+obj/
+out/
+*.o
+*.so
+*.a
+*.exe
+*.dll
+*.log
+.env*
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# C++ build artifacts
 *.o
 *.so
 *.a

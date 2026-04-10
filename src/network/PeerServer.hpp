@@ -9,6 +9,7 @@
 #include "../json.hpp"
 #include "SessionHandler.hpp"
 #include "PacketHeader.hpp"
+#include "SyncMessages.hpp"
 
 namespace ssl = boost::asio::ssl;
 using boost::asio::ip::tcp;
@@ -31,4 +32,6 @@ class PeerServer : public SessionHandler, public std::enable_shared_from_this<Pe
     void do_read_header();
     void do_read_body(const PacketHeader &header);
     void do_write();
+    void handle_blockchain_query(const SyncQuery &query);
+    void send_sync_response(const SyncResponse &response, size_t remaining_chunks, size_t next_chunk, uint64_t total_height);
 };
