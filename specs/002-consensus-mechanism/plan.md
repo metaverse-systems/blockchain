@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add a Proof-of-Work consensus mechanism to the blockchain. Blocks gain `nonce` and `difficulty` fields; mining computes a nonce such that the block hash has the required number of leading zero bits. Validation rejects blocks with invalid proofs. The longest-valid-chain rule resolves forks (with a configurable max reorg depth). Difficulty adjusts periodically based on block production rate. The implementation extends the existing `Block` and `IBlockchain` types without breaking serialization or the RPC API.
+Add a Proof-of-Work consensus mechanism to the blockchain. Blocks gain `nonce` and `difficulty` fields; mining computes a nonce such that the block hash has the required number of leading zero bits. Validation rejects blocks with invalid proofs. The longest-valid-chain rule resolves forks (with a configurable max reorg depth). Difficulty adjusts periodically based on block production rate. The implementation extends the existing `Block` and `IBlockchain` types without breaking the RPC API. Serialization format is extended with new fields (no legacy data exists).
 
 ## Technical Context
 

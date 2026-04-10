@@ -48,7 +48,7 @@ As a node operator adding data to the blockchain, I want the node to compute a v
 
 1. **Given** a node with consensus enabled, **When** `addBlock` is called with valid data, **Then** the node computes a nonce such that the block's hash meets the current difficulty target.
 2. **Given** a node mining a block, **When** the proof-of-work computation completes, **Then** the resulting block hash has at least the required number of leading zero bits.
-3. **Given** a node mining a block, **When** the block is successfully mined, **Then** the block includes the nonce used and the timestamp reflects when mining completed.
+3. **Given** a node mining a block, **When** the block is successfully mined, **Then** the block includes the nonce used and the timestamp reflects when mining started (set before the mining loop begins).
 
 ---
 
@@ -87,12 +87,12 @@ As a network participant, I want the mining difficulty to adjust automatically b
 ### Edge Cases
 
 - What happens when a block's timestamp is significantly in the future relative to the node's clock?
-- How does the system handle a block with a nonce that overflows the numeric range during mining?
+- How does the system handle a block with a nonce that overflows the numeric range during mining? A `uint64_t` nonce provides 2^64 attempts; at difficulty ≤16, the mining loop will hit the 30s timeout long before nonce overflow. No special overflow handling is required.
 - What happens when two blocks at the same height arrive nearly simultaneously (natural fork)?
 - How does the node behave when difficulty is at the minimum and blocks are still being produced too slowly?
 - What happens when the genesis block is validated — does it follow the same consensus rules or is it exempt?
 - How does the system handle a chain reorganization that affects blocks already queried by users? Reorganizations beyond the configurable max depth (default 100 blocks) are rejected.
-- What happens when mining times out — is the partial work discarded or resumable?
+- What happens when mining times out — is the partial work discarded or resumable? Partial work is discarded; mining restarts from nonce 0 on the next `addBlock` call.
 
 ## Requirements
 
@@ -101,8 +101,8 @@ As a network participant, I want the mining difficulty to adjust automatically b
 - **FR-001**: System MUST validate each new block's proof-of-work against the current difficulty target before accepting it into the chain.
 - **FR-002**: System MUST compute a valid proof-of-work (nonce) when creating a new block locally, such that the block's hash meets the difficulty target.
 - **FR-003**: System MUST include a nonce field and a difficulty field in each block's structure.
-- **FR-004**: System MUST adopt the longest valid chain rule: when presented with a competing chain that is longer and fully valid, the node replaces its local chain, provided the reorganization depth does not exceed the configured maximum.
-- **FR-005**: System MUST reject any competing chain that contains one or more invalid blocks (incorrect hash, invalid proof-of-work, broken linkage).
+- **FR-004**: System MUST adopt the longest valid chain rule: when presented with a competing chain that is longer and fully valid, the node replaces its local chain. (Maximum reorganization depth enforcement is specified by FR-014.)
+- **FR-005**: System MUST reject any competing chain that contains one or more invalid blocks (incorrect hash, invalid proof-of-work, broken linkage). This applies FR-001 validation at chain level.
 - **FR-006**: System MUST exempt the genesis block from proof-of-work requirements while still validating its structural integrity.
 - **FR-007**: System MUST adjust mining difficulty periodically based on the rate of recent block production relative to a target block interval.
 - **FR-008**: System MUST cap difficulty adjustments to prevent extreme changes in a single adjustment period (maximum adjustment factor).
