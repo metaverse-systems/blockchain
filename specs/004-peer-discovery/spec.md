@@ -159,6 +159,7 @@ Misbehaving peers (sending invalid data, flooding connections, repeatedly discon
 - Q: What is the maximum number of stored peer addresses? → A: 256 peers.
 - Q: How is the peer list persisted and how are duplicate connections resolved? → A: JSON file with an auto-generated node UUID (created on first run); duplicate connections are resolved by comparing node UUIDs — the lower UUID keeps its outbound connection.
 - Q: What is the target network scale for the peer discovery design? → A: 100 nodes. The design should work at this scale without changes.
+- Q: Should new peer config use .env or a different format? → A: Introduce `config.json` to replace `.env` for all node configuration (TLS, ports, consensus, peer settings). Runtime peer state stays in a separate `peers.json`.
 
 ## Assumptions
 
