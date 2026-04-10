@@ -62,7 +62,6 @@ As a node operator, I want my node to validate stream entries in blocks received
 
 1. **Given** a node receives a block from a peer containing well-formed stream entries, **When** the node validates the block, **Then** the block is accepted and appended to the chain.
 2. **Given** a node receives a block containing an entry with missing stream name or key, **When** the node validates the block, **Then** the block is rejected.
-3. **Given** a block was created before the stream model was introduced (legacy block with opaque data), **When** a client queries for that block, **Then** the response still returns the block with its data field intact (backward compatibility).
 
 ---
 
@@ -103,7 +102,6 @@ As a node operator, I want to configure which streams my node allows publishing 
 
 - What happens when the data payload is empty? (Allowed — empty strings are valid and may be used as markers or tombstones.)
 - What happens when multiple entries share the same stream + key? (All are stored — keys are not unique; multiple entries represent a history/append log for that key.)
-- What happens when a block containing legacy opaque-string data is loaded from disk? (Backward-compatible deserialization preserves the data as-is.)
 - What happens when a stream name contains special characters? (Stream names are restricted to alphanumeric characters, hyphens, and underscores; max 256 characters.)
 - What happens when the data exceeds a reasonable size? (Entries exceeding 128 MB are rejected before block inclusion.)
 - What happens when a node with stream restrictions receives a block via P2P containing entries for a restricted stream? (The block is still accepted — per-node permissions apply only to local RPC publishing, not to P2P block acceptance. The chain must remain consistent across nodes regardless of local permission settings.)
@@ -117,11 +115,10 @@ As a node operator, I want to configure which streams my node allows publishing 
 - **FR-002**: The system MUST support named streams as logical groupings of related entries (similar to MultiChain streams).
 - **FR-003**: The system MUST allow clients to create named streams explicitly via RPC or implicitly by publishing to a non-existent stream name.
 - **FR-004**: The system MUST reject stream entries with missing or empty stream name or key.
-- **FR-005**: The system MUST update the `addBlock` RPC endpoint to accept stream entry parameters (stream, key, data) instead of a plain data string.
+- **FR-005**: The system MUST replace the existing `addBlock` RPC endpoint with a `publish` endpoint that accepts stream entry parameters (stream, key, data).
 - **FR-006**: The system MUST include full stream entry details (stream, key, data) in block query responses (`getBlockByIndex`, `getBlocksByKeys`).
 - **FR-007**: The system MUST support two query modes: (a) history mode — returning all entries for a stream/key in chain order, and (b) latest mode — returning only the most recent entry for a stream/key.
-- **FR-008**: The system MUST maintain backward compatibility with existing blocks that contain opaque string data (blocks created before this feature).
-- **FR-009**: The system MUST serialize and deserialize stream entries as part of the block's Boost.Serialization archive for persistence and P2P transfer.
+- **FR-008**: The system MUST serialize and deserialize stream entries as part of the block's Boost.Serialization archive for persistence and P2P transfer.
 - **FR-010**: The system MUST validate stream entry structure in blocks received via P2P before accepting the block into the chain.
 - **FR-011**: The system MUST enforce naming rules on stream names (alphanumeric, hyphens, underscores; max 256 characters).
 - **FR-012**: The system MUST prevent duplicate explicit stream creation (stream names are unique; implicit creation for an existing stream simply publishes to it).
@@ -134,25 +131,23 @@ As a node operator, I want to configure which streams my node allows publishing 
 
 - **Stream**: A named channel for grouping related data entries. Created explicitly by clients or implicitly on first publish. Stream names are unique. Streams carry no metadata at creation time (bare name only).
 - **Stream Entry**: A single data record published to a stream. Contains a stream name, a user-provided key, and a data payload (opaque string). Multiple entries may share the same key (append-log semantics). Maximum data size: 128 MB. Binary data is the client's responsibility to base64-encode before submission and decode on retrieval.
-- **Block** (updated): A container for one or more stream entries, linked to the previous block. The existing `data` field is superseded by a list of stream entries for new blocks.
+- **Block** (updated): A container for one or more stream entries, linked to the previous block. The legacy `data` field is removed; blocks contain only stream entries.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: All new blocks contain structured stream entries with stream name, key, and data fields — no new blocks use the opaque data format.
+- **SC-001**: All new blocks contain structured stream entries with stream name, key, and data fields.
 - **SC-002**: 100% of stream entries with missing stream name or key are rejected before block inclusion.
 - **SC-003**: Blocks received via P2P with malformed stream entries are rejected by receiving nodes.
-- **SC-004**: Existing blocks with opaque string data remain readable and queryable after the update (zero data loss on upgrade).
-- **SC-005**: Clients can publish, query, and manage streams using only the RPC interface without direct chain access.
-- **SC-006**: Queries by stream name + key return results in both history and latest modes without requiring a full chain scan.
+- **SC-004**: Clients can publish, query, and manage streams using only the RPC interface without direct chain access.
+- **SC-005**: Queries by stream name + key return results in both history and latest modes without requiring a full chain scan.
 
 ## Assumptions
 
 - Streams are open by default — any client can publish to any stream unless the node operator configures per-node stream permissions to restrict access.
 - Stream entries are append-only. Entries cannot be modified or deleted once written to the chain. A newer entry with the same key represents an update; the full history is preserved.
-- The existing `keys` parameter in `addBlock` (used for block indexing/querying) will be repurposed or extended to accommodate stream + key indexing.
-- Blocks on the chain prior to this feature will retain their opaque `data` field. No migration of historical blocks is required.
+- There are no existing blockchains to maintain backward compatibility with. The Block struct is modified in place with no serialization versioning.
 - The consensus mechanism (PoW) and block validation rules from spec 002 remain unchanged; stream entry validation is an additional check layered on top.
 - Digital signatures for stream entries are not included in this feature. Authentication/authorization for publishing is deferred to a future feature.
 - Data payloads are stored as opaque strings; the node does not interpret, parse, or validate the content. Binary data support is a client-side concern (base64-encode before publishing, decode after retrieval).
