@@ -3,8 +3,8 @@
 void Chunk::save()
 {
     std::stringstream ss;
-    ss << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
-    std::filesystem::path path = this->blockchainPath.string() + ss.str();
+    ss << "chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
+    std::filesystem::path path = this->blockchainPath / ss.str();
 
     std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << " in " << path << std::endl;
     
@@ -14,16 +14,16 @@ void Chunk::save()
 
     if(!ofs.good())
     {
-        throw new std::runtime_error("Error: Could not write to file " + ss.str());
+        throw std::runtime_error("Error: Could not write to file " + ss.str());
     }
 }
 
 void Chunk::load()
 {
     std::stringstream ss;
-    ss << "/chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
+    ss << "chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
 
-    std::filesystem::path path = this->blockchainPath.string() + ss.str();
+    std::filesystem::path path = this->blockchainPath / ss.str();
 
     std::ifstream ifs(path, std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);

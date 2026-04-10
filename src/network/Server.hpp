@@ -17,6 +17,7 @@ class Server
     Acceptor &acceptor;
     IBlockchain &bc;
     std::shared_ptr<SessionHandler> last_session_handler;
+    std::chrono::seconds timeout_duration{30};
 
   public:
     Server(boost::asio::io_context &io_context, ssl::context &ssl_context, Acceptor &acceptor, IBlockchain &bc)
@@ -27,9 +28,12 @@ class Server
     {
     }
 
+    void set_timeout(std::chrono::seconds timeout) { timeout_duration = timeout; }
+
     void start_accept()
     {
         auto new_session = SessionHandler::create(io_context, ssl_context, bc);
+        new_session->set_timeout(timeout_duration);
         this->last_session_handler = new_session;
 
         acceptor.async_accept(new_session->get_socket_ref().lowest_layer(),

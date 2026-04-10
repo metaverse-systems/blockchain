@@ -17,18 +17,9 @@ ssl::stream<tcp::socket> &RpcServer::get_socket_ref()
     return ssl_socket;
 };
 
-void RpcServer::start()
+void RpcServer::on_handshake_complete()
 {
-    auto self(shared_from_this());
-    ssl_socket.async_handshake(ssl::stream_base::server,
-        [this, self](const boost::system::error_code& error) {
-            if (!error) {
-                this->do_read();
-            } else {
-                // Handle handshake error, logging, cleaning up, etc.
-            }
-        }
-    );
+    this->do_read();
 }
 
 void RpcServer::do_read() 

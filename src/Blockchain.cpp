@@ -22,7 +22,7 @@ Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vec
 {
     auto unix_timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-    auto currentChunk = this->chain.back();
+    auto& currentChunk = this->chain.back();
     auto previousBlock = currentChunk.back();
 
     if (currentChunk.size() == this->chunkSize) {
@@ -61,12 +61,35 @@ auto Blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
 template<typename ChunkHandler>
 std::vector<Block> Blockchain<ChunkHandler>::getBlocksByKeys(const std::vector<std::string> &keys)
 {
-    std::vector<Block> blocks;
-    for(auto &key : keys)
+    // Collect all block indices from all keys
+    std::map<size_t, std::vector<size_t>> chunkToIndices;
+    for (auto &key : keys)
     {
-        for(auto &index : this->keyIndexMap[key])
+        for (auto &index : this->keyIndexMap[key])
         {
-            blocks.push_back(this->getBlockByIndex(index));
+            size_t chunkIndex = index / this->chunkSize;
+            chunkToIndices[chunkIndex].push_back(index);
+        }
+    }
+
+    // Load each chunk at most once and extract matching blocks
+    std::vector<Block> blocks;
+    for (auto &[chunkIndex, indices] : chunkToIndices)
+    {
+        if (this->chain.size() < chunkIndex + 1)
+        {
+            this->chain.resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, this->blockchainPath));
+        }
+
+        auto &chunk = this->chain.at(chunkIndex);
+        if (chunk.size() == 0)
+        {
+            this->loadChunk(chunkIndex);
+        }
+
+        for (auto index : indices)
+        {
+            blocks.push_back(chunk.at(index % this->chunkSize));
         }
     }
     return blocks;
@@ -93,7 +116,7 @@ void Blockchain<ChunkHandler>::loadChunk(size_t chunkIndex)
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::saveKeys()
 {
-    std::ofstream ofs(this->blockchainPath.string() + "/keys.dat", std::ios::binary);
+    std::ofstream ofs(this->blockchainPath / "keys.dat", std::ios::binary);
     boost::archive::binary_oarchive oa(ofs);
     oa << this->keyIndexMap;
 }
@@ -101,7 +124,7 @@ void Blockchain<ChunkHandler>::saveKeys()
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::loadKeys()
 {
-    std::ifstream ifs(this->blockchainPath.string() + "/keys.dat", std::ios::binary);
+    std::ifstream ifs(this->blockchainPath / "keys.dat", std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);
     ia >> this->keyIndexMap;
 }

@@ -15,18 +15,9 @@ ssl::stream<tcp::socket> &PeerServer::get_socket_ref()
     return ssl_socket;
 };
 
-void PeerServer::start()
+void PeerServer::on_handshake_complete()
 {
-    auto self(shared_from_this());
-    ssl_socket.async_handshake(ssl::stream_base::server,
-        [this, self](const boost::system::error_code &error) {
-            if (!error) {
-                this->do_read_header();
-            } else {
-                // Handle handshake error, logging, cleaning up, etc.
-            }
-        }
-    );
+    this->do_read_header();
 }
 
 void PeerServer::do_read_header()

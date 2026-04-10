@@ -69,3 +69,15 @@ test-chain
 src/.dirstamp
 tests/blockchain_tests
 src/network/.dirstamp
+
+# Environment and IDE
+.env
+.env.*
+!.env.example
+.idea/
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+bc-dir

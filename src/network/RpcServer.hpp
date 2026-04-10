@@ -17,9 +17,12 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
   private:
     boost::asio::streambuf buffer;
 
+  protected:
+    std::shared_ptr<SessionHandler> shared_self() override { return shared_from_this(); }
+    void on_handshake_complete() override;
+
   public:
     explicit RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc);
-    void start() override;
     static std::shared_ptr<RpcServer> create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc);
     ssl::stream<tcp::socket> &get_socket_ref();
 

@@ -17,7 +17,7 @@
 
 **Purpose**: Configuration templates needed before implementation begins
 
-- [ ] T001 Create .env.example in project root with header comment "# Copy this file to your blockchain data directory as .env", TLS certificate path variables (BLOCKCHAIN_CERT_FILE, BLOCKCHAIN_KEY_FILE, BLOCKCHAIN_CA_FILE), and optional BLOCKCHAIN_TIMEOUT setting
+- [X] T001 Create .env.example in project root with header comment "# Copy this file to your blockchain data directory as .env", TLS certificate path variables (BLOCKCHAIN_CERT_FILE, BLOCKCHAIN_KEY_FILE, BLOCKCHAIN_CA_FILE), and optional BLOCKCHAIN_TIMEOUT setting
 
 ---
 
@@ -27,8 +27,8 @@
 
 **⚠️ CRITICAL**: US2 depends on loadDotEnv(); US5 and US7 depend on logMessage()
 
-- [ ] T002 Implement logMessage() structured logging helper (timestamp + severity + message to stderr) in src/utils.hpp and src/utils.cpp per research decision R6
-- [ ] T003 Implement loadDotEnv() .env file parser (KEY=VALUE with comments, quotes, whitespace handling) in src/utils.hpp and src/utils.cpp per research decision R5
+- [X] T002 Implement logMessage() structured logging helper (timestamp + severity + message to stderr) in src/utils.hpp and src/utils.cpp per research decision R6
+- [X] T003 Implement loadDotEnv() .env file parser (KEY=VALUE with comments, quotes, whitespace handling) in src/utils.hpp and src/utils.cpp per research decision R5
 
 **Checkpoint**: Foundation ready — shared utilities available for all user stories
 
@@ -42,9 +42,9 @@
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Add AX_CXX_COMPILE_STDCXX(20, noext, mandatory) macro to configure.ac per research decision R1
-- [ ] T005 [P] [US1] Replace -std=c++17 with -std=c++20 in src/Makefile.am
-- [ ] T006 [P] [US1] Replace -std=c++17 with -std=c++20 in tests/Makefile.am
+- [X] T004 [US1] Add AX_CXX_COMPILE_STDCXX(20, noext, mandatory) macro to configure.ac per research decision R1
+- [X] T005 [P] [US1] Replace -std=c++17 with -std=c++20 in src/Makefile.am
+- [X] T006 [P] [US1] Replace -std=c++17 with -std=c++20 in tests/Makefile.am
 
 **Checkpoint**: Project compiles under C++20 on all targets
 
@@ -60,15 +60,15 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T007 [P] [US2] Write Catch2 test: daemon startup logic exits with structured error when BLOCKCHAIN_CERT_FILE or BLOCKCHAIN_KEY_FILE env vars are unset, in tests/server_tests.cpp per US2 acceptance scenario 4
-- [ ] T008 [P] [US2] Write Catch2 test: P2P server with mutual TLS rejects a connecting peer that does not present a valid certificate, in tests/server_tests.cpp per FR-004a
+- [X] T007 [P] [US2] Write Catch2 test: daemon startup logic exits with structured error when BLOCKCHAIN_CERT_FILE or BLOCKCHAIN_KEY_FILE env vars are unset, in tests/server_tests.cpp per US2 acceptance scenario 4
+- [X] T008 [P] [US2] Write Catch2 test: P2P server with mutual TLS rejects a connecting peer that does not present a valid certificate, in tests/server_tests.cpp per FR-004a
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Wire loadDotEnv(blockchainDir / ".env") call at startup (where blockchainDir is argv[1]), read BLOCKCHAIN_CERT_FILE, BLOCKCHAIN_KEY_FILE, BLOCKCHAIN_CA_FILE, BLOCKCHAIN_TIMEOUT environment variables, and validate that BLOCKCHAIN_CERT_FILE and BLOCKCHAIN_KEY_FILE are set — if missing, log a structured error via logMessage and exit with non-zero status — in src/main.cpp per FR-003 and US2 acceptance scenario 4
-- [ ] T010 [US2] Create two separate boost::asio::ssl::context instances — mutual TLS for P2P (verify_peer | verify_fail_if_no_peer_cert + load_verify_file) and server-only for RPC (verify_none on server side) — in src/main.cpp per research decision R4
-- [ ] T011 [P] [US2] Update PeerServer constructor and Server template instantiation to accept and use the mutual TLS ssl::context in src/network/PeerServer.cpp, src/network/PeerServer.hpp, and src/network/Server.hpp
-- [ ] T012 [P] [US2] Update RpcServer constructor and Server template instantiation to accept and use the server-only TLS ssl::context in src/network/RpcServer.cpp, src/network/RpcServer.hpp, and src/network/Server.hpp
+- [X] T009 [US2] Wire loadDotEnv(blockchainDir / ".env") call at startup (where blockchainDir is argv[1]), read BLOCKCHAIN_CERT_FILE, BLOCKCHAIN_KEY_FILE, BLOCKCHAIN_CA_FILE, BLOCKCHAIN_TIMEOUT environment variables, and validate that BLOCKCHAIN_CERT_FILE and BLOCKCHAIN_KEY_FILE are set — if missing, log a structured error via logMessage and exit with non-zero status — in src/main.cpp per FR-003 and US2 acceptance scenario 4
+- [X] T010 [US2] Create two separate boost::asio::ssl::context instances — mutual TLS for P2P (verify_peer | verify_fail_if_no_peer_cert + load_verify_file) and server-only for RPC (verify_none on server side) — in src/main.cpp per research decision R4
+- [X] T011 [P] [US2] Update PeerServer constructor and Server template instantiation to accept and use the mutual TLS ssl::context in src/network/PeerServer.cpp, src/network/PeerServer.hpp, and src/network/Server.hpp
+- [X] T012 [P] [US2] Update RpcServer constructor and Server template instantiation to accept and use the server-only TLS ssl::context in src/network/RpcServer.cpp, src/network/RpcServer.hpp, and src/network/Server.hpp
 
 **Checkpoint**: All network endpoints use properly configured TLS with configurable certificates
 
@@ -84,13 +84,13 @@
 
 > **NOTE: Write this test FIRST, ensure it FAILS before implementation**
 
-- [ ] T013 [US3] Write Catch2 test: exception thrown by Chunk::save() (e.g., to a read-only path) is catchable via catch(const std::runtime_error&) in tests/block_tests.cpp per FR-006
+- [X] T013 [US3] Write Catch2 test: exception thrown by Chunk::save() (e.g., to a read-only path) is catchable via catch(const std::runtime_error&) in tests/block_tests.cpp per FR-006
 
 ### Implementation for User Story 3
 
-- [ ] T014 [P] [US3] Fix #include directive filename casing to match actual filenames in tests/server_tests.cpp per FR-005
-- [ ] T015 [P] [US3] Fix source file name references to match actual filenames in tests/Makefile.am per FR-005
-- [ ] T016 [P] [US3] Replace throw new std::runtime_error(...) with throw std::runtime_error(...) in src/Chunk.cpp per FR-006
+- [X] T014 [P] [US3] Fix #include directive filename casing to match actual filenames in tests/server_tests.cpp per FR-005
+- [X] T015 [P] [US3] Fix source file name references to match actual filenames in tests/Makefile.am per FR-005
+- [X] T016 [P] [US3] Replace throw new std::runtime_error(...) with throw std::runtime_error(...) in src/Chunk.cpp per FR-006
 
 **Checkpoint**: `make check` compiles and runs on case-sensitive filesystems; exceptions are catchable
 
@@ -104,8 +104,8 @@
 
 ### Implementation for User Story 4
 
-- [ ] T017 [P] [US4] Replace blockchainPath.string() + "/" + filename string concatenation with blockchainPath / filename in src/Chunk.cpp (save and load methods) per research decision R7
-- [ ] T018 [P] [US4] Replace blockchainPath.string() + "/" + filename string concatenation with blockchainPath / filename in src/Blockchain.cpp (saveKeys and loadKeys methods) per research decision R7
+- [X] T017 [P] [US4] Replace blockchainPath.string() + "/" + filename string concatenation with blockchainPath / filename in src/Chunk.cpp (save and load methods) per research decision R7
+- [X] T018 [P] [US4] Replace blockchainPath.string() + "/" + filename string concatenation with blockchainPath / filename in src/Blockchain.cpp (saveKeys and loadKeys methods) per research decision R7
 
 **Checkpoint**: All filesystem paths use std::filesystem::path::operator/ for cross-platform correctness
 
@@ -121,11 +121,11 @@
 
 ### Implementation for User Story 7
 
-- [ ] T019 [US7] Implement shared SSL async_handshake in SessionHandler::start() with virtual on_handshake_complete() callback in src/network/SessionHandler.hpp per FR-011
-- [ ] T020 [P] [US7] Refactor RpcServer to remove local handshake code, delegate to SessionHandler::start(), and override on_handshake_complete() for JSON-RPC read loop in src/network/RpcServer.cpp and src/network/RpcServer.hpp
-- [ ] T021 [P] [US7] Refactor PeerServer to remove local handshake code, delegate to SessionHandler::start(), and override on_handshake_complete() for P2P header read in src/network/PeerServer.cpp and src/network/PeerServer.hpp
-- [ ] T022 [US7] Update MockSessionHandler to conform to new SessionHandler base interface (virtual on_handshake_complete) in src/network/MockSessionHandler.hpp
-- [ ] T023 [US7] Update tests/server_tests.cpp for refactored SessionHandler base interface — verify Server construction and start still work with the new virtual method dispatch
+- [X] T019 [US7] Implement shared SSL async_handshake in SessionHandler::start() with virtual on_handshake_complete() callback in src/network/SessionHandler.hpp per FR-011
+- [X] T020 [P] [US7] Refactor RpcServer to remove local handshake code, delegate to SessionHandler::start(), and override on_handshake_complete() for JSON-RPC read loop in src/network/RpcServer.cpp and src/network/RpcServer.hpp
+- [X] T021 [P] [US7] Refactor PeerServer to remove local handshake code, delegate to SessionHandler::start(), and override on_handshake_complete() for P2P header read in src/network/PeerServer.cpp and src/network/PeerServer.hpp
+- [X] T022 [US7] Update MockSessionHandler to conform to new SessionHandler base interface (virtual on_handshake_complete) in src/network/MockSessionHandler.hpp
+- [X] T023 [US7] Update tests/server_tests.cpp for refactored SessionHandler base interface — verify Server construction and start still work with the new virtual method dispatch
 
 **Checkpoint**: Handshake logic exists in one place; both servers delegate to the shared implementation
 
@@ -143,12 +143,12 @@
 
 > **NOTE: Write this test FIRST, ensure it FAILS before implementation**
 
-- [ ] T024 [US5] Write Catch2 test: a connection that stalls beyond the timeout period is closed and a timeout log entry is produced, in tests/server_tests.cpp per FR-009 and SC-005
+- [X] T024 [US5] Write Catch2 test: a connection that stalls beyond the timeout period is closed and a timeout log entry is produced, in tests/server_tests.cpp per FR-009 and SC-005
 
 ### Implementation for User Story 5
 
-- [ ] T025 [US5] Add steady_timer and timeout_duration members to SessionHandler base class, with helper methods to arm and cancel the timer, in src/network/SessionHandler.hpp per research decision R3
-- [ ] T026 [US5] Add structured error logging (via logMessage) for SSL handshake failures and wrap async operations with steady_timer timeout in SessionHandler::start() in src/network/SessionHandler.hpp per FR-008 and FR-009
+- [X] T025 [US5] Add steady_timer and timeout_duration members to SessionHandler base class, with helper methods to arm and cancel the timer, in src/network/SessionHandler.hpp per research decision R3
+- [X] T026 [US5] Add structured error logging (via logMessage) for SSL handshake failures and wrap async operations with steady_timer timeout in SessionHandler::start() in src/network/SessionHandler.hpp per FR-008 and FR-009
 
 **Checkpoint**: All SSL failures produce structured log output; stalled connections time out after 30 seconds
 
@@ -164,11 +164,11 @@
 
 > **NOTE: Write this test FIRST, ensure it FAILS before implementation**
 
-- [ ] T027 [US6] Write Catch2 test: add 5 blocks sequentially, retrieve all by index via getBlockByIndex(), verify data integrity; add 100 blocks to trigger new chunk boundary, verify all remain accessible, in tests/block_tests.cpp per FR-010 and SC-006
+- [X] T027 [US6] Write Catch2 test: add 5 blocks sequentially, retrieve all by index via getBlockByIndex(), verify data integrity; add 100 blocks to trigger new chunk boundary, verify all remain accessible, in tests/block_tests.cpp per FR-010 and SC-006
 
 ### Implementation for User Story 6
 
-- [ ] T028 [US6] Change `auto currentChunk = this->chain.back()` to `auto& currentChunk = this->chain.back()` in Blockchain::addBlock() in src/Blockchain.cpp per FR-010
+- [X] T028 [US6] Change `auto currentChunk = this->chain.back()` to `auto& currentChunk = this->chain.back()` in Blockchain::addBlock() in src/Blockchain.cpp per FR-010
 
 **Checkpoint**: addBlock correctly persists blocks in the chain vector
 
@@ -184,11 +184,11 @@
 
 > **NOTE: Write this test FIRST, ensure it FAILS before implementation**
 
-- [ ] T029 [US8] Write Catch2 test: multi-key query spanning N chunks triggers at most N loadChunk calls (verified via MockChunk load counting), in tests/block_tests.cpp per FR-012 and SC-007
+- [X] T029 [US8] Write Catch2 test: multi-key query spanning N chunks triggers at most N loadChunk calls (verified via MockChunk load counting), in tests/block_tests.cpp per FR-012 and SC-007
 
 ### Implementation for User Story 8
 
-- [ ] T030 [US8] Refactor getBlocksByKeys() to collect all block indices, group by chunk index (index / 100), load each chunk once, and extract matching blocks in src/Blockchain.cpp per FR-012
+- [X] T030 [US8] Refactor getBlocksByKeys() to collect all block indices, group by chunk index (index / 100), load each chunk once, and extract matching blocks in src/Blockchain.cpp per FR-012
 
 **Checkpoint**: Multi-key queries perform O(chunks) loads instead of O(blocks) loads
 
@@ -198,9 +198,9 @@
 
 **Purpose**: Thread safety, documentation, and final validation across all user stories
 
-- [ ] T031 Add boost::asio::strand member to Blockchain class template and wrap addBlock, saveChunk, loadChunk, saveKeys, and loadKeys in strand dispatch in src/Blockchain.hpp and src/Blockchain.cpp per FR-013 and research decision R2
-- [ ] T032 [P] Update README.md with current C++20 build requirements, TLS certificate configuration instructions, .env file usage, and project status
-- [ ] T033 Run quickstart.md validation — execute the build, configure, TLS setup, run, and test commands from specs/001-code-constitution-audit/quickstart.md and verify they work end-to-end
+- [X] T031 Add boost::asio::strand member to Blockchain class template and wrap addBlock, saveChunk, loadChunk, saveKeys, and loadKeys in strand dispatch in src/Blockchain.hpp and src/Blockchain.cpp per FR-013 and research decision R2
+- [X] T032 [P] Update README.md with current C++20 build requirements, TLS certificate configuration instructions, .env file usage, and project status
+- [X] T033 Run quickstart.md validation — execute the build, configure, TLS setup, run, and test commands from specs/001-code-constitution-audit/quickstart.md and verify they work end-to-end
 
 ---
 

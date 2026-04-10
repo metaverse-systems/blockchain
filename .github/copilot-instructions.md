@@ -21,6 +21,8 @@ tests/
 
 C++20 (`-std=c++20`): Follow standard conventions
 
+- Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
+
 ## Recent Changes
 
 - 001-code-constitution-audit: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored `src/json.hpp`), Catch2 (test only)

@@ -15,6 +15,8 @@ PKG_CHECK_MODULES([OPENSSL], [openssl])
 PKG_CHECK_MODULES([CATCH2], catch2-with-main)
 
 # Check for Boost and the serialization library
+AX_CXX_COMPILE_STDCXX(20, noext, mandatory)
+
 AX_BOOST_BASE([1.50],, [AC_MSG_ERROR([Could not find Boost])])
 AX_BOOST_SERIALIZATION(,[AC_MSG_ERROR([Could not find Boost.Serialization library])])
 
