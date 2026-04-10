@@ -101,7 +101,7 @@ As a node operator, I want my node to track peers that repeatedly send invalid b
 ### Edge Cases
 
 - What happens when a received block is valid but refers to a previous block the node hasn't seen yet (gap in the chain)? *Resolved: defer in bounded pending pool (see FR-009).*
-- What happens when two valid blocks arrive for the same index (fork scenario)?
+- What happens when two valid blocks arrive for the same index (fork scenario)? *Out of scope — see Assumptions (fork resolution deferred to a future spec).*
 - What happens when a block arrives during an active chain sync operation? *Resolved: queue and process after sync completes (see FR-012).*
 - How does the node handle blocks that arrive out of order?
 - What happens if the node's storage is full when a valid block is received?
@@ -118,7 +118,7 @@ As a node operator, I want my node to track peers that repeatedly send invalid b
 - **FR-006**: System MUST silently discard duplicate blocks (already in chain or already seen) without treating them as errors.
 - **FR-007**: System MUST increment a peer's error count when that peer sends an invalid block.
 - **FR-008**: System MUST reject (discard without appending) any block that fails validation and MUST NOT relay rejected blocks.
-- **FR-009**: System MUST hold received blocks whose prevHash does not match the current chain tip in a bounded pending pool, and re-evaluate them when the missing predecessor arrives or is synced. Blocks that remain unresolved after the pool reaches capacity or a timeout period MUST be evicted.
+- **FR-009**: System MUST hold received blocks whose prevHash does not match the current chain tip in a bounded pending pool, and re-evaluate them when the missing predecessor arrives or is synced. Blocks that remain unresolved after the pool reaches capacity or a timeout period (60 seconds) MUST be evicted.
 - **FR-010**: System MUST NOT broadcast a block back to the peer that originally sent it.
 - **FR-011**: System MUST enforce a per-peer rate limit on inbound BLOCK packets. Blocks exceeding the configured rate MUST be dropped and MUST increment the sending peer's error count.
 - **FR-012**: System MUST queue individually propagated blocks that arrive while a chain sync is in progress, and process the queue after sync completes. The queue MUST be bounded to prevent memory exhaustion.

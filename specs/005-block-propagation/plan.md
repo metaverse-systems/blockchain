@@ -60,8 +60,8 @@ specs/005-block-propagation/
 ```text
 src/
 ├── Block.hpp / Block.cpp                   # Existing — no changes
-├── Blockchain.hpp / Blockchain.cpp         # Modified — addBlock triggers broadcast callback
-├── IBlockchain.hpp                         # Existing — no changes
+├── Blockchain.hpp / Blockchain.cpp         # Modified — new appendBlock() method for pre-mined blocks
+├── IBlockchain.hpp                         # Modified — new virtual appendBlock() method
 ├── BlockPropagation.hpp                    # NEW — propagation engine (validate, relay, dedup, queue)
 ├── BlockPropagation.cpp                    # NEW
 ├── PeerManager.hpp / PeerManager.cpp       # Modified — broadcast_block(), relay helper
