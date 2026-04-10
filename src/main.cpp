@@ -1,6 +1,7 @@
 #include <iostream>
 #include <boost/asio.hpp>
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include "Block.hpp"
 #include "Blockchain.hpp"
@@ -107,6 +108,14 @@ int main(int argc, char *argv[])
     Server<PeerServer, tcp::acceptor> node_server(io_context, p2p_ssl_context, p2p_acceptor, bc);
     node_server.set_timeout(std::chrono::seconds(timeout_seconds));
     node_server.start_accept();
+
+    boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
+    signals.async_wait([&](const boost::system::error_code&, int) {
+        logMessage("INFO", "Shutting down...");
+        bc.saveChunk(0);
+        bc.saveKeys();
+        io_context.stop();
+    });
 
     io_context.run();
   
