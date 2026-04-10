@@ -7,54 +7,15 @@ Last updated: 2026-04-10
 | Spec | Title | Summary |
 |------|-------|---------|
 | 001  | Code Constitution Audit & Remediation | C++20 enforcement, TLS hardening, bug fixes, path portability, timeouts, thread safety, dedup network layer, optimized multi-key queries |
+| 002  | Consensus Mechanism | Proof-of-work validation, mining with configurable timeout, longest-valid-chain resolution with max reorg depth, automatic difficulty adjustment |
+| 003  | Chain Synchronization | Full-chain and incremental sync via `BLOCKCHAIN_QUERY`/`BLOCKCHAIN_RESPONSE`, per-chunk validation with error recovery, graceful timeout/reconnection handling, RPC integration (`requestSync`, addBlock blocking during sync) — 3 manual quickstart validation tasks remaining |
+| 004  | Peer Discovery & Management | Seed-node bootstrap, peer exchange gossip, exponential-backoff reconnection, inbound/outbound connection limits, RPC manual peer management, reputation tracking with auto-ban, `config.json`/`peers.json` persistence with node UUID |
+| 005  | Block Propagation & Validation on Receipt | Outbound broadcast of locally-mined blocks, consensus validation on receipt, multi-hop relay, duplicate suppression via recent-block cache, per-peer rate limiting, invalid-block sender penalties, gap-block pending pool, sync-aware queueing |
+| 006  | Transaction Model (Stream-Based Key/Value Store) | Structured `StreamEntry` arrays replace opaque block data, named-stream publish via RPC, history and latest-mode queries, explicit/implicit stream creation, per-node publish permissions via `config.json`, P2P validation, 128 MB entry size cap, base64 binary support |
 
 ## Suggested Specs
 
-### Tier 1 — Core Protocol (required for a functional distributed blockchain)
-
-#### 002 — Consensus Mechanism
-
-No consensus algorithm exists. Blocks are added locally without any distributed agreement. Implement a consensus protocol (e.g., Proof-of-Work, PBFT, or Raft) so that nodes agree on the canonical chain. This is the single biggest gap between the current codebase and a working distributed blockchain.
-
-**Scope**: Define block difficulty/leader election, implement validation rules, add consensus state to `Blockchain`, reject invalid blocks.
-
----
-
-#### 003 — Chain Synchronization
-
-`BLOCKCHAIN_QUERY` and `BLOCKCHAIN_RESPONSE` packet types are defined in `PacketHeader.hpp` but not implemented. New nodes cannot download the existing chain from peers. Implement chain sync so a joining node can request and reconstruct the full chain from connected peers.
-
-**Scope**: Implement the two reserved packet types, add request/response handlers in `PeerServer`, add sync initiation in `PeerClient`, handle chain-length comparison and chunk-level transfer.
-
----
-
-#### 004 — Peer Discovery & Management
-
-`PeerClient` can connect to a single hardcoded host:port but there is no mechanism to discover peers, maintain a peer list, reconnect on failure, or limit connections. Implement peer management so nodes can find each other and maintain a healthy network topology.
-
-**Scope**: Peer list persistence, seed node / bootstrap mechanism, peer exchange protocol (gossip), connection limits, reconnection with backoff, peer ban/reputation.
-
-Include an option to disable automatic peer discovery in favor of RPC commands for manual peer management, to support private networks or testing scenarios.
-
----
-
-#### 005 — Block Propagation & Validation on Receipt
-
-When a `BLOCK` packet arrives via P2P, `PeerServer::do_read_body` deserializes and prints it but does not validate or add it to the chain. Outbound propagation from `PeerClient` is templated but never called from `addBlock`. Implement full block relay so locally-created blocks are broadcast and remotely-received blocks are validated and appended.
-
-**Scope**: Call `IBlockchain::isValidNewBlock()` on received blocks, append valid blocks, relay to other connected peers, deduplicate already-seen blocks, wire `PeerClient::send()` into the `addBlock` path.
-
----
-
 ### Tier 2 — Data Integrity & Persistence (required for production reliability)
-
-#### 006 — Transaction Model
-
-`Block::data` is an opaque string. There is no structured transaction format, no sender/recipient, no digital signature verification. Define a transaction schema so blocks carry verifiable, structured payloads.
-
-**Scope**: Transaction struct with sender, recipient, payload, signature fields; Ed25519 or ECDSA signature creation/verification; transaction validation before block inclusion; update `addBlock` RPC params.
-
----
 
 #### 007 — Multi-Chunk Persistence & Recovery
 
@@ -78,7 +39,7 @@ No Merkle root or lightweight block header exists. Verification requires loading
 
 The daemon takes a single positional argument (blockchain directory). Ports are hardcoded (12345/12346). There is no way to configure the peer list, log level, or other runtime parameters without editing code. Add a proper CLI and config system.
 
-**Scope**: Command-line argument parsing (port, peer list, log level), extend `.env` support, validate all config at startup, `--help` output.
+**Scope**: Command-line argument parsing (port, peer list, log level), extend `config.json` support, validate all config at startup, `--help` output.
 
 ---
 
@@ -118,7 +79,7 @@ No CI configuration exists. The constitution requires cross-platform support (Li
 
 #### 014 — Documentation & Developer Guide
 
-`README.md` contains a single heading. The `.env.example`, quickstart, and contract docs exist in the spec directory but are not surfaced to developers. Write user-facing documentation.
+`README.md` contains a single heading. The quickstart and contract docs exist in the spec directory but are not surfaced to developers. Write user-facing documentation.
 
 **Scope**: README with build instructions, architecture overview, configuration guide, RPC API reference, contributing guide.
 
@@ -149,10 +110,10 @@ No way to verify block inclusion without downloading the full chain. Design a li
 ```
 002 Consensus ──────────┐
 003 Chain Sync ─────────┤
-004 Peer Discovery ─────┼── Tier 1: unlocks distributed operation
+004 Peer Discovery ─────┼── Tier 1: COMPLETE ✓
 005 Block Propagation ──┘
 006 Transaction Model ──┐
-007 Multi-Chunk Persist ┼── Tier 2: data integrity for real use
+007 Multi-Chunk Persist ┼── Tier 2: 006 complete, 007–008 next
 008 Merkle Tree ────────┘
 009 CLI & Config ───────┐
 010 RPC Expansion ──────┼── Tier 3: usability
@@ -163,4 +124,4 @@ No way to verify block inclusion without downloading the full chain. Design a li
 015–017 ────────────────── Tier 5: future
 ```
 
-Specs within each tier can be worked in parallel where noted. Tier 1 specs have internal ordering: 002 (consensus) should land first since 003 and 005 depend on knowing the consensus rules. 004 (peer discovery) is independent and can proceed in parallel with 002.
+Tier 1 is complete. 006 (Transaction Model) is complete, making 007 (Multi-Chunk Persistence) the next priority — it is the most impactful remaining spec since chains with >100 blocks currently lose data. 008 (Merkle Tree) can follow or run in parallel. Tier 3 specs (009–011) are independent and can proceed alongside Tier 2.
