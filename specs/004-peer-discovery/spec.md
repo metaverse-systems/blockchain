@@ -41,7 +41,7 @@ Two connected nodes periodically share their known peer lists with each other so
 
 ### User Story 3 - Connection Limits & Health (Priority: P2)
 
-A node operator configures maximum inbound and outbound connection limits. The node respects those limits and prioritizes connections to healthy, responsive peers.
+A node operator configures maximum inbound and outbound connection limits. The node respects those limits and replaces connections that trigger disconnect timeouts with other known peers.
 
 **Why this priority**: Connection management prevents resource exhaustion and ensures stable network participation, but the network can function without limits at small scale.
 

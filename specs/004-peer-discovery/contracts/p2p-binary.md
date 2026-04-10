@@ -42,8 +42,8 @@ Each `PeerAddress` contains:
 | `port` | `uint16_t` | P2P listen port |
 
 **Trigger**:
-1. Sent immediately after TLS handshake completes on a new connection (both inbound and outbound).
-2. Sent periodically by the exchange timer (default every 30 seconds) on all active connections.
+1. Sent by the **outbound** side immediately after TLS handshake completes on a new connection. The inbound side replies with `PEER_EXCHANGE_RESPONSE`.
+2. Sent periodically by the exchange timer (default every 30 seconds) on all active outbound connections.
 
 ### PEER_EXCHANGE_RESPONSE
 
