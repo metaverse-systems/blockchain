@@ -1,0 +1,290 @@
+#include <catch2/catch_all.hpp>
+#include "../src/PeerManager.hpp"
+#include "../src/PeerConfig.hpp"
+#include "../src/Blockchain.hpp"
+#include "../src/MockChunk.hpp"
+#include "../src/SyncState.hpp"
+#include "../src/utils.hpp"
+#include "../src/network/PeerMessages.hpp"
+#include <filesystem>
+#include <fstream>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+
+static std::filesystem::path make_temp_dir() {
+    auto p = std::filesystem::temp_directory_path() / ("peer_mgr_test_" + std::to_string(std::rand()));
+    std::filesystem::create_directories(p);
+    return p;
+}
+
+TEST_CASE("PeerManager generates UUID on first run", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers();
+
+    REQUIRE(!pm.get_node_uuid().empty());
+    REQUIRE(pm.get_node_uuid().size() == 36); // UUID v4 format: 8-4-4-4-12
+    REQUIRE(std::filesystem::exists(dir / "peers.json"));
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerManager persists and reloads UUID", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+
+    std::string uuid;
+    {
+        PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+        pm.load_peers();
+        uuid = pm.get_node_uuid();
+    }
+
+    {
+        PeerManager pm2(io, ssl_ctx, cfg, dir, bc, sync);
+        pm2.load_peers();
+        REQUIRE(pm2.get_node_uuid() == uuid);
+    }
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerManager add/remove/find peers", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers();
+
+    PeerEntry e;
+    e.host = "10.0.0.1";
+    e.port = 12346;
+    e.last_seen = 100;
+
+    REQUIRE(pm.add_peer(e));
+    REQUIRE(pm.get_peers().size() == 1);
+    REQUIRE(pm.find_peer("10.0.0.1", 12346) != nullptr);
+    REQUIRE(pm.find_peer("10.0.0.2", 12346) == nullptr);
+
+    REQUIRE(pm.remove_peer("10.0.0.1", 12346));
+    REQUIRE(pm.get_peers().empty());
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerManager enforces 256-entry cap with oldest-seen eviction", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+    cfg.max_stored_peers = 5; // Small cap for testing
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers();
+
+    for (int i = 0; i < 6; i++) {
+        PeerEntry e;
+        e.host = "10.0.0." + std::to_string(i);
+        e.port = 12346;
+        e.last_seen = static_cast<uint64_t>(i * 100); // Older peers have lower last_seen
+        pm.add_peer(e);
+    }
+
+    REQUIRE(pm.get_peers().size() == 5);
+    // Oldest (last_seen=0, host=10.0.0.0) should have been evicted
+    REQUIRE(pm.find_peer("10.0.0.0", 12346) == nullptr);
+    REQUIRE(pm.find_peer("10.0.0.5", 12346) != nullptr);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerManager ban and unban", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers();
+
+    REQUIRE(!pm.is_banned("10.0.0.1", 12346));
+
+    pm.ban_peer("10.0.0.1", 12346, "test_ban", 3600);
+    REQUIRE(pm.is_banned("10.0.0.1", 12346));
+    REQUIRE(pm.get_bans().size() == 1);
+
+    pm.unban_peer("10.0.0.1", 12346);
+    REQUIRE(!pm.is_banned("10.0.0.1", 12346));
+    REQUIRE(pm.get_bans().empty());
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerManager auto-ban on error threshold", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+    cfg.ban_threshold_errors = 3;
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers();
+
+    PeerEntry e;
+    e.host = "10.0.0.1";
+    e.port = 12346;
+    pm.add_peer(e);
+
+    pm.increment_error("10.0.0.1", 12346);
+    pm.increment_error("10.0.0.1", 12346);
+    REQUIRE(!pm.is_banned("10.0.0.1", 12346));
+
+    pm.increment_error("10.0.0.1", 12346);
+    REQUIRE(pm.is_banned("10.0.0.1", 12346));
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerManager handles malformed peers.json", "[PeerManager]") {
+    auto dir = make_temp_dir();
+
+    // Write invalid JSON to peers.json
+    std::ofstream(dir / "peers.json") << "not valid json {{{{";
+
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers(); // Should not throw
+
+    REQUIRE(!pm.get_node_uuid().empty());
+    REQUIRE(pm.get_peers().empty());
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerManager save_peers produces atomic output", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers();
+
+    PeerEntry e;
+    e.host = "10.0.0.1";
+    e.port = 12346;
+    e.node_uuid = "test-uuid-123";
+    e.last_seen = 12345;
+    pm.add_peer(e);
+    pm.save_peers();
+
+    // Verify saved content
+    std::ifstream ifs(dir / "peers.json");
+    auto j = nlohmann::json::parse(ifs);
+    REQUIRE(j["node_uuid"] == pm.get_node_uuid());
+    REQUIRE(j["peers"].size() == 1);
+    REQUIRE(j["peers"][0]["host"] == "10.0.0.1");
+    REQUIRE(j["peers"][0]["port"] == 12346);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("PeerAddress Boost.Serialization round-trip", "[PeerManager]") {
+    PeerAddress original;
+    original.host = "::1";
+    original.port = 12346;
+
+    std::stringstream ss;
+    {
+        boost::archive::binary_oarchive oa(ss);
+        oa << original;
+    }
+    PeerAddress loaded;
+    {
+        boost::archive::binary_iarchive ia(ss);
+        ia >> loaded;
+    }
+
+    REQUIRE(loaded.host == original.host);
+    REQUIRE(loaded.port == original.port);
+}
+
+TEST_CASE("PeerAddress JSON round-trip with IPv6", "[PeerManager]") {
+    PeerAddress original;
+    original.host = "fe80::1";
+    original.port = 9999;
+
+    nlohmann::json j = original;
+    PeerAddress loaded = j.get<PeerAddress>();
+
+    REQUIRE(loaded.host == original.host);
+    REQUIRE(loaded.port == original.port);
+}
+
+TEST_CASE("generate_uuid_v4 produces valid format", "[utils]") {
+    auto uuid = generate_uuid_v4();
+    REQUIRE(uuid.size() == 36);
+    REQUIRE(uuid[8] == '-');
+    REQUIRE(uuid[13] == '-');
+    REQUIRE(uuid[14] == '4'); // Version 4
+    REQUIRE(uuid[18] == '-');
+    REQUIRE(uuid[23] == '-');
+    // Variant must be 8, 9, a, or b
+    char variant = uuid[19];
+    REQUIRE((variant == '8' || variant == '9' || variant == 'a' || variant == 'b'));
+
+    // Two UUIDs should be different
+    auto uuid2 = generate_uuid_v4();
+    REQUIRE(uuid != uuid2);
+}
+
+TEST_CASE("PeerManager connection limit checks", "[PeerManager]") {
+    auto dir = make_temp_dir();
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
+    Blockchain<MockChunk> bc(".");
+    SyncStatus sync;
+    PeerConfig cfg;
+    cfg.max_inbound = 2;
+
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    pm.load_peers();
+
+    REQUIRE(pm.can_accept_inbound());
+    pm.on_inbound_connected("10.0.0.1", 1);
+    REQUIRE(pm.can_accept_inbound());
+    pm.on_inbound_connected("10.0.0.2", 2);
+    REQUIRE(!pm.can_accept_inbound());
+
+    pm.on_inbound_disconnected("10.0.0.1", 1);
+    REQUIRE(pm.can_accept_inbound());
+
+    std::filesystem::remove_all(dir);
+}

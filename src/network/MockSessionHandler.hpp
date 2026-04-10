@@ -42,6 +42,8 @@ public:
         return ssl_socket;
     }
 
+    void set_peer_manager(void *) {} // Mock stub for Server template compatibility
+
     // Mock method to simulate receiving data
     void receiveData(const std::string& data) {
         received_data.push_back(data);

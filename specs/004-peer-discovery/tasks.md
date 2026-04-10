@@ -15,20 +15,20 @@
 
 **Purpose**: Project initialization, config system, and shared data types
 
-- [ ] T001 Create PeerAddress struct with JSON and Boost.Serialization support in src/PeerConfig.hpp
-- [ ] T002 [P] Create PeerEntry struct with JSON serialization in src/PeerConfig.hpp
-- [ ] T003 [P] Create BanRecord struct with JSON serialization in src/PeerConfig.hpp
-- [ ] T004 [P] Create PeerConfig struct (peer discovery settings subset) in src/PeerConfig.hpp
-- [ ] T005 Create NodeConfig class that loads config.json with all sections (tls, network, consensus, peers) in src/NodeConfig.hpp and src/NodeConfig.cpp
-- [ ] T006 Implement NodeConfig validation rules (port ranges, non-empty TLS paths, peer config constraints) in src/NodeConfig.cpp
-- [ ] T007 Implement default config.json generation when file does not exist in src/NodeConfig.cpp
-- [ ] T008 Add generate_uuid_v4() utility function using std::random in src/utils.hpp and src/utils.cpp
-- [ ] T009 [P] Add PEER_EXCHANGE and PEER_EXCHANGE_RESPONSE to PacketType enum in src/network/PacketHeader.hpp
-- [ ] T010 [P] Create PeerExchangeRequest and PeerExchangeResponse structs with Boost.Serialization in src/network/PeerMessages.hpp
-- [ ] T011 Remove loadDotEnv declaration from src/utils.hpp and implementation from src/utils.cpp
-- [ ] T012 Update src/Makefile.am to add NodeConfig.cpp and PeerManager.cpp to blockchain_SOURCES
-- [ ] T013 Add Catch2 test file for NodeConfig (load, validate, default generation) in tests/node_config_tests.cpp
-- [ ] T014 Update tests/Makefile.am to build and link new test files
+- [X] T001 Create PeerAddress struct with JSON and Boost.Serialization support in src/PeerConfig.hpp
+- [X] T002 [P] Create PeerEntry struct with JSON serialization in src/PeerConfig.hpp
+- [X] T003 [P] Create BanRecord struct with JSON serialization in src/PeerConfig.hpp
+- [X] T004 [P] Create PeerConfig struct (peer discovery settings subset) in src/PeerConfig.hpp
+- [X] T005 Create NodeConfig class that loads config.json with all sections (tls, network, consensus, peers) in src/NodeConfig.hpp and src/NodeConfig.cpp
+- [X] T006 Implement NodeConfig validation rules (port ranges, non-empty TLS paths, peer config constraints) in src/NodeConfig.cpp
+- [X] T007 Implement default config.json generation when file does not exist in src/NodeConfig.cpp
+- [X] T008 Add generate_uuid_v4() utility function using std::random in src/utils.hpp and src/utils.cpp
+- [X] T009 [P] Add PEER_EXCHANGE and PEER_EXCHANGE_RESPONSE to PacketType enum in src/network/PacketHeader.hpp
+- [X] T010 [P] Create PeerExchangeRequest and PeerExchangeResponse structs with Boost.Serialization in src/network/PeerMessages.hpp
+- [X] T011 Remove loadDotEnv declaration from src/utils.hpp and implementation from src/utils.cpp
+- [X] T012 Update src/Makefile.am to add NodeConfig.cpp and PeerManager.cpp to blockchain_SOURCES
+- [X] T013 Add Catch2 test file for NodeConfig (load, validate, default generation) in tests/node_config_tests.cpp
+- [X] T014 Update tests/Makefile.am to build and link new test files
 
 ---
 
@@ -38,16 +38,16 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T015 Create PeerManager class skeleton with constructor taking io_context, ssl_context, PeerConfig, and data directory path in src/PeerManager.hpp and src/PeerManager.cpp
-- [ ] T016 Implement PeerManager::load_peers() to read peers.json (or generate UUID on first run); handle malformed JSON by logging a warning and starting with an empty peer list in src/PeerManager.cpp
-- [ ] T017 Implement PeerManager::save_peers() with atomic write (write temp file, rename; on Windows use platform API behind preprocessor guard for atomic replace) in src/PeerManager.cpp
-- [ ] T018 Implement PeerManager peer list management: add_peer(), remove_peer(), get_peers(), find_peer() with 256-entry cap and oldest-seen eviction in src/PeerManager.cpp
-- [ ] T019 Implement PeerManager self-filtering: filter_self() discards own UUID/address from peer lists in src/PeerManager.cpp
-- [ ] T020 Refactor src/main.cpp to load config.json via NodeConfig instead of .env, use NodeConfig for TLS paths, ports, timeout, and ConsensusConfig construction
-- [ ] T021 Refactor src/main.cpp to create PeerManager and pass it to Server and RpcServer (replace hardcoded port values with NodeConfig values)
-- [ ] T022 Add PeerManager reference to PeerServer constructor and PeerClient constructor in src/network/PeerServer.hpp, src/network/PeerServer.cpp, src/network/PeerClient.hpp, src/network/PeerClient.cpp
-- [ ] T023 Add PeerManager reference to RpcServer constructor in src/network/RpcServer.hpp and src/network/RpcServer.cpp
-- [ ] T024 Add Catch2 test file for PeerManager core (load/save peers.json, add/remove/cap eviction, self-filter, UUID generation, IPv6 PeerAddress round-trip through JSON and Boost.Serialization) in tests/peer_manager_tests.cpp
+- [X] T015 Create PeerManager class skeleton with constructor taking io_context, ssl_context, PeerConfig, and data directory path in src/PeerManager.hpp and src/PeerManager.cpp
+- [X] T016 Implement PeerManager::load_peers() to read peers.json (or generate UUID on first run); handle malformed JSON by logging a warning and starting with an empty peer list in src/PeerManager.cpp
+- [X] T017 Implement PeerManager::save_peers() with atomic write (write temp file, rename; on Windows use platform API behind preprocessor guard for atomic replace) in src/PeerManager.cpp
+- [X] T018 Implement PeerManager peer list management: add_peer(), remove_peer(), get_peers(), find_peer() with 256-entry cap and oldest-seen eviction in src/PeerManager.cpp
+- [X] T019 Implement PeerManager self-filtering: filter_self() discards own UUID/address from peer lists in src/PeerManager.cpp
+- [X] T020 Refactor src/main.cpp to load config.json via NodeConfig instead of .env, use NodeConfig for TLS paths, ports, timeout, and ConsensusConfig construction
+- [X] T021 Refactor src/main.cpp to create PeerManager and pass it to Server and RpcServer (replace hardcoded port values with NodeConfig values)
+- [X] T022 Add PeerManager reference to PeerServer constructor and PeerClient constructor in src/network/PeerServer.hpp, src/network/PeerServer.cpp, src/network/PeerClient.hpp, src/network/PeerClient.cpp
+- [X] T023 Add PeerManager reference to RpcServer constructor in src/network/RpcServer.hpp and src/network/RpcServer.cpp
+- [X] T024 Add Catch2 test file for PeerManager core (load/save peers.json, add/remove/cap eviction, self-filter, UUID generation, IPv6 PeerAddress round-trip through JSON and Boost.Serialization) in tests/peer_manager_tests.cpp
 
 **Checkpoint**: Foundation ready — PeerManager owns peer state, config.json replaces .env, all components wired
 
@@ -61,14 +61,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T025 [US1] Implement PeerManager::start() to connect to seed nodes on startup (create PeerClient per seed, respect max_outbound) in src/PeerManager.cpp
-- [ ] T026 [US1] Modify PeerClient to send PEER_EXCHANGE immediately after TLS handshake completes (before sync) in src/network/PeerClient.cpp
-- [ ] T027 [US1] Implement PeerServer handler for PEER_EXCHANGE packet type: deserialize PeerExchangeRequest, call PeerManager to merge peers, send PEER_EXCHANGE_RESPONSE in src/network/PeerServer.cpp
-- [ ] T028 [US1] Implement PeerClient handler for PEER_EXCHANGE_RESPONSE packet type: deserialize PeerExchangeResponse, call PeerManager to record remote UUID and merge peers in src/network/PeerClient.cpp
-- [ ] T029 [US1] Implement PeerManager::on_peer_exchange_received() to merge received peer list (filter self, filter banned, enforce cap, connect to new peers if under limit) in src/PeerManager.cpp
-- [ ] T030 [US1] Wire PeerManager::start() call from main.cpp after io_context setup in src/main.cpp
-- [ ] T031 [US1] Implement PeerManager::connect_to() that creates a PeerClient, tracks it in outbound_connections, and initiates connection in src/PeerManager.cpp
-- [ ] T032 [US1] Add Catch2 tests for seed bootstrap flow (connect to seed, receive peers, merge into list) in tests/peer_discovery_tests.cpp
+- [X] T025 [US1] Implement PeerManager::start() to connect to seed nodes on startup (create PeerClient per seed, respect max_outbound) in src/PeerManager.cpp
+- [X] T026 [US1] Modify PeerClient to send PEER_EXCHANGE immediately after TLS handshake completes (before sync) in src/network/PeerClient.cpp
+- [X] T027 [US1] Implement PeerServer handler for PEER_EXCHANGE packet type: deserialize PeerExchangeRequest, call PeerManager to merge peers, send PEER_EXCHANGE_RESPONSE in src/network/PeerServer.cpp
+- [X] T028 [US1] Implement PeerClient handler for PEER_EXCHANGE_RESPONSE packet type: deserialize PeerExchangeResponse, call PeerManager to record remote UUID and merge peers in src/network/PeerClient.cpp
+- [X] T029 [US1] Implement PeerManager::on_peer_exchange_received() to merge received peer list (filter self, filter banned, enforce cap, connect to new peers if under limit) in src/PeerManager.cpp
+- [X] T030 [US1] Wire PeerManager::start() call from main.cpp after io_context setup in src/main.cpp
+- [X] T031 [US1] Implement PeerManager::connect_to() that creates a PeerClient, tracks it in outbound_connections, and initiates connection in src/PeerManager.cpp
+- [X] T032 [US1] Add Catch2 tests for seed bootstrap flow (connect to seed, receive peers, merge into list) in tests/peer_discovery_tests.cpp
 
 **Checkpoint**: A node can join the network via seed nodes and receive a peer list
 
@@ -82,12 +82,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T033 [US2] Implement PeerManager exchange timer (boost::asio::steady_timer, fires every exchange_interval_seconds) in src/PeerManager.cpp
-- [ ] T034 [US2] Implement PeerManager::broadcast_peer_exchange() to send PEER_EXCHANGE on all active outbound connections in src/PeerManager.cpp
-- [ ] T035 [US2] Implement PeerManager::on_new_peers_discovered() to attempt outbound connections to newly discovered peers (respect max_outbound, skip banned/self/already-connected) in src/PeerManager.cpp
-- [ ] T036 [US2] Implement duplicate connection detection: on receiving UUID, check for existing connection with same UUID, resolve by lower-UUID-keeps-outbound rule in src/PeerManager.cpp
-- [ ] T037 [US2] Call PeerManager::save_peers() after each successful peer exchange merge in src/PeerManager.cpp
-- [ ] T038 [US2] Add Catch2 tests for periodic exchange and three-node gossip discovery in tests/peer_discovery_tests.cpp
+- [X] T033 [US2] Implement PeerManager exchange timer (boost::asio::steady_timer, fires every exchange_interval_seconds) in src/PeerManager.cpp
+- [X] T034 [US2] Implement PeerManager::broadcast_peer_exchange() to send PEER_EXCHANGE on all active outbound connections in src/PeerManager.cpp
+- [X] T035 [US2] Implement PeerManager::on_new_peers_discovered() to attempt outbound connections to newly discovered peers (respect max_outbound, skip banned/self/already-connected) in src/PeerManager.cpp
+- [X] T036 [US2] Implement duplicate connection detection: on receiving UUID, check for existing connection with same UUID, resolve by lower-UUID-keeps-outbound rule in src/PeerManager.cpp
+- [X] T037 [US2] Call PeerManager::save_peers() after each successful peer exchange merge in src/PeerManager.cpp
+- [X] T038 [US2] Add Catch2 tests for periodic exchange and three-node gossip discovery in tests/peer_discovery_tests.cpp
 
 **Checkpoint**: Full peer gossip works — any node can discover all others through transitive exchange
 
@@ -101,11 +101,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] Implement PeerManager::can_accept_inbound() check and integrate into Server<PeerServer> accept loop to reject connections at limit in src/PeerManager.cpp and src/network/PeerServer.hpp
-- [ ] T040 [US3] Enforce max_outbound in PeerManager::connect_to() — return error if at limit in src/PeerManager.cpp
-- [ ] T041 [US3] Implement PeerManager::on_peer_disconnected() to update peer entry, decrement connection count, and attempt replacement connection to a known disconnected peer in src/PeerManager.cpp
-- [ ] T042 [US3] Wire disconnection callbacks from PeerClient and PeerServer read/write error handlers to PeerManager::on_peer_disconnected() in src/network/PeerClient.cpp and src/network/PeerServer.cpp
-- [ ] T043 [US3] Add Catch2 tests for connection limits (outbound cap, inbound rejection, replacement on disconnect) in tests/peer_manager_tests.cpp
+- [X] T039 [US3] Implement PeerManager::can_accept_inbound() check and integrate into Server<PeerServer> accept loop to reject connections at limit in src/PeerManager.cpp and src/network/PeerServer.hpp
+- [X] T040 [US3] Enforce max_outbound in PeerManager::connect_to() — return error if at limit in src/PeerManager.cpp
+- [X] T041 [US3] Implement PeerManager::on_peer_disconnected() to update peer entry, decrement connection count, and attempt replacement connection to a known disconnected peer in src/PeerManager.cpp
+- [X] T042 [US3] Wire disconnection callbacks from PeerClient and PeerServer read/write error handlers to PeerManager::on_peer_disconnected() in src/network/PeerClient.cpp and src/network/PeerServer.cpp
+- [X] T043 [US3] Add Catch2 tests for connection limits (outbound cap, inbound rejection, replacement on disconnect) in tests/peer_manager_tests.cpp
 
 **Checkpoint**: Connection limits enforced, unhealthy connections replaced
 
@@ -119,11 +119,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T044 [P] [US4] Add per-peer backoff state (current_delay, timer) to PeerManager's internal tracking in src/PeerManager.hpp
-- [ ] T045 [US4] Implement PeerManager::schedule_reconnect() with exponential backoff (double delay each attempt, cap at max, ±20% jitter, reset on success) in src/PeerManager.cpp
-- [ ] T046 [US4] Call schedule_reconnect() from on_peer_disconnected() for non-banned peers in src/PeerManager.cpp
-- [ ] T047 [US4] Implement PeerManager backoff reset and error_count reset on successful connection in src/PeerManager.cpp
-- [ ] T048 [US4] Add Catch2 tests for backoff progression (base→double→cap, jitter range, reset) in tests/peer_manager_tests.cpp
+- [X] T044 [P] [US4] Add per-peer backoff state (current_delay, timer) to PeerManager's internal tracking in src/PeerManager.hpp
+- [X] T045 [US4] Implement PeerManager::schedule_reconnect() with exponential backoff (double delay each attempt, cap at max, ±20% jitter, reset on success) in src/PeerManager.cpp
+- [X] T046 [US4] Call schedule_reconnect() from on_peer_disconnected() for non-banned peers in src/PeerManager.cpp
+- [X] T047 [US4] Implement PeerManager backoff reset and error_count reset on successful connection in src/PeerManager.cpp
+- [X] T048 [US4] Add Catch2 tests for backoff progression (base→double→cap, jitter range, reset) in tests/peer_manager_tests.cpp
 
 **Checkpoint**: Network is self-healing — dropped connections automatically retry with appropriate pacing
 
@@ -137,12 +137,12 @@
 
 ### Implementation for User Story 5
 
-- [ ] T049 [US5] Implement addPeer RPC handler in src/network/RpcServer.cpp (validate params, check ban/limit, call PeerManager::connect_to)
-- [ ] T050 [US5] Implement removePeer RPC handler in src/network/RpcServer.cpp (validate params, call PeerManager::disconnect_and_remove)
-- [ ] T051 [US5] Implement listPeers RPC handler in src/network/RpcServer.cpp (return node_uuid, connection counts, peer list with status, ban list)
-- [ ] T052 [US5] Implement discovery_enabled gate: when false, PeerManager skips seed connections and periodic exchange but still accepts manual addPeer in src/PeerManager.cpp
-- [ ] T053 [US5] Add static RPC error helpers for new error codes (-32003 through -32006) in src/network/RpcServer.hpp and src/network/RpcServer.cpp
-- [ ] T054 [US5] Add Catch2 tests for RPC methods (addPeer, removePeer, listPeers, discovery_enabled toggle) in tests/server_tests.cpp
+- [X] T049 [US5] Implement addPeer RPC handler in src/network/RpcServer.cpp (validate params, check ban/limit, call PeerManager::connect_to)
+- [X] T050 [US5] Implement removePeer RPC handler in src/network/RpcServer.cpp (validate params, call PeerManager::disconnect_and_remove)
+- [X] T051 [US5] Implement listPeers RPC handler in src/network/RpcServer.cpp (return node_uuid, connection counts, peer list with status, ban list)
+- [X] T052 [US5] Implement discovery_enabled gate: when false, PeerManager skips seed connections and periodic exchange but still accepts manual addPeer in src/PeerManager.cpp
+- [X] T053 [US5] Add static RPC error helpers for new error codes (-32003 through -32006) in src/network/RpcServer.hpp and src/network/RpcServer.cpp
+- [X] T054 [US5] Add Catch2 tests for RPC methods (addPeer, removePeer, listPeers, discovery_enabled toggle) in tests/server_tests.cpp
 
 **Checkpoint**: Operators have full manual control over peer connections
 
@@ -156,14 +156,14 @@
 
 ### Implementation for User Story 6
 
-- [ ] T055 [US6] Implement PeerManager::increment_error() to track consecutive errors per peer and trigger auto-ban when threshold exceeded in src/PeerManager.cpp
-- [ ] T056 [US6] Implement PeerManager::ban_peer() and unban_peer() for manual ban management in src/PeerManager.cpp
-- [ ] T057 [US6] Implement PeerManager::is_banned() check and purge_expired_bans() on startup and periodically in src/PeerManager.cpp
-- [ ] T058 [US6] Wire error counting into PeerServer and PeerClient: increment error count on deserialization failures and protocol violations in src/network/PeerServer.cpp and src/network/PeerClient.cpp
-- [ ] T059 [US6] Integrate ban check into PeerServer post-handshake (reject banned inbound peers) in src/network/PeerServer.cpp
-- [ ] T060 [US6] Implement banPeer RPC handler in src/network/RpcServer.cpp (validate params, call PeerManager::ban_peer, disconnect if connected)
-- [ ] T061 [US6] Implement unbanPeer RPC handler in src/network/RpcServer.cpp (validate params, call PeerManager::unban_peer)
-- [ ] T062 [US6] Add Catch2 tests for ban/reputation (auto-ban threshold, manual ban/unban, expired ban cleanup, banned peer rejection) in tests/peer_manager_tests.cpp
+- [X] T055 [US6] Implement PeerManager::increment_error() to track consecutive errors per peer and trigger auto-ban when threshold exceeded in src/PeerManager.cpp
+- [X] T056 [US6] Implement PeerManager::ban_peer() and unban_peer() for manual ban management in src/PeerManager.cpp
+- [X] T057 [US6] Implement PeerManager::is_banned() check and purge_expired_bans() on startup and periodically in src/PeerManager.cpp
+- [X] T058 [US6] Wire error counting into PeerServer and PeerClient: increment error count on deserialization failures and protocol violations in src/network/PeerServer.cpp and src/network/PeerClient.cpp
+- [X] T059 [US6] Integrate ban check into PeerServer post-handshake (reject banned inbound peers) in src/network/PeerServer.cpp
+- [X] T060 [US6] Implement banPeer RPC handler in src/network/RpcServer.cpp (validate params, call PeerManager::ban_peer, disconnect if connected)
+- [X] T061 [US6] Implement unbanPeer RPC handler in src/network/RpcServer.cpp (validate params, call PeerManager::unban_peer)
+- [X] T062 [US6] Add Catch2 tests for ban/reputation (auto-ban threshold, manual ban/unban, expired ban cleanup, banned peer rejection) in tests/peer_manager_tests.cpp
 
 **Checkpoint**: Network is protected from misbehaving peers
 
@@ -173,10 +173,10 @@
 
 **Purpose**: Shutdown handling, build integration, and final validation
 
-- [ ] T063 [P] Wire PeerManager::save_peers() into SIGINT/SIGTERM handler in src/main.cpp for graceful shutdown persistence
-- [ ] T064 [P] Audit tests/Makefile.am to verify all new test files (node_config_tests, peer_manager_tests, peer_discovery_tests) compile and link with `make check`
-- [ ] T065 Verify `make check` passes with all new and existing tests
-- [ ] T066 Run quickstart.md Scenario 1 (seed bootstrap) and Scenario 2 (three-node gossip) end-to-end validation
+- [X] T063 [P] Wire PeerManager::save_peers() into SIGINT/SIGTERM handler in src/main.cpp for graceful shutdown persistence
+- [X] T064 [P] Audit tests/Makefile.am to verify all new test files (node_config_tests, peer_manager_tests, peer_discovery_tests) compile and link with `make check`
+- [X] T065 Verify `make check` passes with all new and existing tests
+- [X] T066 Run quickstart.md Scenario 1 (seed bootstrap) and Scenario 2 (three-node gossip) end-to-end validation
 
 ---
 

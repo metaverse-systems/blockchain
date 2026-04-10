@@ -3,6 +3,7 @@
 #include "../Block.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
+#include "../PeerManager.hpp"
 #include <stdexcept>
 
 RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
@@ -155,6 +156,192 @@ void RpcServer::do_read()
                     this->do_write();
                     return;
                 }
+
+                if(object["method"] == "addPeer")
+                {
+                    if (!peer_manager) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto host = object["params"]["host"].get<std::string>();
+                    auto port = object["params"]["port"].get<uint16_t>();
+
+                    if (peer_manager->is_banned(host, port)) {
+                        auto bans = peer_manager->get_bans();
+                        for (const auto &ban : bans) {
+                            if (ban.host == host && ban.port == port) {
+                                buffer.consume(buffer.size());
+                                outputStream << errorMessageWithData(object["id"], -32004, "Peer is currently banned", {{"expires", ban.expires}}) << std::endl;
+                                this->do_write();
+                                return;
+                            }
+                        }
+                    }
+
+                    if (peer_manager->outbound_count() >= peer_manager->get_config().max_outbound) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32003, "Outbound connection limit reached") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    peer_manager->connect_to(host, port);
+                    PeerEntry entry;
+                    entry.host = host;
+                    entry.port = port;
+                    entry.last_seen = static_cast<uint64_t>(std::time(nullptr));
+                    peer_manager->add_peer(entry);
+                    peer_manager->save_peers();
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], "peer_added") << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "removePeer")
+                {
+                    if (!peer_manager) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto host = object["params"]["host"].get<std::string>();
+                    auto port = object["params"]["port"].get<uint16_t>();
+
+                    if (!peer_manager->find_peer(host, port)) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32005, "Peer not found") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    peer_manager->disconnect_and_remove(host, port);
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], "peer_removed") << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "listPeers")
+                {
+                    if (!peer_manager) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    nlohmann::json result;
+                    result["node_uuid"] = peer_manager->get_node_uuid();
+                    result["discovery_enabled"] = peer_manager->is_discovery_enabled();
+                    result["outbound_count"] = peer_manager->outbound_count();
+                    result["inbound_count"] = peer_manager->inbound_count();
+                    result["max_outbound"] = peer_manager->get_config().max_outbound;
+                    result["max_inbound"] = peer_manager->get_config().max_inbound;
+
+                    nlohmann::json peers_json = nlohmann::json::array();
+                    for (const auto &p : peer_manager->get_peers()) {
+                        nlohmann::json pj;
+                        pj["host"] = p.host;
+                        pj["port"] = p.port;
+                        pj["node_uuid"] = p.node_uuid;
+                        pj["last_seen"] = p.last_seen;
+                        pj["error_count"] = p.error_count;
+                        peers_json.push_back(pj);
+                    }
+                    result["peers"] = peers_json;
+
+                    nlohmann::json bans_json = nlohmann::json::array();
+                    for (const auto &b : peer_manager->get_bans()) {
+                        nlohmann::json bj;
+                        bj["host"] = b.host;
+                        bj["port"] = b.port;
+                        bj["reason"] = b.reason;
+                        bj["expires"] = b.expires;
+                        bans_json.push_back(bj);
+                    }
+                    result["bans"] = bans_json;
+
+                    buffer.consume(buffer.size());
+                    outputStream << resultJsonMessage(object["id"], result) << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "banPeer")
+                {
+                    if (!peer_manager) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto host = object["params"]["host"].get<std::string>();
+                    auto port = object["params"]["port"].get<uint16_t>();
+                    uint64_t duration = peer_manager->get_config().ban_duration_seconds;
+                    if (object["params"].contains("duration_seconds")) {
+                        duration = object["params"]["duration_seconds"].get<uint64_t>();
+                    }
+
+                    peer_manager->ban_peer(host, port, "manual", duration);
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], "peer_banned") << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "unbanPeer")
+                {
+                    if (!peer_manager) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto host = object["params"]["host"].get<std::string>();
+                    auto port = object["params"]["port"].get<uint16_t>();
+
+                    if (!peer_manager->is_banned(host, port)) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32006, "Peer is not banned") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    peer_manager->unban_peer(host, port);
+                    peer_manager->save_peers();
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], "peer_unbanned") << std::endl;
+                    this->do_write();
+                    return;
+                }
                 
                 buffer.consume(buffer.size());
                 outputStream << invalidMethodMessage(object["id"], object["method"]) << std::endl;
@@ -269,6 +456,36 @@ nlohmann::json RpcServer::syncAlreadyInProgressMessage(std::string id)
     response["jsonrpc"] = "2.0";
     response["error"]["code"] = -32002;
     response["error"]["message"] = "Sync already in progress";
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::resultJsonMessage(std::string id, nlohmann::json result)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["result"] = result;
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::errorMessage(std::string id, int code, std::string message)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = code;
+    response["error"]["message"] = message;
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::errorMessageWithData(std::string id, int code, std::string message, nlohmann::json data)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = code;
+    response["error"]["message"] = message;
+    response["error"]["data"] = data;
     response["id"] = id;
     return response;
 }

@@ -6,6 +6,8 @@
 #include "Block.hpp"
 #include "Blockchain.hpp"
 #include "ConsensusConfig.hpp"
+#include "NodeConfig.hpp"
+#include "PeerManager.hpp"
 #include "SyncState.hpp"
 #include "utils.hpp"
 #include "network/Server.hpp"
@@ -25,21 +27,12 @@ int main(int argc, char *argv[])
 
     std::filesystem::path blockchainDir(argv[1]);
 
-    // Load .env file from blockchain data directory
-    loadDotEnv(blockchainDir / ".env");
-
-    // Validate required TLS environment variables
-    const char *cert_file_env = std::getenv("BLOCKCHAIN_CERT_FILE");
-    const char *key_file_env = std::getenv("BLOCKCHAIN_KEY_FILE");
-    const char *ca_file_env = std::getenv("BLOCKCHAIN_CA_FILE");
-    const char *timeout_env = std::getenv("BLOCKCHAIN_TIMEOUT");
-
-    if (!cert_file_env || std::string(cert_file_env).empty()) {
-        logMessage("ERROR", "BLOCKCHAIN_CERT_FILE environment variable is not set");
-        return 1;
-    }
-    if (!key_file_env || std::string(key_file_env).empty()) {
-        logMessage("ERROR", "BLOCKCHAIN_KEY_FILE environment variable is not set");
+    // Load config.json from blockchain data directory
+    NodeConfig node_config;
+    try {
+        node_config = NodeConfig::load(blockchainDir / "config.json");
+    } catch (const std::exception &e) {
+        logMessage("ERROR", "Failed to load config: " + std::string(e.what()));
         return 1;
     }
 
@@ -49,27 +42,18 @@ int main(int argc, char *argv[])
         if (fp.is_absolute()) return p;
         return (blockchainDir / fp).string();
     };
-    std::string cert_file = resolvePath(cert_file_env);
-    std::string key_file = resolvePath(key_file_env);
-    std::string ca_file = ca_file_env ? resolvePath(ca_file_env) : "";
+    std::string cert_file = resolvePath(node_config.tls.cert_file);
+    std::string key_file = resolvePath(node_config.tls.key_file);
+    std::string ca_file = node_config.tls.ca_file.empty() ? "" : resolvePath(node_config.tls.ca_file);
 
-    int timeout_seconds = 30;
-    if (timeout_env) {
-        try {
-            timeout_seconds = std::stoi(timeout_env);
-        } catch (...) {
-            logMessage("WARN", "Invalid BLOCKCHAIN_TIMEOUT value, using default 30s");
-        }
-    }
+    int timeout_seconds = static_cast<int>(node_config.network.timeout_seconds);
 
-    Blockchain<Chunk> bc(blockchainDir, ConsensusConfig::fromEnv());
+    Blockchain<Chunk> bc(blockchainDir, node_config.to_consensus_config());
     bc.loadChunk(0);
     bc.loadKeys();
     bc.dumpBlocks();
 
     SyncStatus sync_status;
-
-    unsigned short port = 12345;
 
     boost::asio::io_context io_context;
 
@@ -89,8 +73,11 @@ int main(int argc, char *argv[])
     rpc_ssl_context.use_certificate_chain_file(cert_file);
     rpc_ssl_context.use_private_key_file(key_file, ssl::context::pem);
 
+    // Create PeerManager
+    PeerManager peer_manager(io_context, p2p_ssl_context, node_config.to_peer_config(), blockchainDir, bc, sync_status, node_config.network.p2p_port);
+
     tcp::acceptor rpc_acceptor(io_context);
-    tcp::endpoint endpoint(tcp::v6(), port);
+    tcp::endpoint endpoint(tcp::v6(), node_config.network.rpc_port);
     rpc_acceptor.open(endpoint.protocol());
     rpc_acceptor.set_option(tcp::acceptor::reuse_address(true));
     rpc_acceptor.set_option(boost::asio::ip::v6_only(false));
@@ -99,10 +86,11 @@ int main(int argc, char *argv[])
 
     Server<RpcServer, tcp::acceptor> rpc(io_context, rpc_ssl_context, rpc_acceptor, bc);
     rpc.set_timeout(std::chrono::seconds(timeout_seconds));
+    rpc.set_peer_manager(&peer_manager);
     rpc.start_accept();
 
     tcp::acceptor p2p_acceptor(io_context);
-    tcp::endpoint p2p_endpoint(tcp::v6(), static_cast<unsigned short>(port + 1));
+    tcp::endpoint p2p_endpoint(tcp::v6(), node_config.network.p2p_port);
     p2p_acceptor.open(p2p_endpoint.protocol());
     p2p_acceptor.set_option(tcp::acceptor::reuse_address(true));
     p2p_acceptor.set_option(boost::asio::ip::v6_only(false));
@@ -111,11 +99,16 @@ int main(int argc, char *argv[])
 
     Server<PeerServer, tcp::acceptor> node_server(io_context, p2p_ssl_context, p2p_acceptor, bc);
     node_server.set_timeout(std::chrono::seconds(timeout_seconds));
+    node_server.set_peer_manager(&peer_manager);
     node_server.start_accept();
+
+    // Start peer manager (connects to seeds, starts exchange timer)
+    peer_manager.start();
 
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](const boost::system::error_code&, int) {
         logMessage("INFO", "Shutting down...");
+        peer_manager.save_peers();
         bc.saveChunk(0);
         bc.saveKeys();
         io_context.stop();

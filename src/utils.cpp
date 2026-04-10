@@ -7,6 +7,7 @@
 #include <iostream>
 #include <algorithm>
 #include <sstream>
+#include <random>
 
 std::string bytesToHexString(const unsigned char *bytes, size_t length)
 {
@@ -67,60 +68,29 @@ void logMessage(const std::string &level, const std::string &msg)
               << color << "[" << level << "]\033[0m " << msg << "\n";
 }
 
-void loadDotEnv(const std::filesystem::path &path)
-{
-    std::ifstream ifs(path);
-    if (!ifs.is_open()) {
-        return; // Silently skip if file doesn't exist
-    }
+std::string generate_uuid_v4() {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dist;
 
-    std::string line;
-    while (std::getline(ifs, line)) {
-        // Trim leading whitespace
-        auto start = line.find_first_not_of(" \t");
-        if (start == std::string::npos) continue;
-        line = line.substr(start);
+    uint64_t hi = dist(gen);
+    uint64_t lo = dist(gen);
 
-        // Skip comments and empty lines
-        if (line.empty() || line[0] == '#') continue;
+    // Set version 4 bits: hi bits 12-15 = 0100
+    hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
+    // Set variant bits: lo bits 62-63 = 10
+    lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
 
-        auto eq_pos = line.find('=');
-        if (eq_pos == std::string::npos) continue;
-
-        std::string key = line.substr(0, eq_pos);
-        std::string value = line.substr(eq_pos + 1);
-
-        // Trim whitespace from key
-        auto key_end = key.find_last_not_of(" \t");
-        if (key_end != std::string::npos)
-            key = key.substr(0, key_end + 1);
-
-        // Trim whitespace from value
-        auto val_start = value.find_first_not_of(" \t");
-        if (val_start != std::string::npos)
-            value = value.substr(val_start);
-        else
-            value = "";
-
-        auto val_end = value.find_last_not_of(" \t\r\n");
-        if (val_end != std::string::npos)
-            value = value.substr(0, val_end + 1);
-        else
-            value = "";
-
-        // Strip surrounding quotes
-        if (value.size() >= 2 &&
-            ((value.front() == '"' && value.back() == '"') ||
-             (value.front() == '\'' && value.back() == '\''))) {
-            value = value.substr(1, value.size() - 2);
-        }
-
-#ifdef _WIN32
-        _putenv_s(key.c_str(), value.c_str());
-#else
-        setenv(key.c_str(), value.c_str(), 0); // Don't overwrite existing env vars
-#endif
-    }
+    // Format as 8-4-4-4-12
+    char buf[37];
+    std::snprintf(buf, sizeof(buf),
+        "%08x-%04x-%04x-%04x-%012llx",
+        static_cast<uint32_t>((hi >> 32) & 0xFFFFFFFF),
+        static_cast<uint16_t>((hi >> 16) & 0xFFFF),
+        static_cast<uint16_t>(hi & 0xFFFF),
+        static_cast<uint16_t>((lo >> 48) & 0xFFFF),
+        static_cast<unsigned long long>(lo & 0x0000FFFFFFFFFFFFULL));
+    return std::string(buf);
 }
 
 bool checkLeadingZeroBits(const std::string &hashStr, uint32_t bitsNeeded)

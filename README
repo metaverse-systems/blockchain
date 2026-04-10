@@ -1,1 +1,119 @@
 # metaverse-systems/blockchain
+
+## Requirements
+
+- C++20 compiler (GCC 10+, Clang 12+)
+- Boost (Asio, Serialization) >= 1.50
+- OpenSSL
+- Catch2 v3 (tests only)
+- GNU Autotools (autoconf, automake)
+
+## Building
+
+```sh
+autoreconf -fi
+./configure
+make
+```
+
+## Running Tests
+
+```sh
+make check
+```
+
+Or run the test binary directly:
+
+```sh
+./tests/blockchain_tests
+```
+
+## Usage
+
+```sh
+./src/blockchain <path-to-data-directory>
+```
+
+The data directory holds chain data, TLS certificates, and configuration. On first run a default `config.json` is generated:
+
+```jsonc
+{
+  "tls": {
+    "cert_file": "cert.pem",
+    "key_file": "key.pem",
+    "ca_file": ""
+  },
+  "network": {
+    "rpc_port": 12345,
+    "p2p_port": 12346,
+    "timeout_seconds": 30
+  },
+  "consensus": { ... },
+  "peers": {
+    "seed_nodes": [],
+    "max_outbound": 8,
+    "max_inbound": 32,
+    "exchange_interval_seconds": 30,
+    "max_peers_stored": 256,
+    "ban_duration_seconds": 86400,
+    "ban_threshold_errors": 5,
+    "reconnect_base_delay_seconds": 5,
+    "reconnect_max_delay_seconds": 300,
+    "discovery_enabled": true
+  }
+}
+```
+
+### TLS Setup
+
+P2P connections require mutual TLS. Place `cert.pem`, `key.pem`, and optionally a CA file in the data directory (or provide absolute paths in `config.json`).
+
+### Connecting Nodes
+
+Add seed nodes to `config.json`:
+
+```json
+{
+  "peers": {
+    "seed_nodes": [
+      { "host": "192.168.1.10", "port": 12346 }
+    ]
+  }
+}
+```
+
+Or add peers at runtime via RPC:
+
+```sh
+curl -k https://localhost:12345 -d '{"jsonrpc":"2.0","id":1,"method":"addPeer","params":{"host":"192.168.1.10","port":12346}}'
+```
+
+## Project Structure
+
+```
+src/                    # Daemon source
+  main.cpp              # Entry point
+  NodeConfig.hpp/cpp    # config.json loader
+  PeerManager.hpp/cpp   # Peer lifecycle management
+  PeerConfig.hpp        # Peer data types
+  Blockchain.hpp/cpp    # Chain storage
+  Block.hpp/cpp         # Block type
+  Chunk.hpp/cpp         # Chunked persistence
+  ConsensusConfig.hpp   # Consensus parameters
+  SyncState.hpp         # Sync progress tracking
+  utils.hpp/cpp         # Logging, UUID generation
+  json.hpp              # nlohmann/json (vendored)
+  network/
+    Server.hpp          # Template acceptor loop
+    RpcServer.hpp/cpp   # JSON-RPC session handler
+    PeerServer.hpp/cpp  # Inbound P2P session handler
+    PeerClient.hpp/cpp  # Outbound P2P client
+    PeerMessages.hpp    # Peer exchange protocol structs
+    SyncMessages.hpp    # Chain sync protocol structs
+    PacketHeader.hpp    # Binary packet framing
+tests/                  # Catch2 test suite
+```
+
+## License
+
+See [COPYING](COPYING).

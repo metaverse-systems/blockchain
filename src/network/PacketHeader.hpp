@@ -6,7 +6,9 @@ enum PacketType
 {
     BLOCK,
     BLOCKCHAIN_QUERY,
-    BLOCKCHAIN_RESPONSE
+    BLOCKCHAIN_RESPONSE,
+    PEER_EXCHANGE,
+    PEER_EXCHANGE_RESPONSE
 };
 
 struct PacketHeader

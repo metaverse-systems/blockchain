@@ -1,6 +1,8 @@
 #include "PeerClient.hpp"
 #include "PacketHeader.hpp"
 #include "SyncMessages.hpp"
+#include "PeerMessages.hpp"
+#include "../PeerManager.hpp"
 #include "../utils.hpp"
 #include "../ConsensusConfig.hpp"
 #include <boost/archive/binary_oarchive.hpp>
@@ -27,19 +29,37 @@ void PeerClient::connect()
                         {
                             logMessage("INFO", "Connected to peer " + host + ":" + port);
                             connected = true;
-                            start_sync();
+                            // Send peer exchange immediately after handshake
+                            send_peer_exchange();
+                            // Then start reading responses (peer exchange response + sync)
+                            do_read_header();
                         }
                         else
                         {
                             logMessage("ERROR", "TLS handshake failed: " + ec.message());
+                            handle_disconnect("TLS handshake failed");
                         }
                     });
             }
             else
             {
                 logMessage("ERROR", "Connection to peer failed: " + ec.message());
+                handle_disconnect("Connection failed");
             }
         });
+}
+
+void PeerClient::send_peer_exchange()
+{
+    if (!peer_manager) return;
+
+    PeerExchangeRequest req;
+    req.sender_uuid = peer_manager->get_node_uuid();
+    req.sender_listen_port = peer_manager->get_listen_port();
+    req.peers = peer_manager->get_non_banned_peer_addresses();
+
+    logMessage("INFO", "Sending PEER_EXCHANGE to " + host + ":" + port + " with " + std::to_string(req.peers.size()) + " peers");
+    send(req, PacketType::PEER_EXCHANGE);
 }
 
 void PeerClient::start_sync()
@@ -82,6 +102,7 @@ void PeerClient::do_read_header()
                 if (sync_status.isSyncing.load()) {
                     abort_sync("Connection error while reading header: " + ec.message());
                 }
+                handle_disconnect("Read header error: " + ec.message());
             }
         });
 }
@@ -113,6 +134,42 @@ void PeerClient::do_read_body(const PacketHeader &header)
                         ia >> b;
                         logMessage("INFO", "Received block #" + std::to_string(b.index));
                         break;
+                    }
+                    case PacketType::PEER_EXCHANGE_RESPONSE:
+                    {
+                        try {
+                            boost::archive::binary_iarchive ia(iss);
+                            PeerExchangeResponse response;
+                            ia >> response;
+                            handle_peer_exchange_response(response);
+                        } catch (const std::exception &e) {
+                            logMessage("ERROR", "Failed to deserialize PEER_EXCHANGE_RESPONSE: " + std::string(e.what()));
+                            if (peer_manager) {
+                                peer_manager->increment_error(host, static_cast<uint16_t>(std::stoi(port)));
+                            }
+                        }
+                        do_read_header();
+                        return;
+                    }
+                    case PacketType::PEER_EXCHANGE:
+                    {
+                        // As a client, we might receive a PEER_EXCHANGE from the server side
+                        // during periodic exchanges; handle like a response
+                        try {
+                            boost::archive::binary_iarchive ia(iss);
+                            PeerExchangeRequest req;
+                            ia >> req;
+                            if (peer_manager) {
+                                peer_manager->on_peer_exchange_received(req.sender_uuid, req.sender_listen_port, host, req.peers);
+                            }
+                        } catch (const std::exception &e) {
+                            logMessage("ERROR", "Failed to deserialize PEER_EXCHANGE: " + std::string(e.what()));
+                            if (peer_manager) {
+                                peer_manager->increment_error(host, static_cast<uint16_t>(std::stoi(port)));
+                            }
+                        }
+                        do_read_header();
+                        return;
                     }
                     default:
                         logMessage("WARN", "Received unknown packet type: " + std::to_string(header.type));
@@ -226,6 +283,31 @@ void PeerClient::abort_sync(const std::string &reason)
     sync_status.isSyncing.store(false);
 }
 
+void PeerClient::handle_peer_exchange_response(const PeerExchangeResponse &response)
+{
+    logMessage("INFO", "Received PEER_EXCHANGE_RESPONSE from " + host + ":" + port
+               + " uuid=" + response.sender_uuid + " peers=" + std::to_string(response.peers.size()));
+
+    if (peer_manager) {
+        peer_manager->on_peer_exchange_received(response.sender_uuid, response.sender_listen_port, host, response.peers);
+        peer_manager->check_duplicate_connection(response.sender_uuid, host, static_cast<uint16_t>(std::stoi(port)), true);
+    }
+}
+
+void PeerClient::handle_disconnect(const std::string &reason)
+{
+    if (!connected) return;
+    connected = false;
+    logMessage("INFO", "Peer " + host + ":" + port + " disconnected: " + reason);
+
+    boost::system::error_code ec;
+    socket.lowest_layer().close(ec);
+
+    if (peer_manager) {
+        peer_manager->on_peer_disconnected(host, static_cast<uint16_t>(std::stoi(port)));
+    }
+}
+
 void PeerClient::arm_chunk_timer()
 {
     chunk_timer.expires_after(std::chrono::seconds(60));
@@ -273,3 +355,5 @@ void PeerClient::send(const T &obj, uint64_t packet_type)
 // Explicit template instantiations
 template void PeerClient::send<Block>(const Block &obj, uint64_t packet_type);
 template void PeerClient::send<SyncQuery>(const SyncQuery &obj, uint64_t packet_type);
+template void PeerClient::send<PeerExchangeRequest>(const PeerExchangeRequest &obj, uint64_t packet_type);
+template void PeerClient::send<PeerExchangeResponse>(const PeerExchangeResponse &obj, uint64_t packet_type);
