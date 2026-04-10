@@ -48,6 +48,26 @@ autom4te.cache
 
 /Doxyfile
 Makefile
+
+# C++ build artifacts
+*.o
+*.so
+*.a
+*.exe
+*.dll
+build/
+bin/
+obj/
+out/
+
+# IDE
+.idea/
+.vscode/
+
+# Environment and logs
+*.log
+.env*
+.DS_Store
 .libs
 .deps
 *.a

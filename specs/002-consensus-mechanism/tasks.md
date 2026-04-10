@@ -17,7 +17,7 @@
 
 **Purpose**: Build system updates for new source and test files
 
-- [ ] T001 Add `ConsensusConfig.hpp` and `consensus_tests.cpp` to build system in `src/Makefile.am` and `tests/Makefile.am`
+- [X] T001 Add `ConsensusConfig.hpp` and `consensus_tests.cpp` to build system in `src/Makefile.am` and `tests/Makefile.am`
 
 ---
 
@@ -27,13 +27,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 [P] Create `ConsensusConfig` struct with env-var loading in `src/ConsensusConfig.hpp` — fields: `targetBlockInterval`, `adjustmentWindow`, `maxAdjustmentFactor`, `minDifficulty`, `maxDifficulty`, `initialDifficulty`, `miningTimeout`, `maxFutureTimestamp`, `maxReorgDepth` with defaults per data-model.md; read from environment variables; load via `loadDotEnv` in `src/main.cpp`
-- [ ] T003 [P] Add `nonce` (`uint64_t`, default 0) and `difficulty` (`uint32_t`, default 0) fields to `Block` struct in `src/Block.hpp` — update `serialize()` to include both fields unconditionally; update default constructor to initialize them
-- [ ] T004 Update `Block::calculateHash()` in `src/Block.cpp` to include `nonce` and `difficulty` in the hash input string: `hash = SHA256(index || timestamp || data || prevHash || nonce || difficulty)`
-- [ ] T005 Update `Block` constructor in `src/Block.cpp` to accept `nonce` and `difficulty` parameters; keep existing constructor signature working by defaulting both to 0
-- [ ] T006 [P] Add `checkLeadingZeroBits(const std::string& hashStr, uint32_t bitsNeeded) -> bool` function in `src/utils.hpp` and `src/utils.cpp` — iterate hex chars counting zero digits (4 bits each), then check partial bits in first non-zero nibble per research.md R2 algorithm
-- [ ] T007 [P] Update `Block::toJson()` in `src/Block.cpp` to include `nonce` and `difficulty` fields in the returned JSON object
-- [ ] T008 Update existing block tests in `tests/block_tests.cpp` — fix any tests broken by the new `calculateHash()` that now includes nonce/difficulty; verify Block construction still works with default nonce=0, difficulty=0
+- [X] T002 [P] Create `ConsensusConfig` struct with env-var loading in `src/ConsensusConfig.hpp` — fields: `targetBlockInterval`, `adjustmentWindow`, `maxAdjustmentFactor`, `minDifficulty`, `maxDifficulty`, `initialDifficulty`, `miningTimeout`, `maxFutureTimestamp`, `maxReorgDepth` with defaults per data-model.md; read from environment variables; load via `loadDotEnv` in `src/main.cpp`
+- [X] T003 [P] Add `nonce` (`uint64_t`, default 0) and `difficulty` (`uint32_t`, default 0) fields to `Block` struct in `src/Block.hpp` — update `serialize()` to include both fields unconditionally; update default constructor to initialize them
+- [X] T004 Update `Block::calculateHash()` in `src/Block.cpp` to include `nonce` and `difficulty` in the hash input string: `hash = SHA256(index || timestamp || data || prevHash || nonce || difficulty)`
+- [X] T005 Update `Block` constructor in `src/Block.cpp` to accept `nonce` and `difficulty` parameters; keep existing constructor signature working by defaulting both to 0
+- [X] T006 [P] Add `checkLeadingZeroBits(const std::string& hashStr, uint32_t bitsNeeded) -> bool` function in `src/utils.hpp` and `src/utils.cpp` — iterate hex chars counting zero digits (4 bits each), then check partial bits in first non-zero nibble per research.md R2 algorithm
+- [X] T007 [P] Update `Block::toJson()` in `src/Block.cpp` to include `nonce` and `difficulty` fields in the returned JSON object
+- [X] T008 Update existing block tests in `tests/block_tests.cpp` — fix any tests broken by the new `calculateHash()` that now includes nonce/difficulty; verify Block construction still works with default nonce=0, difficulty=0
 
 **Checkpoint**: Block struct extended, ConsensusConfig available, checkLeadingZeroBits utility ready. User story implementation can begin.
 
@@ -47,13 +47,13 @@
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Write unit tests in `tests/consensus_tests.cpp` for `isValidNewBlock` consensus validation: test that a block with valid PoW is accepted; test that a block with invalid PoW (hash doesn't meet difficulty) is rejected; test that a block with incorrect prevHash is rejected; test that genesis block is exempt from PoW; test that a block with future timestamp beyond 120s is rejected; test that `checkLeadingZeroBits` correctly identifies valid/invalid hashes at various difficulty levels; test that a block with `difficulty < config.minDifficulty` is rejected
+- [X] T009 [P] [US1] Write unit tests in `tests/consensus_tests.cpp` for `isValidNewBlock` consensus validation: test that a block with valid PoW is accepted; test that a block with invalid PoW (hash doesn't meet difficulty) is rejected; test that a block with incorrect prevHash is rejected; test that genesis block is exempt from PoW; test that a block with future timestamp beyond 120s is rejected; test that `checkLeadingZeroBits` correctly identifies valid/invalid hashes at various difficulty levels; test that a block with `difficulty < config.minDifficulty` is rejected
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Extend `IBlockchain::isValidNewBlock()` in `src/IBlockchain.hpp` to add consensus validation: verify `checkLeadingZeroBits(newBlock.hash, newBlock.difficulty)` is true; verify `newBlock.difficulty >= config.minDifficulty` (full height-based difficulty verification is added in T022 after `getDifficultyForHeight` exists); verify `newBlock.timestamp <= now + config.maxFutureTimestamp`; exempt genesis block (index 0) from PoW checks; return descriptive error messages via `logMessage()` for each failure type per FR-012
-- [ ] T011 [US1] Update `generateGenesisBlock()` in `src/Blockchain.cpp` to set `nonce=0, difficulty=0` on the genesis block explicitly
-- [ ] T012 [US1] Pass `ConsensusConfig` to `IBlockchain` and `Blockchain` — add a `ConsensusConfig` member to `IBlockchain` (or pass by reference); update constructor in `src/Blockchain.hpp` and `src/Blockchain.cpp`; update `main.cpp` to construct `ConsensusConfig` from env vars and pass to `Blockchain`
+- [X] T010 [US1] Extend `IBlockchain::isValidNewBlock()` in `src/IBlockchain.hpp` to add consensus validation: verify `checkLeadingZeroBits(newBlock.hash, newBlock.difficulty)` is true; verify `newBlock.difficulty >= config.minDifficulty` (full height-based difficulty verification is added in T022 after `getDifficultyForHeight` exists); verify `newBlock.timestamp <= now + config.maxFutureTimestamp`; exempt genesis block (index 0) from PoW checks; return descriptive error messages via `logMessage()` for each failure type per FR-012
+- [X] T011 [US1] Update `generateGenesisBlock()` in `src/Blockchain.cpp` to set `nonce=0, difficulty=0` on the genesis block explicitly
+- [X] T012 [US1] Pass `ConsensusConfig` to `IBlockchain` and `Blockchain` — add a `ConsensusConfig` member to `IBlockchain` (or pass by reference); update constructor in `src/Blockchain.hpp` and `src/Blockchain.cpp`; update `main.cpp` to construct `ConsensusConfig` from env vars and pass to `Blockchain`
 
 **Checkpoint**: Blocks are validated against PoW, timestamp, and difficulty rules. Invalid blocks are rejected with descriptive errors. Tests pass via `make check`.
 
@@ -67,12 +67,12 @@
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Write unit tests in `tests/consensus_tests.cpp` for mining: test that `addBlock` returns a block with valid PoW at difficulty 1; test that the returned block's hash has the required leading zero bits; test that the nonce is non-zero (for difficulty >= 1); test mining timeout returns an error when difficulty is impossibly high (set difficulty > 200 bits for test)
+- [X] T013 [P] [US2] Write unit tests in `tests/consensus_tests.cpp` for mining: test that `addBlock` returns a block with valid PoW at difficulty 1; test that the returned block's hash has the required leading zero bits; test that the nonce is non-zero (for difficulty >= 1); test mining timeout returns an error when difficulty is impossibly high (set difficulty > 200 bits for test)
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement the mining loop in `Blockchain::addBlock()` in `src/Blockchain.cpp` — after constructing the candidate block, loop: set `nonce`, call `calculateHash()`, check `checkLeadingZeroBits(hash, currentDifficulty)`; increment nonce until valid or timeout exceeded; use `std::chrono::steady_clock` for timeout tracking against `config.miningTimeout`; on timeout throw or return error per FR-013; set block's `difficulty` field to `currentDifficulty` before mining starts
-- [ ] T015 [US2] Update `RpcServer::do_read()` in `src/network/RpcServer.cpp` — handle mining timeout error from `addBlock`: catch the error and return JSON-RPC error code -32000 with message "Mining timeout exceeded ({N}s)" per contracts/json-rpc.md
+- [X] T014 [US2] Implement the mining loop in `Blockchain::addBlock()` in `src/Blockchain.cpp` — after constructing the candidate block, loop: set `nonce`, call `calculateHash()`, check `checkLeadingZeroBits(hash, currentDifficulty)`; increment nonce until valid or timeout exceeded; use `std::chrono::steady_clock` for timeout tracking against `config.miningTimeout`; on timeout throw or return error per FR-013; set block's `difficulty` field to `currentDifficulty` before mining starts
+- [X] T015 [US2] Update `RpcServer::do_read()` in `src/network/RpcServer.cpp` — handle mining timeout error from `addBlock`: catch the error and return JSON-RPC error code -32000 with message "Mining timeout exceeded ({N}s)" per contracts/json-rpc.md
 
 **Checkpoint**: `addBlock` mines blocks with valid PoW. RPC clients receive mined blocks with nonce/difficulty fields. Mining timeout produces a clean JSON-RPC error. Tests pass.
 
@@ -86,13 +86,13 @@
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Write unit tests in `tests/consensus_tests.cpp` for chain replacement: test that a longer valid chain replaces a shorter chain; test that a shorter chain does not replace a longer chain; test that a longer chain with an invalid block is rejected entirely; test that a chain requiring reorganization deeper than `maxReorgDepth` is rejected; test that `keyIndexMap` is correctly rebuilt after chain replacement
+- [X] T016 [P] [US3] Write unit tests in `tests/consensus_tests.cpp` for chain replacement: test that a longer valid chain replaces a shorter chain; test that a shorter chain does not replace a longer chain; test that a longer chain with an invalid block is rejected entirely; test that a chain requiring reorganization deeper than `maxReorgDepth` is rejected; test that `keyIndexMap` is correctly rebuilt after chain replacement
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Implement `isValidChain()` method in `src/Blockchain.hpp` and `src/Blockchain.cpp` — validate an entire chain from genesis: verify genesis block structure, then iterate and call `isValidNewBlock()` for each consecutive pair; return false on first invalid block
-- [ ] T018 [US3] Implement `replaceChain()` method in `src/Blockchain.hpp` and `src/Blockchain.cpp` — accept a candidate chain (vector of ChunkHandlers); check candidate length > current length; check reorg depth <= `config.maxReorgDepth`; call `isValidChain()` on candidate; if valid: free current chunks, replace `chain` vector, rebuild `keyIndexMap`; log descriptive messages for rejection reasons per FR-012
-- [ ] T019 [US3] Add `replaceChain` to `IBlockchain` interface in `src/IBlockchain.hpp` as a virtual method so the network layer can call it on received chains
+- [X] T017 [US3] Implement `isValidChain()` method in `src/Blockchain.hpp` and `src/Blockchain.cpp` — validate an entire chain from genesis: verify genesis block structure, then iterate and call `isValidNewBlock()` for each consecutive pair; return false on first invalid block
+- [X] T018 [US3] Implement `replaceChain()` method in `src/Blockchain.hpp` and `src/Blockchain.cpp` — accept a candidate chain (vector of ChunkHandlers); check candidate length > current length; check reorg depth <= `config.maxReorgDepth`; call `isValidChain()` on candidate; if valid: free current chunks, replace `chain` vector, rebuild `keyIndexMap`; log descriptive messages for rejection reasons per FR-012
+- [X] T019 [US3] Add `replaceChain` to `IBlockchain` interface in `src/IBlockchain.hpp` as a virtual method so the network layer can call it on received chains
 
 **Checkpoint**: Chain replacement works with longest-valid-chain rule, max reorg depth enforced, keyIndexMap rebuilt. Tests pass.
 
@@ -106,13 +106,13 @@
 
 ### Tests for User Story 4
 
-- [ ] T020 [P] [US4] Write unit tests in `tests/consensus_tests.cpp` for difficulty adjustment: test difficulty increases when blocks are mined faster than target interval; test difficulty decreases when blocks are mined slower than target interval; test difficulty does not change by more than `maxAdjustmentFactor`; test difficulty is clamped to `[minDifficulty, maxDifficulty]` range; test adjustment triggers every `adjustmentWindow` blocks; test difficulty stays at minimum when blocks are slow and already at minimum
+- [X] T020 [P] [US4] Write unit tests in `tests/consensus_tests.cpp` for difficulty adjustment: test difficulty increases when blocks are mined faster than target interval; test difficulty decreases when blocks are mined slower than target interval; test difficulty does not change by more than `maxAdjustmentFactor`; test difficulty is clamped to `[minDifficulty, maxDifficulty]` range; test adjustment triggers every `adjustmentWindow` blocks; test difficulty stays at minimum when blocks are slow and already at minimum
 
 ### Implementation for User Story 4
 
-- [ ] T021 [US4] Implement `calculateNewDifficulty()` in `src/Blockchain.hpp` and `src/Blockchain.cpp` — per research.md R3 algorithm: compute `expectedTime = targetInterval * windowSize`; compute `actualTime` from timestamps of first and last block in window; `ratio = expectedTime / actualTime`; clamp ratio to `[1/maxFactor, maxFactor]`; `newDifficulty = current + round(log2(ratio))`; clamp to `[minDifficulty, maxDifficulty]`
-- [ ] T022 [US4] Implement `getDifficultyForHeight()` in `src/Blockchain.hpp` and `src/Blockchain.cpp` — given a block height, compute what the difficulty should be by checking if the height falls on an adjustment boundary; retrofit `isValidNewBlock()` (from T010) to call `getDifficultyForHeight()` for exact height-based difficulty verification, replacing the initial range check
-- [ ] T023 [US4] Integrate difficulty adjustment into `addBlock()` in `src/Blockchain.cpp` — after appending a mined block, check if `blockIndex % config.adjustmentWindow == 0`; if so, call `calculateNewDifficulty()` and update `currentDifficulty` for the next block
+- [X] T021 [US4] Implement `calculateNewDifficulty()` in `src/Blockchain.hpp` and `src/Blockchain.cpp` — per research.md R3 algorithm: compute `expectedTime = targetInterval * windowSize`; compute `actualTime` from timestamps of first and last block in window; `ratio = expectedTime / actualTime`; clamp ratio to `[1/maxFactor, maxFactor]`; `newDifficulty = current + round(log2(ratio))`; clamp to `[minDifficulty, maxDifficulty]`
+- [X] T022 [US4] Implement `getDifficultyForHeight()` in `src/Blockchain.hpp` and `src/Blockchain.cpp` — given a block height, compute what the difficulty should be by checking if the height falls on an adjustment boundary; retrofit `isValidNewBlock()` (from T010) to call `getDifficultyForHeight()` for exact height-based difficulty verification, replacing the initial range check
+- [X] T023 [US4] Integrate difficulty adjustment into `addBlock()` in `src/Blockchain.cpp` — after appending a mined block, check if `blockIndex % config.adjustmentWindow == 0`; if so, call `calculateNewDifficulty()` and update `currentDifficulty` for the next block
 
 **Checkpoint**: Difficulty adjusts every N blocks. Fast mining increases difficulty; slow mining decreases it. Clamping prevents wild oscillation. Tests pass.
 
@@ -122,8 +122,8 @@
 
 **Purpose**: Final integration verification and build validation
 
-- [ ] T024 Verify `make check` passes all tests (existing block_tests + new consensus_tests) — run full test suite and fix any regressions
-- [ ] T025 Run quickstart.md validation — start the node, call `addBlock` via RPC, verify response includes `nonce` and `difficulty` fields, verify mining completes successfully
+- [X] T024 Verify `make check` passes all tests (existing block_tests + new consensus_tests) — run full test suite and fix any regressions
+- [X] T025 Run quickstart.md validation — start the node, call `addBlock` via RPC, verify response includes `nonce` and `difficulty` fields, verify mining completes successfully
 
 ---
 

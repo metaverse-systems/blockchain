@@ -35,4 +35,5 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
     static nlohmann::json invalidMethodMessage(std::string id, std::string method);
     static nlohmann::json invalidParamsMessage(std::string id);
     static nlohmann::json resultMessage(std::string id, std::string result);
+    static nlohmann::json miningTimeoutMessage(std::string id, std::string detail);
 };

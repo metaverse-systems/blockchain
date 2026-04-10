@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <sstream>
 
 std::string bytesToHexString(const unsigned char *bytes, size_t length)
 {
@@ -120,4 +121,32 @@ void loadDotEnv(const std::filesystem::path &path)
         setenv(key.c_str(), value.c_str(), 0); // Don't overwrite existing env vars
 #endif
     }
+}
+
+bool checkLeadingZeroBits(const std::string &hashStr, uint32_t bitsNeeded)
+{
+    if (bitsNeeded == 0) return true;
+
+    // Lookup table: hex digit -> number of leading zero bits
+    // '0'->4, '1'->3, '2'->'3'->2, '4'-'7'->1, '8'-'f'->0
+    static const int lzTable[16] = {4, 3, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    uint32_t zeroBits = 0;
+    for (char c : hashStr) {
+        int nibble;
+        if (c >= '0' && c <= '9') nibble = c - '0';
+        else if (c >= 'a' && c <= 'f') nibble = 10 + (c - 'a');
+        else if (c >= 'A' && c <= 'F') nibble = 10 + (c - 'A');
+        else return false;
+
+        if (nibble == 0) {
+            zeroBits += 4;
+        } else {
+            zeroBits += lzTable[nibble];
+            break;
+        }
+
+        if (zeroBits >= bitsNeeded) return true;
+    }
+    return zeroBits >= bitsNeeded;
 }

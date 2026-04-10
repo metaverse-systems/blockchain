@@ -2,6 +2,7 @@
 #include "../Block.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
+#include <stdexcept>
 
 RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
         : SessionHandler(std::move(*socket_ptr), bc) {}
@@ -66,12 +67,17 @@ void RpcServer::do_read()
 
                 if(object["method"] == "addBlock")
                 {
-                    Block b = bc.addBlock(object["params"]["data"], object["params"]["keys"]);
-                    b.dump();
-                    bc.saveChunk(b.index / bc.chunkSize);
-                    bc.saveKeys();
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], b.toJson()) << std::endl;
+                    try {
+                        Block b = bc.addBlock(object["params"]["data"], object["params"]["keys"]);
+                        b.dump();
+                        bc.saveChunk(b.index / bc.chunkSize);
+                        bc.saveKeys();
+                        buffer.consume(buffer.size());
+                        outputStream << resultMessage(object["id"], b.toJson().dump()) << std::endl;
+                    } catch (const std::runtime_error &e) {
+                        buffer.consume(buffer.size());
+                        outputStream << miningTimeoutMessage(object["id"], e.what()) << std::endl;
+                    }
                     this->do_write();
                     return;
                 }
@@ -181,6 +187,16 @@ nlohmann::json RpcServer::resultMessage(std::string id, std::string result)
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
     response["result"] = result;
+    response["id"] = id;
+    return response;
+}
+
+nlohmann::json RpcServer::miningTimeoutMessage(std::string id, std::string detail)
+{
+    nlohmann::json response;
+    response["jsonrpc"] = "2.0";
+    response["error"]["code"] = -32000;
+    response["error"]["message"] = detail;
     response["id"] = id;
     return response;
 }

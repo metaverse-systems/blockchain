@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include "Block.hpp"
 #include "Blockchain.hpp"
+#include "ConsensusConfig.hpp"
 #include "utils.hpp"
 #include "network/Server.hpp"
 #include "network/RpcServer.hpp"
@@ -60,7 +61,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    Blockchain<Chunk> bc(blockchainDir);
+    Blockchain<Chunk> bc(blockchainDir, ConsensusConfig::fromEnv());
     bc.loadChunk(0);
     bc.loadKeys();
     bc.dumpBlocks();

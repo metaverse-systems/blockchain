@@ -6,6 +6,8 @@
 #include <sstream>
 #include <chrono>
 #include <iomanip>
+#include <cmath>
+#include <stdexcept>
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
@@ -14,13 +16,14 @@ template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::generateGenesisBlock()
 {
     this->chain.emplace_back(ChunkHandler(0, this->blockchainPath));
-    this->chain.at(0).emplace_back(Block(0, 0, "", "GENESIS ~~DEVICE~~BLOCK"));
+    this->chain.at(0).emplace_back(Block(0, 0, "", "GENESIS ~~DEVICE~~BLOCK", 0, 0));
 }
 
 template<typename ChunkHandler>
 Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vector<std::string> &keys)
 {
-    auto unix_timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    auto unix_timestamp = static_cast<uint64_t>(
+        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
     auto& currentChunk = this->chain.back();
     auto previousBlock = currentChunk.back();
@@ -30,12 +33,45 @@ Block Blockchain<ChunkHandler>::addBlock(const std::string &data, const std::vec
         this->chain.push_back(currentChunk);
     }
 
-    auto newBlock = Block(previousBlock.index + 1, unix_timestamp, previousBlock.hash, data);
-    for (auto &key : keys) {
-        this->keyIndexMap[key].push_back(newBlock.index);
+    // Create candidate block with current difficulty
+    Block candidate;
+    candidate.index = previousBlock.index + 1;
+    candidate.timestamp = unix_timestamp;
+    candidate.data = data;
+    candidate.prevHash = previousBlock.hash;
+    candidate.difficulty = this->currentDifficulty;
+    candidate.nonce = 0;
+
+    // Mining loop
+    auto startTime = std::chrono::steady_clock::now();
+    auto timeoutDuration = std::chrono::seconds(this->config.miningTimeout);
+
+    while (true) {
+        candidate.hash = candidate.calculateHash();
+        if (checkLeadingZeroBits(candidate.hash, candidate.difficulty)) {
+            break;
+        }
+        candidate.nonce++;
+
+        auto elapsed = std::chrono::steady_clock::now() - startTime;
+        if (elapsed >= timeoutDuration) {
+            throw std::runtime_error("Mining timeout exceeded ("
+                + std::to_string(this->config.miningTimeout) + "s)");
+        }
     }
-    this->chain.at(newBlock.index / this->chunkSize).push_back(newBlock);
-    return newBlock;
+
+    for (auto &key : keys) {
+        this->keyIndexMap[key].push_back(candidate.index);
+    }
+    this->chain.at(candidate.index / this->chunkSize).push_back(candidate);
+
+    // Check if difficulty adjustment is needed
+    size_t totalBlocks = this->getChainBlockCount();
+    if (totalBlocks > 1 && (totalBlocks - 1) % this->config.adjustmentWindow == 0) {
+        this->calculateNewDifficulty();
+    }
+
+    return candidate;
 }
 
 template<typename ChunkHandler>
@@ -158,6 +194,157 @@ void Blockchain<ChunkHandler>::dumpKeys()
         }
         std::cout << std::endl;
     }
+}
+
+template<typename ChunkHandler>
+size_t Blockchain<ChunkHandler>::getChainBlockCount() const
+{
+    size_t count = 0;
+    for (const auto &chunk : this->chain) {
+        count += chunk.blocks.size();
+    }
+    return count;
+}
+
+template<typename ChunkHandler>
+bool Blockchain<ChunkHandler>::isValidChain(const std::vector<Block> &blocks)
+{
+    if (blocks.empty()) return false;
+
+    // Verify genesis block structure
+    const auto &genesis = blocks[0];
+    if (genesis.index != 0) return false;
+
+    for (size_t i = 1; i < blocks.size(); i++) {
+        if (!IBlockchain::isValidNewBlock(blocks[i], blocks[i - 1], this->config)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::replaceChain(const std::vector<Block> &candidateBlocks)
+{
+    size_t currentLength = this->getChainBlockCount();
+
+    if (candidateBlocks.size() <= currentLength) {
+        logMessage("WARN", "Candidate chain is not longer than current chain");
+        return;
+    }
+
+    if (candidateBlocks.size() - currentLength > this->config.maxReorgDepth) {
+        logMessage("WARN", "Chain reorganization depth exceeds maximum of "
+                   + std::to_string(this->config.maxReorgDepth));
+        return;
+    }
+
+    if (!this->isValidChain(candidateBlocks)) {
+        logMessage("WARN", "Candidate chain is not valid");
+        return;
+    }
+
+    // Clear current chain
+    this->chain.clear();
+    this->keyIndexMap.clear();
+
+    // Rebuild chain from candidate blocks
+    for (const auto &block : candidateBlocks) {
+        size_t chunkIndex = block.index / this->chunkSize;
+        while (this->chain.size() <= chunkIndex) {
+            this->chain.emplace_back(ChunkHandler(this->chain.size(), this->blockchainPath));
+        }
+        Block b = block;
+        this->chain[chunkIndex].push_back(b);
+    }
+
+    logMessage("INFO", "Chain replaced with candidate chain of length "
+               + std::to_string(candidateBlocks.size()));
+}
+
+template<typename ChunkHandler>
+uint32_t Blockchain<ChunkHandler>::calculateNewDifficulty()
+{
+    size_t totalBlocks = this->getChainBlockCount();
+    if (totalBlocks < this->config.adjustmentWindow + 1) {
+        return this->currentDifficulty;
+    }
+
+    // Get the first and last block in the current window
+    size_t windowEnd = totalBlocks - 1;
+    size_t windowStart = windowEnd - this->config.adjustmentWindow;
+
+    Block firstBlock = this->getBlockByIndex(windowStart);
+    Block lastBlock = this->getBlockByIndex(windowEnd);
+
+    double expectedTime = static_cast<double>(this->config.targetBlockInterval) * this->config.adjustmentWindow;
+    double actualTime = static_cast<double>(lastBlock.timestamp - firstBlock.timestamp);
+
+    if (actualTime <= 0) actualTime = 1.0;
+
+    double ratio = expectedTime / actualTime;
+
+    // Clamp ratio
+    double maxFactor = this->config.maxAdjustmentFactor;
+    if (ratio > maxFactor) ratio = maxFactor;
+    if (ratio < 1.0 / maxFactor) ratio = 1.0 / maxFactor;
+
+    int32_t adjustment = static_cast<int32_t>(std::round(std::log2(ratio)));
+    int32_t newDiff = static_cast<int32_t>(this->currentDifficulty) + adjustment;
+
+    // Clamp to [minDifficulty, maxDifficulty]
+    if (newDiff < static_cast<int32_t>(this->config.minDifficulty))
+        newDiff = static_cast<int32_t>(this->config.minDifficulty);
+    if (newDiff > static_cast<int32_t>(this->config.maxDifficulty))
+        newDiff = static_cast<int32_t>(this->config.maxDifficulty);
+
+    this->currentDifficulty = static_cast<uint32_t>(newDiff);
+    return this->currentDifficulty;
+}
+
+template<typename ChunkHandler>
+uint32_t Blockchain<ChunkHandler>::getDifficultyForHeight(size_t height)
+{
+    if (height == 0) return 0;
+
+    // Walk through adjustment boundaries to compute what difficulty should be at this height
+    uint32_t difficulty = this->config.initialDifficulty;
+
+    for (size_t boundaryHeight = this->config.adjustmentWindow;
+         boundaryHeight <= height;
+         boundaryHeight += this->config.adjustmentWindow)
+    {
+        size_t windowStart = boundaryHeight - this->config.adjustmentWindow;
+        size_t windowEnd = boundaryHeight;
+
+        // Ensure blocks exist for this window
+        size_t totalBlocks = this->getChainBlockCount();
+        if (windowEnd >= totalBlocks) break;
+
+        Block firstBlock = this->getBlockByIndex(windowStart);
+        Block lastBlock = this->getBlockByIndex(windowEnd);
+
+        double expectedTime = static_cast<double>(this->config.targetBlockInterval) * this->config.adjustmentWindow;
+        double actualTime = static_cast<double>(lastBlock.timestamp - firstBlock.timestamp);
+        if (actualTime <= 0) actualTime = 1.0;
+
+        double ratio = expectedTime / actualTime;
+        double maxFactor = this->config.maxAdjustmentFactor;
+        if (ratio > maxFactor) ratio = maxFactor;
+        if (ratio < 1.0 / maxFactor) ratio = 1.0 / maxFactor;
+
+        int32_t adjustment = static_cast<int32_t>(std::round(std::log2(ratio)));
+        int32_t newDiff = static_cast<int32_t>(difficulty) + adjustment;
+
+        if (newDiff < static_cast<int32_t>(this->config.minDifficulty))
+            newDiff = static_cast<int32_t>(this->config.minDifficulty);
+        if (newDiff > static_cast<int32_t>(this->config.maxDifficulty))
+            newDiff = static_cast<int32_t>(this->config.maxDifficulty);
+
+        difficulty = static_cast<uint32_t>(newDiff);
+    }
+
+    return difficulty;
 }
 
 template class Blockchain<Chunk>;

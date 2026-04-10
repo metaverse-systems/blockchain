@@ -10,17 +10,21 @@ Block::Block()
     this->data = "";
     this->prevHash = "";
     this->hash = "";
+    this->nonce = 0;
+    this->difficulty = 0;
 }
 
-Block::Block(size_t index, uint64_t time, std::string prev_hash, std::string block_data)
-    : index(index), timestamp(time), data(std::move(block_data)), prevHash(std::move(prev_hash)) {
+Block::Block(size_t index, uint64_t time, std::string prev_hash, std::string block_data, uint64_t nonce, uint32_t difficulty)
+    : index(index), timestamp(time), data(std::move(block_data)), prevHash(std::move(prev_hash)),
+      nonce(nonce), difficulty(difficulty) {
     this->hash = calculateHash();
 }
 
 std::string Block::calculateHash() const
 {
     std::stringstream ss;
-    ss << this->index << this->timestamp << this->data << this->prevHash;
+    ss << this->index << this->timestamp << this->data << this->prevHash
+       << this->nonce << this->difficulty;
     return sha256(ss.str());
 }
 
@@ -44,5 +48,7 @@ nlohmann::json Block::toJson() const
     j["data"] = this->data;
     j["prevHash"] = this->prevHash;
     j["hash"] = this->hash;
+    j["nonce"] = this->nonce;
+    j["difficulty"] = this->difficulty;
     return j;
 }

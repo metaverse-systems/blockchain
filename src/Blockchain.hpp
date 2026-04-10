@@ -4,6 +4,7 @@
 #include "Block.hpp"
 #include "IChunk.hpp"
 #include "IBlockchain.hpp"
+#include "ConsensusConfig.hpp"
 #include <filesystem>
 
 template<typename ChunkHandler>
@@ -12,11 +13,13 @@ class Blockchain : public IBlockchain
   private:
     std::vector<ChunkHandler> chain;
     std::map<std::string, std::vector<size_t>> keyIndexMap;
-    bool isValidNewBlock(const Block &newBlock, const Block &previousBlock);
     std::filesystem::path blockchainPath;
+    ConsensusConfig config;
+    uint32_t currentDifficulty;
   public:
     
-    Blockchain(std::filesystem::path path): blockchainPath(path)
+    Blockchain(std::filesystem::path path, ConsensusConfig cfg = ConsensusConfig())
+        : blockchainPath(path), config(cfg), currentDifficulty(cfg.initialDifficulty)
     {
         this->generateGenesisBlock();
     };
@@ -31,4 +34,11 @@ class Blockchain : public IBlockchain
     void freeChunk(size_t chunkIndex);
     void saveKeys();
     void loadKeys();
+    bool isValidChain(const std::vector<Block> &blocks);
+    void replaceChain(const std::vector<Block> &candidateBlocks);
+    uint32_t calculateNewDifficulty();
+    uint32_t getDifficultyForHeight(size_t height);
+    const ConsensusConfig &getConfig() const { return config; }
+    uint32_t getCurrentDifficulty() const { return currentDifficulty; }
+    size_t getChainBlockCount() const;
 };

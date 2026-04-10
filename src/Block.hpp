@@ -13,9 +13,11 @@ struct Block {
     std::string data;
     std::string prevHash;
     std::string hash;
+    uint64_t nonce;
+    uint32_t difficulty;
 
     Block();
-    Block(size_t, uint64_t, std::string, std::string);
+    Block(size_t, uint64_t, std::string, std::string, uint64_t nonce = 0, uint32_t difficulty = 0);
     std::string calculateHash() const;
     void dump();
 
@@ -29,6 +31,8 @@ struct Block {
         ar & data;
         ar & prevHash;
         ar & hash;
+        ar & nonce;
+        ar & difficulty;
         return version;
     }
 
