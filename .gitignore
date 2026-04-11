@@ -81,6 +81,8 @@ tests/cli_tests
 tests/rpc_expansion_tests
 tests/lifecycle_tests
 tests/lifecycle_integration_tests
+tests/rpc_integration_tests
+tests/p2p_sync_integration_tests
 
 # Test artifacts
 *.trs

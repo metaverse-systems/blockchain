@@ -220,6 +220,11 @@ public:
         return result;
     }
 
+    const ConsensusConfig& getConfig() const override {
+        static ConsensusConfig cfg;
+        return cfg;
+    }
+
     // Helper to create a valid next block for testing (mines a nonce for PoW)
     Block createValidNextBlock(const std::string &data = "test") {
         StreamEntry entry;

@@ -3,7 +3,7 @@ AM_CPPFLAGS = ${CATCH2_CFLAGS}
 check_PROGRAMS = blockchain_tests block_propagation_tests block_propagation_integration_tests \
     chunk_persistence_tests chunk_recovery_tests chunk_replace_tests merkle_tests \
     merkle_rpc_integration_tests cli_tests rpc_expansion_tests lifecycle_tests \
-    lifecycle_integration_tests
+    lifecycle_integration_tests rpc_integration_tests p2p_sync_integration_tests
 TESTS = $(check_PROGRAMS)
 blockchain_tests_SOURCES = block_tests.cpp server_tests.cpp consensus_tests.cpp sync_tests.cpp \
     node_config_tests.cpp peer_manager_tests.cpp peer_discovery_tests.cpp \
@@ -90,3 +90,17 @@ lifecycle_integration_tests_SOURCES = lifecycle_integration_tests.cpp \
     ../src/network/PeerClient.cpp ../src/network/PeerServer.cpp ../src/network/RpcServer.cpp
 lifecycle_integration_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
 lifecycle_integration_tests_LDADD = ${OPENSSL_LIBS} -lboost_serialization ${CATCH2_LIBS}
+
+rpc_integration_tests_SOURCES = rpc_integration_tests.cpp \
+    ../src/Block.cpp ../src/Blockchain.cpp ../src/Chunk.cpp ../src/utils.cpp ../src/NodeConfig.cpp \
+    ../src/PeerManager.cpp ../src/BlockPropagation.cpp ../src/MerkleTree.cpp \
+    ../src/network/PeerClient.cpp ../src/network/PeerServer.cpp ../src/network/RpcServer.cpp
+rpc_integration_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
+rpc_integration_tests_LDADD = ${OPENSSL_LIBS} -lboost_serialization ${CATCH2_LIBS}
+
+p2p_sync_integration_tests_SOURCES = p2p_sync_integration_tests.cpp \
+    ../src/Block.cpp ../src/Blockchain.cpp ../src/Chunk.cpp ../src/utils.cpp ../src/NodeConfig.cpp \
+    ../src/PeerManager.cpp ../src/BlockPropagation.cpp ../src/MerkleTree.cpp \
+    ../src/network/PeerClient.cpp ../src/network/PeerServer.cpp ../src/network/RpcServer.cpp
+p2p_sync_integration_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
+p2p_sync_integration_tests_LDADD = ${OPENSSL_LIBS} -lboost_serialization ${CATCH2_LIBS}

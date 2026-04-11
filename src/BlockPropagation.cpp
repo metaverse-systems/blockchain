@@ -161,7 +161,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
         }
 
         // Validate against consensus
-        ConsensusConfig config;
+        const auto &config = bc_.getConfig();
         if (!IBlockchain::isValidNewBlock(block, tip, config)) {
             logMessage("WARN", "Invalid block #" + std::to_string(block.index) + " from " + sender_key);
             if (peer_manager_) {

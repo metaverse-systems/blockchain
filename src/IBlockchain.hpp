@@ -52,6 +52,7 @@ class IBlockchain
     virtual nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) = 0;
     virtual nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
                                                  const nlohmann::json &proofArray) = 0;
+    virtual const ConsensusConfig& getConfig() const = 0;
 
     static bool isValidNewBlock(const Block &newBlock, const Block &previousBlock, const ConsensusConfig &config)
     {

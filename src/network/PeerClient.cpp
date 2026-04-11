@@ -145,7 +145,8 @@ void PeerClient::do_read_body(const PacketHeader &header)
                                 peer_manager->increment_error(host, static_cast<uint16_t>(std::stoi(port)));
                             }
                         }
-                        break;
+                        do_read_header();
+                        return;
                     }
                     case PacketType::PEER_EXCHANGE_RESPONSE:
                     {
@@ -219,7 +220,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
     }
 
     // Validate each block in the chunk
-    ConsensusConfig config;
+    const auto &config = bc.getConfig();
     for (size_t i = 0; i < response.blocks.size(); i++) {
         const Block &block = response.blocks[i];
 

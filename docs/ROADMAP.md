@@ -17,6 +17,7 @@ Last updated: 2026-04-11
 | 009  | CLI & Configuration | Command-line argument parsing (data directory, RPC/P2P ports, peer list, log level), `config.json` support with runtime validation, `--help` output, `getopt`-based option handling |
 | 010  | RPC API Expansion | Four new JSON-RPC methods: `getNodeStatus` (comprehensive health snapshot), `getBlockRange` (batch block retrieval with 1000-block cap and optional headers-only mode), `getChainLength`, `getChunkCount`; read-only endpoints with no transport-layer changes |
 | 011  | Graceful Multi-Chunk Shutdown & Startup | Per-chunk dirty tracking, block ingestion freeze on SIGINT/SIGTERM, dirty-aware saveAllChunks, full-chain recovery with validation and cross-chunk linkage checks, index rebuild from chunks, `fast_startup` config option |
+| 012  | Integration Test Suite | End-to-end Catch2 integration tests over real TLS: 19 RPC endpoint tests (all JSON-RPC methods with positive/negative cases), 3 P2P tests (single-block propagation, multi-block propagation, 3-node relay), shared test infrastructure (TLS cert generation, in-process NodeInstance, synchronous RpcTestClient), bug fixes in BlockPropagation consensus config and PeerClient read loop |
 
 ## Suggested Specs
 
@@ -46,9 +47,7 @@ The daemon takes a single positional argument (blockchain directory). Ports are 
 
 #### 012 — Integration Test Suite
 
-Tests are limited to unit-level Catch2 tests for blocks and server construction. No end-to-end tests exercise the RPC or P2P protocols over real TLS connections. Add integration tests for multi-node scenarios.
-
-**Scope**: Catch2 integration test binary, TLS test fixtures with self-signed certs, RPC client test helper, P2P two-node sync test, `make check` integration.
+*Completed. See spec 012 in Completed table above.*
 
 ---
 
