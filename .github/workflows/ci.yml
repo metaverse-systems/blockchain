@@ -84,6 +84,9 @@ jobs:
       - name: Build
         run: make -j8
 
+      - name: Build tests
+        run: make -j8 -C tests check TESTS=
+
       - name: "Test: blockchain_tests"
         timeout-minutes: 5
         run: ./tests/blockchain_tests
