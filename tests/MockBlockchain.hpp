@@ -3,11 +3,14 @@
 #include "../src/IBlockchain.hpp"
 #include "../src/Block.hpp"
 #include "../src/StreamEntry.hpp"
+#include "../src/MerkleTree.hpp"
 #include "../src/utils.hpp"
 #include <vector>
 #include <set>
 #include <map>
 #include <stdexcept>
+#include <sstream>
+#include <boost/archive/binary_oarchive.hpp>
 
 class MockBlockchain : public IBlockchain {
 public:
@@ -50,6 +53,15 @@ public:
         b.prevHash = prev.hash;
         b.difficulty = 1;
         b.nonce = 0;
+        // Compute merkleRoot
+        std::vector<std::string> leafHashes;
+        for (const auto &e : b.entries) {
+            std::ostringstream oss;
+            boost::archive::binary_oarchive oa(oss);
+            oa << e;
+            leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
+        }
+        b.merkleRoot = MerkleTree::computeMerkleRoot(leafHashes);
         b.hash = b.calculateHash();
         blocks.push_back(b);
 
@@ -152,6 +164,58 @@ public:
         return (blocks.size() + chunkSize - 1) / chunkSize;
     }
 
+    nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) override {
+        if (blockIndex >= blocks.size()) {
+            throw std::out_of_range("Block index out of range");
+        }
+        const auto &block = blocks[blockIndex];
+        if (entryIndex >= block.entries.size()) {
+            throw std::out_of_range("Entry index out of range");
+        }
+        std::vector<std::string> leafHashes;
+        for (const auto &e : block.entries) {
+            std::ostringstream oss;
+            boost::archive::binary_oarchive oa(oss);
+            oa << e;
+            leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
+        }
+        auto proof = MerkleTree::generateProof(leafHashes, entryIndex);
+        nlohmann::json result;
+        result["blockIndex"] = blockIndex;
+        result["entryIndex"] = entryIndex;
+        result["merkleRoot"] = block.merkleRoot;
+        result["leafHash"] = leafHashes[entryIndex];
+        nlohmann::json proofArray = nlohmann::json::array();
+        for (const auto &elem : proof) {
+            nlohmann::json pj;
+            pj["hash"] = elem.hash;
+            pj["isLeft"] = elem.isLeft;
+            proofArray.push_back(pj);
+        }
+        result["proof"] = proofArray;
+        return result;
+    }
+
+    nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
+                                         const nlohmann::json &proofArray) override {
+        if (blockIndex >= blocks.size()) {
+            throw std::out_of_range("Block index out of range");
+        }
+        const auto &block = blocks[blockIndex];
+        std::vector<MerkleProofElement> proof;
+        for (const auto &elem : proofArray) {
+            MerkleProofElement pe;
+            pe.hash = elem["hash"].get<std::string>();
+            pe.isLeft = elem["isLeft"].get<bool>();
+            proof.push_back(pe);
+        }
+        bool valid = MerkleTree::verifyProof(block.merkleRoot, leafHash, proof);
+        nlohmann::json result;
+        result["valid"] = valid;
+        result["merkleRoot"] = block.merkleRoot;
+        return result;
+    }
+
     // Helper to create a valid next block for testing (mines a nonce for PoW)
     Block createValidNextBlock(const std::string &data = "test") {
         StreamEntry entry;
@@ -167,6 +231,15 @@ public:
         b.prevHash = prev.hash;
         b.difficulty = 1;
         b.nonce = 0;
+        // Compute merkleRoot
+        std::vector<std::string> leafHashes;
+        for (const auto &e : b.entries) {
+            std::ostringstream oss;
+            boost::archive::binary_oarchive oa(oss);
+            oa << e;
+            leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
+        }
+        b.merkleRoot = MerkleTree::computeMerkleRoot(leafHashes);
         b.hash = b.calculateHash();
         while (!checkLeadingZeroBits(b.hash, b.difficulty)) {
             b.nonce++;

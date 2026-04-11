@@ -1,6 +1,7 @@
 #pragma once
 #include "utils.hpp"
 #include "StreamEntry.hpp"
+#include "MerkleTree.hpp"
 #include <cstdint>
 #include <vector>
 #include <boost/serialization/serialization.hpp>
@@ -17,6 +18,7 @@ struct Block {
     std::string hash;
     uint64_t nonce;
     uint32_t difficulty;
+    std::string merkleRoot;
 
     Block();
     Block(size_t index, uint64_t timestamp, std::string prevHash,
@@ -36,8 +38,10 @@ struct Block {
         ar & hash;
         ar & nonce;
         ar & difficulty;
+        ar & merkleRoot;
         return version;
     }
 
     nlohmann::json toJson() const;
+    nlohmann::json toHeaderJson() const;
 };

@@ -5,6 +5,7 @@
 #include "../json.hpp"
 #include "../StreamEntry.hpp"
 #include "../PeerManager.hpp"
+#include "../MerkleTree.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <regex>
@@ -518,6 +519,96 @@ void RpcServer::do_read()
                     peer_manager->save_peers();
                     buffer.consume(buffer.size());
                     outputStream << resultMessage(object["id"], "peer_unbanned") << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "getInclusionProof")
+                {
+                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
+                        || !object["params"].contains("blockIndex") || !object["params"]["blockIndex"].is_number_integer()
+                        || !object["params"].contains("entryIndex") || !object["params"]["entryIndex"].is_number_integer()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto blockIndex = object["params"]["blockIndex"].get<size_t>();
+                    auto entryIndex = object["params"]["entryIndex"].get<size_t>();
+                    try {
+                        auto result = bc.getInclusionProof(blockIndex, entryIndex);
+                        buffer.consume(buffer.size());
+                        outputStream << resultJsonMessage(object["id"], result) << std::endl;
+                    } catch (const std::out_of_range &e) {
+                        std::string msg = e.what();
+                        int code = -32001;
+                        if (msg.find("Entry") != std::string::npos) {
+                            code = -32002;
+                            msg = "Entry not found";
+                        } else {
+                            msg = "Block not found";
+                        }
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], code, msg) << std::endl;
+                    }
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "verifyInclusionProof")
+                {
+                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
+                        || !object["params"].contains("blockIndex") || !object["params"]["blockIndex"].is_number_integer()
+                        || !object["params"].contains("leafHash") || !object["params"]["leafHash"].is_string()
+                        || !object["params"].contains("proof") || !object["params"]["proof"].is_array()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    // Validate proof array elements
+                    for (const auto &elem : object["params"]["proof"]) {
+                        if (!elem.contains("hash") || !elem["hash"].is_string()
+                            || !elem.contains("isLeft") || !elem["isLeft"].is_boolean()) {
+                            buffer.consume(buffer.size());
+                            outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
+                            this->do_write();
+                            return;
+                        }
+                    }
+                    auto blockIndex = object["params"]["blockIndex"].get<size_t>();
+                    auto leafHash = object["params"]["leafHash"].get<std::string>();
+                    auto proofArray = object["params"]["proof"];
+                    try {
+                        auto result = bc.verifyInclusionProof(blockIndex, leafHash, proofArray);
+                        buffer.consume(buffer.size());
+                        outputStream << resultJsonMessage(object["id"], result) << std::endl;
+                    } catch (const std::out_of_range &) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32001, "Block not found") << std::endl;
+                    }
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "getBlockHeader")
+                {
+                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
+                        || !object["params"].contains("blockIndex") || !object["params"]["blockIndex"].is_number_integer()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto blockIndex = object["params"]["blockIndex"].get<size_t>();
+                    try {
+                        Block b = bc.getBlockByIndex(blockIndex);
+                        buffer.consume(buffer.size());
+                        outputStream << resultJsonMessage(object["id"], b.toHeaderJson()) << std::endl;
+                    } catch (const std::out_of_range &) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32001, "Block not found") << std::endl;
+                    }
                     this->do_write();
                     return;
                 }

@@ -13,11 +13,21 @@ Block::Block()
     this->hash = "";
     this->nonce = 0;
     this->difficulty = 0;
+    this->merkleRoot = "";
 }
 
 Block::Block(size_t index, uint64_t time, std::string prev_hash, std::vector<StreamEntry> entries, uint64_t nonce, uint32_t difficulty)
     : index(index), timestamp(time), entries(std::move(entries)), prevHash(std::move(prev_hash)),
       nonce(nonce), difficulty(difficulty) {
+    // Compute leaf hashes from entries
+    std::vector<std::string> leafHashes;
+    for (const auto &entry : this->entries) {
+        std::ostringstream oss;
+        boost::archive::binary_oarchive oa(oss);
+        oa << entry;
+        leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
+    }
+    this->merkleRoot = MerkleTree::computeMerkleRoot(leafHashes);
     this->hash = calculateHash();
 }
 
@@ -25,13 +35,7 @@ std::string Block::calculateHash() const
 {
     std::stringstream ss;
     ss << this->index << this->timestamp;
-    // Serialize entries into the hash input
-    {
-        std::ostringstream oss;
-        boost::archive::binary_oarchive oa(oss);
-        oa << this->entries;
-        ss << oss.str();
-    }
+    ss << this->merkleRoot;
     ss << this->prevHash << this->nonce << this->difficulty;
     return sha256(ss.str());
 }
@@ -56,6 +60,7 @@ nlohmann::json Block::toJson() const
     j["index"] = this->index;
     j["timestamp"] = this->timestamp;
     j["prevHash"] = this->prevHash;
+    j["merkleRoot"] = this->merkleRoot;
     j["hash"] = this->hash;
     j["nonce"] = this->nonce;
     j["difficulty"] = this->difficulty;
@@ -68,5 +73,18 @@ nlohmann::json Block::toJson() const
         entriesJson.push_back(ej);
     }
     j["entries"] = entriesJson;
+    return j;
+}
+
+nlohmann::json Block::toHeaderJson() const
+{
+    nlohmann::json j;
+    j["index"] = this->index;
+    j["timestamp"] = this->timestamp;
+    j["prevHash"] = this->prevHash;
+    j["merkleRoot"] = this->merkleRoot;
+    j["nonce"] = this->nonce;
+    j["difficulty"] = this->difficulty;
+    j["hash"] = this->hash;
     return j;
 }

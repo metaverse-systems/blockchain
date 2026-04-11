@@ -1,5 +1,4 @@
-# http://www.gnu.org/software/automake
-
+# GNU Automake
 Makefile.in
 /ar-lib
 /mdate-sh
@@ -7,9 +6,9 @@ Makefile.in
 /test-driver
 /ylwrap
 
-# http://www.gnu.org/software/autoconf
-
+# GNU Autoconf
 /autom4te.cache
+autom4te.cache
 /autoscan.log
 /autoscan-*.log
 /aclocal.m4
@@ -28,26 +27,28 @@ Makefile.in
 /stamp-h1
 /config.log
 /config.status
+Makefile
+/Doxyfile
 
-# https://www.gnu.org/software/libtool/
-
+# GNU Libtool
 /ltmain.sh
-
-# http://www.gnu.org/software/texinfo
-
-/texinfo.tex
-
-# http://www.gnu.org/software/m4/
-
 m4/libtool.m4
 m4/ltoptions.m4
 m4/ltsugar.m4
 m4/ltversion.m4
 m4/lt~obsolete.m4
-autom4te.cache
+libtool
+*.la
+*.lo
+*.lai
+*.Plo
+*.so.0
+*.so.0.0.0
+.libs
+.deps
 
-/Doxyfile
-Makefile
+# GNU Texinfo
+/texinfo.tex
 
 # C++ build artifacts
 build/
@@ -59,8 +60,37 @@ out/
 *.a
 *.exe
 *.dll
-*.log
-.env*
+src/.dirstamp
+src/network/.dirstamp
+
+# Compiled binaries
+blockchain
+src/blockchain
+test-chain
+
+# Test binaries
+tests/blockchain_tests
+tests/block_propagation_tests
+tests/block_propagation_integration_tests
+tests/chunk_persistence_tests
+tests/chunk_recovery_tests
+tests/chunk_replace_tests
+tests/merkle_tests
+tests/merkle_rpc_integration_tests
+
+# Test artifacts
+*.trs
+test-suite.log
+
+# Data files
+*.dat
+bc-dir/
+backups/
+
+# Environment
+.env
+.env.*
+!.env.example
 
 # IDE
 .idea/
@@ -71,64 +101,7 @@ out/
 Thumbs.db
 *.tmp
 *.swp
-
-# C++ build artifacts
-*.o
-*.so
-*.a
-*.exe
-*.dll
-build/
-bin/
-obj/
-out/
-
-# IDE
-.idea/
-.vscode/
-
-# Environment and logs
 *.log
-.env*
-.DS_Store
-.libs
-.deps
-*.a
-*.so
-*.so.0
-*.so.0.0.0
-*.Plo
-*.o
-*.la
-*.lo
-*.lai
-libtool
-*.exe
-*.dll
-node_modules
-.vscode
-blockchain
-test-chain
-src/.dirstamp
-tests/blockchain_tests
-src/network/.dirstamp
 
-# Environment and IDE
-.env
-.env.*
-!.env.example
-.idea/
-*.log
-*.tmp
-*.swp
-.DS_Store
-Thumbs.db
-bc-dir
-tests/block_propagation_tests
-tests/block_propagation_integration_tests
-tests/blockchain_tests
-tests/chunk_persistence_tests
-tests/chunk_recovery_tests
-tests/chunk_replace_tests
-*.trs
-*.dat
+# Misc
+node_modules/

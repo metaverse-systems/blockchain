@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-10
+Last updated: 2026-04-11
 
 ## Completed
 
@@ -12,24 +12,14 @@ Last updated: 2026-04-10
 | 004  | Peer Discovery & Management | Seed-node bootstrap, peer exchange gossip, exponential-backoff reconnection, inbound/outbound connection limits, RPC manual peer management, reputation tracking with auto-ban, `config.json`/`peers.json` persistence with node UUID |
 | 005  | Block Propagation & Validation on Receipt | Outbound broadcast of locally-mined blocks, consensus validation on receipt, multi-hop relay, duplicate suppression via recent-block cache, per-peer rate limiting, invalid-block sender penalties, gap-block pending pool, sync-aware queueing |
 | 006  | Transaction Model (Stream-Based Key/Value Store) | Structured `StreamEntry` arrays replace opaque block data, named-stream publish via RPC, history and latest-mode queries, explicit/implicit stream creation, per-node publish permissions via `config.json`, P2P validation, 128 MB entry size cap, base64 binary support |
+| 007  | Multi-Chunk Persistence & Recovery | Auto-save chunks when they reach capacity, load all existing chunk files on startup, detect and report corrupted chunk files, `getChainLength`/`getChunkCount` on `IBlockchain`, startup chain recovery |
+| 008  | Merkle Tree & Block Header Optimization | Per-block Merkle root (RFC 6962 domain-separated SHA-256), `getInclusionProof`/`verifyInclusionProof`/`getBlockHeader` JSON-RPC endpoints, O(log n) inclusion proofs, lightweight header-only block view, block hash now incorporates Merkle root instead of serialized entries |
 
 ## Suggested Specs
 
 ### Tier 2 — Data Integrity & Persistence (required for production reliability)
 
-#### 007 — Multi-Chunk Persistence & Recovery
-
-Only chunk 0 is saved on shutdown (`bc.saveChunk(0)`). A chain with >100 blocks would lose all chunks beyond the first. Implement automatic chunk persistence as they fill, and recovery of the full chain on startup.
-
-**Scope**: Auto-save chunks when they reach capacity, load all existing chunk files on startup, detect and report corrupted chunk files, add `getChainLength` / `getChunkCount` to `IBlockchain`.
-
----
-
-#### 008 — Merkle Tree & Block Header Optimization
-
-No Merkle root or lightweight block header exists. Verification requires loading full block data. Add Merkle tree computation per chunk or block batch to enable efficient proof-of-inclusion and light-client support.
-
-**Scope**: Merkle root field in block header, tree construction on chunk finalization, proof generation and verification API.
+*All Tier 2 specs completed.*
 
 ---
 

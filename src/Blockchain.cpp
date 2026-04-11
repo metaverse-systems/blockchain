@@ -1,6 +1,7 @@
 #include "Blockchain.hpp"
 #include "Chunk.hpp"
 #include "MockChunk.hpp"
+#include "MerkleTree.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -73,6 +74,16 @@ Block Blockchain<ChunkHandler>::publish(const std::string &stream, const std::st
     candidate.prevHash = previousBlock.hash;
     candidate.difficulty = this->currentDifficulty;
     candidate.nonce = 0;
+
+    // Compute merkleRoot before mining
+    std::vector<std::string> leafHashes;
+    for (const auto &entry : candidate.entries) {
+        std::ostringstream entryOss;
+        boost::archive::binary_oarchive entryOa(entryOss);
+        entryOa << entry;
+        leafHashes.push_back(MerkleTree::computeLeafHash(entryOss.str()));
+    }
+    candidate.merkleRoot = MerkleTree::computeMerkleRoot(leafHashes);
 
     // Mining loop
     auto startTime = std::chrono::steady_clock::now();
@@ -910,6 +921,66 @@ uint32_t Blockchain<ChunkHandler>::getDifficultyForHeight(size_t height)
     }
 
     return difficulty;
+}
+
+template<typename ChunkHandler>
+nlohmann::json Blockchain<ChunkHandler>::getInclusionProof(size_t blockIndex, size_t entryIndex)
+{
+    Block block = this->getBlockByIndex(blockIndex);
+
+    if (entryIndex >= block.entries.size()) {
+        throw std::out_of_range("Entry index out of range: " + std::to_string(entryIndex));
+    }
+
+    // Compute leaf hashes for all entries
+    std::vector<std::string> leafHashes;
+    for (const auto &entry : block.entries) {
+        std::ostringstream oss;
+        boost::archive::binary_oarchive oa(oss);
+        oa << entry;
+        leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
+    }
+
+    auto proof = MerkleTree::generateProof(leafHashes, entryIndex);
+
+    nlohmann::json result;
+    result["blockIndex"] = blockIndex;
+    result["entryIndex"] = entryIndex;
+    result["merkleRoot"] = block.merkleRoot;
+    result["leafHash"] = leafHashes[entryIndex];
+
+    nlohmann::json proofArray = nlohmann::json::array();
+    for (const auto &elem : proof) {
+        nlohmann::json pj;
+        pj["hash"] = elem.hash;
+        pj["isLeft"] = elem.isLeft;
+        proofArray.push_back(pj);
+    }
+    result["proof"] = proofArray;
+
+    return result;
+}
+
+template<typename ChunkHandler>
+nlohmann::json Blockchain<ChunkHandler>::verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
+                                                               const nlohmann::json &proofArray)
+{
+    Block block = this->getBlockByIndex(blockIndex);
+
+    std::vector<MerkleProofElement> proof;
+    for (const auto &elem : proofArray) {
+        MerkleProofElement pe;
+        pe.hash = elem["hash"].get<std::string>();
+        pe.isLeft = elem["isLeft"].get<bool>();
+        proof.push_back(pe);
+    }
+
+    bool valid = MerkleTree::verifyProof(block.merkleRoot, leafHash, proof);
+
+    nlohmann::json result;
+    result["valid"] = valid;
+    result["merkleRoot"] = block.merkleRoot;
+    return result;
 }
 
 template class Blockchain<Chunk>;

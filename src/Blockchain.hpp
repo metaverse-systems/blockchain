@@ -77,4 +77,7 @@ class Blockchain : public IBlockchain
     void setSaveIntervalSeconds(uint32_t interval) { save_interval_seconds_ = interval; }
     const std::filesystem::path& getBlockchainPath() const { return blockchainPath; }
     bool isDirty() const { return dirty_; }
+    nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) override;
+    nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
+                                         const nlohmann::json &proofArray) override;
 };

@@ -4,6 +4,7 @@
 #include "../src/Blockchain.hpp"
 #include "../src/MockChunk.hpp"
 #include "../src/Chunk.hpp"
+#include "../src/MerkleTree.hpp"
 #include <filesystem>
 #include <sstream>
 #include <boost/archive/binary_oarchive.hpp>
@@ -158,4 +159,122 @@ TEST_CASE("Block toJson includes entries array", "[Block]")
     REQUIRE(j["entries"][0]["key"] == "item-42");
     REQUIRE(j["entries"][0]["data"] == "test");
     REQUIRE_FALSE(j.contains("data"));
+}
+
+// ============================================================
+// T014: merkleRoot in Block
+// ============================================================
+
+TEST_CASE("Block merkleRoot is populated on construction", "[Block][merkle]") {
+    StreamEntry e;
+    e.stream = "test-stream";
+    e.key = "test-key";
+    e.data = "test data";
+
+    Block b(1, 100, "prev", {e}, 0, 0);
+
+    REQUIRE_FALSE(b.merkleRoot.empty());
+    REQUIRE(b.merkleRoot.size() == 64); // SHA-256 hex
+}
+
+TEST_CASE("Block hash incorporates merkleRoot", "[Block][merkle]") {
+    StreamEntry e1;
+    e1.stream = "s";
+    e1.key = "k";
+    e1.data = "data1";
+
+    StreamEntry e2;
+    e2.stream = "s";
+    e2.key = "k";
+    e2.data = "data2";
+
+    Block b1(1, 100, "prev", {e1}, 0, 0);
+    Block b2(1, 100, "prev", {e2}, 0, 0);
+
+    // Different entries → different merkleRoots → different hashes
+    REQUIRE(b1.merkleRoot != b2.merkleRoot);
+    REQUIRE(b1.hash != b2.hash);
+}
+
+TEST_CASE("Block serialization round-trip preserves merkleRoot", "[Block][merkle]") {
+    StreamEntry e;
+    e.stream = "assets";
+    e.key = "item-1";
+    e.data = "sword";
+
+    Block original(1, 12345, "prevhash", {e}, 42, 1);
+
+    std::ostringstream oss;
+    {
+        boost::archive::binary_oarchive oa(oss);
+        oa << original;
+    }
+
+    Block restored;
+    std::istringstream iss(oss.str());
+    {
+        boost::archive::binary_iarchive ia(iss);
+        ia >> restored;
+    }
+
+    REQUIRE(restored.merkleRoot == original.merkleRoot);
+    REQUIRE(restored.merkleRoot.size() == 64);
+    REQUIRE(restored.hash == original.hash);
+}
+
+TEST_CASE("Block toJson includes merkleRoot", "[Block][merkle]") {
+    StreamEntry e;
+    e.stream = "s";
+    e.key = "k";
+    e.data = "d";
+
+    Block b(1, 100, "prev", {e}, 0, 0);
+    auto j = b.toJson();
+
+    REQUIRE(j.contains("merkleRoot"));
+    REQUIRE(j["merkleRoot"].is_string());
+    REQUIRE(j["merkleRoot"].get<std::string>() == b.merkleRoot);
+}
+
+TEST_CASE("Empty block has well-defined merkleRoot", "[Block][merkle]") {
+    Block b(0, 0, "", {}, 0, 0);
+    // SHA-256 of empty string
+    REQUIRE(b.merkleRoot == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+}
+
+// ============================================================
+// T023: Block header tests (US3)
+// ============================================================
+
+TEST_CASE("toHeaderJson returns exactly 7 fields", "[Block][header][US3]") {
+    StreamEntry e;
+    e.stream = "test";
+    e.key = "k";
+    e.data = "data";
+
+    Block b(1, 100, "prev", {e}, 42, 2);
+    auto hj = b.toHeaderJson();
+
+    REQUIRE(hj.size() == 7);
+    REQUIRE(hj.contains("index"));
+    REQUIRE(hj.contains("timestamp"));
+    REQUIRE(hj.contains("prevHash"));
+    REQUIRE(hj.contains("merkleRoot"));
+    REQUIRE(hj.contains("nonce"));
+    REQUIRE(hj.contains("difficulty"));
+    REQUIRE(hj.contains("hash"));
+    REQUIRE_FALSE(hj.contains("entries"));
+}
+
+TEST_CASE("toHeaderJson hash matches full block hash", "[Block][header][US3]") {
+    StreamEntry e;
+    e.stream = "assets";
+    e.key = "item";
+    e.data = "sword";
+
+    Block b(1, 100, "prev", {e}, 0, 0);
+    auto hj = b.toHeaderJson();
+
+    REQUIRE(hj["hash"].get<std::string>() == b.hash);
+    REQUIRE(hj["merkleRoot"].get<std::string>() == b.merkleRoot);
 }

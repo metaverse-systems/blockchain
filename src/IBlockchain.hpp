@@ -10,6 +10,7 @@
 #include "Block.hpp"
 #include "StreamEntry.hpp"
 #include "ConsensusConfig.hpp"
+#include "json.hpp"
 
 class IBlockchain
 {
@@ -43,6 +44,9 @@ class IBlockchain
     virtual size_t getChainBlockCount() const = 0;
     virtual size_t getChainLength() const = 0;
     virtual size_t getChunkCount() const = 0;
+    virtual nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) = 0;
+    virtual nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
+                                                 const nlohmann::json &proofArray) = 0;
 
     static bool isValidNewBlock(const Block &newBlock, const Block &previousBlock, const ConsensusConfig &config)
     {
