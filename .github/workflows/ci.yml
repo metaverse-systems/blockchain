@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Linux GCC"
+            os: ubuntu-latest
+            cc: gcc-14
+            cxx: g++-14
+            shell: bash
+          - name: "Linux Clang"
+            os: ubuntu-latest
+            cc: clang-18
+            cxx: clang++-18
+            shell: bash
+          - name: "macOS Clang"
+            os: macos-latest
+            cc: clang
+            cxx: clang++
+            shell: bash
+          - name: "Windows MinGW-w64"
+            os: windows-latest
+            cc: gcc
+            cxx: g++
+            shell: "msys2 {0}"
+
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libboost-serialization-dev libboost-program-options-dev libssl-dev catch2
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install boost openssl@3 catch2 autoconf automake libtool pkg-config
+
+      - name: Setup MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          release: false
+          cache: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-boost
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-catch2
+            autotools
+            make
+            pkg-config
+
+      - name: Configure
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$PKG_CONFIG_PATH"
+          fi
+          autoreconf -fi
+          ./configure
+
+      - name: Build
+        run: make -j8
+
+      - name: "Test: blockchain_tests"
+        timeout-minutes: 5
+        run: ./tests/blockchain_tests
+
+      - name: "Test: block_propagation_tests"
+        timeout-minutes: 5
+        run: ./tests/block_propagation_tests
+
+      - name: "Test: block_propagation_integration_tests"
+        timeout-minutes: 5
+        run: ./tests/block_propagation_integration_tests
+
+      - name: "Test: chunk_persistence_tests"
+        timeout-minutes: 5
+        run: ./tests/chunk_persistence_tests
+
+      - name: "Test: chunk_recovery_tests"
+        timeout-minutes: 5
+        run: ./tests/chunk_recovery_tests
+
+      - name: "Test: chunk_replace_tests"
+        timeout-minutes: 5
+        run: ./tests/chunk_replace_tests
+
+      - name: "Test: merkle_tests"
+        timeout-minutes: 5
+        run: ./tests/merkle_tests
+
+      - name: "Test: merkle_rpc_integration_tests"
+        timeout-minutes: 5
+        run: ./tests/merkle_rpc_integration_tests
+
+      - name: "Test: cli_tests"
+        timeout-minutes: 5
+        run: ./tests/cli_tests
+
+      - name: "Test: rpc_expansion_tests"
+        timeout-minutes: 5
+        run: ./tests/rpc_expansion_tests
+
+      - name: "Test: lifecycle_tests"
+        timeout-minutes: 5
+        run: ./tests/lifecycle_tests
+
+      - name: "Test: lifecycle_integration_tests"
+        timeout-minutes: 5
+        run: ./tests/lifecycle_integration_tests
+
+      - name: "Test: rpc_integration_tests"
+        timeout-minutes: 5
+        run: ./tests/rpc_integration_tests
+
+      - name: "Test: p2p_sync_integration_tests"
+        timeout-minutes: 5
+        run: ./tests/p2p_sync_integration_tests
