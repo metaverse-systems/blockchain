@@ -10,7 +10,7 @@ Add a proper CLI argument parser to the blockchain daemon so operators can pass 
 ## Technical Context
 
 **Language/Version**: C++20 (`-std=c++20`)
-**Primary Dependencies**: Boost (Asio, Serialization), OpenSSL (SHA-256 via EVP), nlohmann/json (vendored `src/json.hpp`), getopt (POSIX, header-only)
+**Primary Dependencies**: Boost (Asio, Serialization, ProgramOptions), OpenSSL (SHA-256 via EVP), nlohmann/json (vendored `src/json.hpp`)
 **Storage**: `config.json` and `config.README` in blockchain data directory; Boost.Serialization binary archives for chain data
 **Testing**: Catch2 via `make check`
 **Target Platform**: Linux, macOS, Windows (constitution §VII)
@@ -29,9 +29,9 @@ Add a proper CLI argument parser to the blockchain daemon so operators can pass 
 | II. Build System (Autotools) | PASS | No build system changes beyond adding new source files to `Makefile.am` |
 | III. Full Test Coverage | PASS | Unit tests for CLI parsing, log filtering, validation; integration tests for `--help`/`--version` exit behavior |
 | IV. Code Style | PASS | Follows existing naming/indentation conventions |
-| V. Minimal Dependencies | PASS | CLI parsing uses `getopt_long` (POSIX standard, no new dependency). Windows portability addressed via a bundled `getopt` shim or Boost.ProgramOptions fallback — see research.md |
+| V. Minimal Dependencies | PASS | CLI parsing uses Boost.ProgramOptions, which is part of the already-approved Boost distribution (see research.md for decision rationale). This expands the Boost sub-library usage from (Asio, Serialization) to include ProgramOptions; justified because it avoids vendoring a `getopt` shim and is cross-platform. |
 | VI. Mandatory TLS | PASS | No TLS changes |
-| VII. Cross-Platform Support | NEEDS RESEARCH | `getopt_long` is POSIX; Windows MSVC does not ship it. Research needed for cross-platform CLI parsing approach |
+| VII. Cross-Platform Support | PASS | Resolved by research.md — Boost.ProgramOptions is fully cross-platform (Linux, macOS, Windows MSVC) |
 | VIII. Feature Branches | PASS | Working on `009-cli-configuration` branch |
 | IX. Pre-1.0 API Stability | PASS | No protocol changes |
 | X. Low-Latency Performance | PASS | CLI parsing is startup-only |
@@ -56,7 +56,7 @@ specs/009-cli-configuration/
 ```text
 src/
 ├── main.cpp             # MODIFY — replace manual argc/argv with CLI parser, apply overrides
-├── CliParser.hpp        # NEW — CLI argument parsing (getopt_long wrapper)
+├── CliParser.hpp        # NEW — CLI argument parsing (Boost.ProgramOptions wrapper)
 ├── CliParser.cpp        # NEW — CLI argument parsing implementation
 ├── NodeConfig.hpp       # MODIFY — add log_level to NetworkConfig, add enhanced validation
 ├── NodeConfig.cpp       # MODIFY — add log_level parsing, unknown key warnings, config.README generation

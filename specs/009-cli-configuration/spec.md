@@ -70,7 +70,7 @@ An operator setting up a new node wants to generate a well-commented default `co
 
 1. **Given** a blockchain directory with no `config.json`, **When** the operator runs the daemon with `--generate-config`, **Then** a default `config.json` is written to the blockchain directory and the daemon exits with code 0.
 2. **Given** a blockchain directory that already contains a `config.json`, **When** the operator runs `--generate-config`, **Then** the daemon refuses to overwrite the existing file, displays a warning, and exits with a non-zero code.
-3. **Given** a freshly generated `config.json`, **When** the operator inspects it, **Then** it contains all configuration sections (TLS, network, consensus, peers, streams, persistence) with sensible defaults.
+3. **Given** a freshly generated `config.json`, **When** the operator inspects it, **Then** it contains all configuration sections (TLS, network, consensus, peers, streams, persistence) with documented defaults matching data-model.md.
 4. **Given** `--generate-config` was run, **When** the operator lists the blockchain directory, **Then** a companion `config.README` file is present alongside `config.json` describing each field, its type, valid values, and default.
 
 ---
@@ -98,7 +98,7 @@ An operator with a hand-edited `config.json` wants the daemon to catch configura
 - What happens when the blockchain directory path doesn't exist? The daemon should print a clear error and exit, not create the directory implicitly.
 - What happens when `config.json` contains unknown or deprecated keys? The daemon should log a warning for unrecognized keys but continue startup (forward compatibility).
 - What happens when the operator provides a flag that expects a value but omits it (e.g., `--rpc-port` with no number)? The CLI parser should display a specific error for the missing value.
-- What happens when a port number is already in use by another process? The daemon should catch the bind error and report which port/service conflicted.
+- What happens when a port number is already in use by another process? The daemon should catch the bind error and report which port/service conflicted. (Deferred: bind-error reporting is handled by the existing Boost.Asio error path; no new FR needed for this iteration.)
 
 ## Requirements *(mandatory)*
 
@@ -111,14 +111,14 @@ An operator with a hand-edited `config.json` wants the daemon to catch configura
 - **FR-005**: The daemon MUST accept one or more `--seed-node <host:port>` flags that add seed nodes to the peer discovery list alongside any seeds from `config.json`.
 - **FR-006**: The daemon MUST accept a `--log-level <level>` flag accepting values `debug`, `info`, `warning`, and `error` (case-insensitive), controlling log verbosity.
 - **FR-007**: The daemon MUST default the log level to `info` when no `--log-level` flag is provided and no `log_level` key is set in `config.json`. The `log_level` field is part of the `network` section in `config.json`, accepting the same values as the CLI flag (`debug`, `info`, `warning`, `error`).
-- **FR-008**: The daemon MUST accept a `--generate-config` flag that writes a default `config.json` and a companion `config.README` (documenting each field, its type, valid values, and default) to the blockchain directory and exits, refusing to overwrite an existing `config.json`.
+- **FR-008**: The daemon MUST accept a `--generate-config` flag that writes a default `config.json` and a companion `config.README` (documenting each field, its type, valid values, and default) to the blockchain directory and exits, refusing to overwrite an existing `config.json`. The blockchain directory MUST exist; if it does not, the daemon MUST print an error and exit with a non-zero code.
 - **FR-009**: The daemon MUST apply configuration precedence in the following order (highest to lowest): command-line flags → `config.json` values → built-in defaults.
 - **FR-010**: The daemon MUST validate all configuration values at startup before binding ports or connecting to peers, and MUST report all validation errors (not just the first) with field name and reason before exiting.
 - **FR-011**: The daemon MUST validate that port numbers are in the range 1–65535 and that `rpc_port` and `p2p_port` are not equal.
 - **FR-012**: The daemon MUST validate that referenced TLS certificate and key files exist on disk.
 - **FR-013**: The daemon MUST log a warning for any unrecognized keys in `config.json` and continue startup.
 - **FR-014**: The daemon MUST continue to accept the blockchain directory as a required positional argument.
-- **FR-015**: The daemon MUST accept a `--config <path>` flag that specifies an alternative path to `config.json` instead of the default location inside the blockchain directory.
+- **FR-015**: The daemon MUST accept a `--config <path>` flag that specifies an alternative path to `config.json` instead of the default location inside the blockchain directory. If the specified path does not exist, the daemon MUST print a clear error and exit with a non-zero code.
 - **FR-016**: The daemon MUST exit with a clear error message if the blockchain directory does not exist.
 
 ### Key Entities
