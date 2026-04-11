@@ -1,27 +1,26 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 0.0.0 → 1.0.0
-Bump rationale: MAJOR — initial constitution ratification, all
-principles defined for the first time.
+Version change: 1.0.0 → 1.1.0
+Bump rationale: MINOR — two new principles added (XII, XIII);
+no existing principles removed or redefined.
 
-Modified principles: N/A (initial version)
+Modified principles: none
 
 Added sections:
-  - Core Principles (I–XI)
-  - Forbidden Actions
-  - Development Workflow
-  - Governance
+  - Principle XII: .gitignore Maintenance
+  - Principle XIII: Roadmap Currency
 
-Removed sections: N/A
+Removed sections: none
 
 Templates requiring updates:
   - .specify/templates/plan-template.md         ✅ compatible (Constitution Check is dynamic)
   - .specify/templates/spec-template.md         ✅ compatible (no constitution-specific tokens)
-  - .specify/templates/tasks-template.md        ✅ compatible (no constitution-specific tokens)
+  - .specify/templates/tasks-template.md        ✅ compatible (generic docs/ update placeholder exists)
   - .specify/templates/checklist-template.md    ✅ compatible
 
-Follow-up TODOs: none
+Follow-up TODOs:
+  - .gitignore: add `tests/cli_tests` (missing from 009 implementation)
 -->
 
 # metaverse-systems/blockchain Constitution
@@ -107,6 +106,34 @@ All source code is released under the MIT license. Every new
 source file MUST be compatible with this license. Third-party
 code MUST carry a compatible license.
 
+### XII. .gitignore Maintenance
+
+When a task introduces new compiled binaries, generated files,
+or temporary artifacts, `.gitignore` MUST be updated in the
+same changeset to exclude them. This includes but is not
+limited to:
+
+- New test binaries added to `tests/Makefile.am`
+- New compiled executables produced by `src/Makefile.am`
+- Build-time generated files (e.g., config headers, caches)
+
+A pull request that adds a build target without a
+corresponding `.gitignore` entry MUST NOT be merged.
+
+### XIII. Roadmap Currency
+
+After all tasks for a feature specification are marked
+complete, `docs/ROADMAP.md` MUST be updated in the same
+changeset:
+
+- Move the completed feature from "Suggested Specs" (or
+  "In Progress") to the "Completed" table.
+- Update the "Last updated" date.
+- Provide a one-line summary of what was delivered.
+
+Stale roadmap entries degrade project visibility and MUST be
+treated as a blocking defect in the pull request.
+
 ## Forbidden Actions
 
 The following actions are **unconditionally prohibited**:
@@ -115,6 +142,9 @@ The following actions are **unconditionally prohibited**:
 - Committing directly to the `main` branch.
 - Adding unapproved external dependencies.
 - Introducing code that does not compile under `-std=c++20`.
+- Merging a changeset that adds build targets without updating
+  `.gitignore`.
+- Completing a feature without updating `docs/ROADMAP.md`.
 
 ## Development Workflow
 
@@ -140,4 +170,4 @@ Amendments require:
 All pull requests and code reviews MUST verify compliance with
 these principles.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-10 | **Last Amended**: 2026-04-10
+**Version**: 1.1.0 | **Ratified**: 2026-04-10 | **Last Amended**: 2026-04-11
