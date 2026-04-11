@@ -53,7 +53,7 @@ As a node operator, I want blocks to have a distinct header (containing index, t
 
 1. **Given** a newly mined block, **When** a peer receives the block header, **Then** the peer can validate proof-of-work and hash-chain continuity using only the header fields (without entry data).
 2. **Given** a block header received from a peer, **When** the receiving node already has the entries (e.g., from a previous transaction relay), **Then** it can reconstruct and verify the full block by combining header and entries.
-3. **Given** a serialized block header, **When** its size is measured, **Then** it is significantly smaller than the full block (header is fixed-size, independent of entry count).
+3. **Given** a serialized block header, **When** its size is measured, **Then** it is fixed-size and independent of the number of entries in the block.
 
 ---
 
@@ -83,11 +83,12 @@ As a node operator, I want blocks to have a distinct header (containing index, t
 - **FR-005**: For blocks with an odd number of entries at any tree level, the system MUST duplicate the last node at that level to form a complete binary tree.
 - **FR-006**: The system MUST provide a way to generate a Merkle inclusion proof for any entry in a block, given the block index and the entry's position.
 - **FR-007**: The system MUST provide a way to verify a Merkle inclusion proof against a block's stored Merkle root.
-- **FR-008**: Blocks MUST have a logically distinct header consisting of: index, timestamp, previous hash, Merkle root, nonce, and difficulty.
-- **FR-009**: The block header MUST be independently serializable and deserializable, separate from the full block payload.
+- **FR-008**: Blocks MUST have a logically distinct header consisting of: index, timestamp, previous hash, Merkle root, nonce, difficulty, and the computed block hash.
+- **FR-009**: The block header MUST be independently serializable to JSON and to Boost binary archive, separate from the full block payload.
 - **FR-010**: The Merkle tree leaf hash for each entry MUST be computed by prefixing the entry's serialized form with a 0x00 byte and then hashing (SHA-256), ensuring domain separation between leaves and internal nodes.
 - **FR-011**: Internal Merkle tree node hashes MUST be computed by prefixing the concatenation of the two child hashes with a 0x01 byte and then hashing (SHA-256), preventing second-preimage attacks per RFC 6962.
 - **FR-012**: Merkle proof generation and verification MUST be accessible via JSON-RPC endpoints (e.g., `getInclusionProof` and `verifyInclusionProof`), consistent with the existing RPC interface.
+- **FR-013**: Block header retrieval MUST be accessible via a JSON-RPC endpoint (e.g., `getBlockHeader`) that returns only header fields without entry data.
 
 ### Key Entities
 
