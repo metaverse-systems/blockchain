@@ -19,7 +19,7 @@ Add four new JSON-RPC methods to the existing RPC server: `getNodeStatus` (compr
 **Project Type**: Daemon (blockchain node with JSON-RPC + P2P interfaces)
 **Performance Goals**: Low-latency query and response (constitution Principle X); `getBlockRange` capped at 1000 blocks to bound memory and response size
 **Constraints**: All methods are read-only, no state modification; must not block on sync operations
-**Scale/Scope**: 4 new RPC methods, 1 interface change (`IBlockchain`), 1 source file edit (`RpcServer.cpp`), 1 new test file
+**Scale/Scope**: 4 new RPC methods, 1 interface change (`IBlockchain`), 4 source file edits (`RpcServer.cpp`, `IBlockchain.hpp`, `Blockchain.hpp`, `MockBlockchain.hpp`), 1 new test file
 
 ## Constitution Check
 
