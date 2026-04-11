@@ -68,10 +68,18 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-boost
             mingw-w64-ucrt-x86_64-openssl
-            mingw-w64-ucrt-x86_64-catch2
+            mingw-w64-ucrt-x86_64-cmake
             autotools
             make
             pkg-config
+
+      - name: Build Catch2 from source (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          git clone --depth 1 --branch v3.4.0 https://github.com/catchorg/Catch2.git /tmp/catch2
+          cmake -S /tmp/catch2 -B /tmp/catch2/build -G "MSYS Makefiles" -DCMAKE_INSTALL_PREFIX=$MINGW_PREFIX
+          cmake --build /tmp/catch2/build -j8
+          cmake --install /tmp/catch2/build
 
       - name: Configure
         run: |
