@@ -86,7 +86,7 @@ As a node operator, I want the node to verify the integrity of all chunk files o
 ### Functional Requirements
 
 - **FR-001**: On receiving SIGINT or SIGTERM, the system MUST first stop accepting new blocks (freeze block ingestion), then iterate all in-memory chunks and save every chunk that has been modified since its last save.
-- **FR-002**: The system MUST track a dirty flag per chunk that is set when blocks are added to or modified within that chunk, and cleared when the chunk is successfully saved. When a historical chunk is modified (e.g., via chain replacement), it MUST be reloaded into memory, marked dirty, and kept resident until the next save (periodic or shutdown).
+- **FR-002**: The system MUST track a dirty flag per chunk that is set when blocks are added to or modified within that chunk, and cleared when the chunk is successfully saved. When a historical chunk is modified (e.g., via chain replacement), it MUST be reloaded into memory, marked dirty, and kept resident until the next save (periodic or shutdown). Note: `replaceChain()` already saves all chunks immediately after replacement, which satisfies the residency requirement for that code path.
 - **FR-003**: On startup, the system MUST discover all chunk files in the data directory by scanning for sequentially numbered files (chunk_000000.dat, chunk_000001.dat, …).
 - **FR-004**: On startup, the system MUST validate each discovered chunk file by loading it and verifying its internal consistency (deserialization success, non-empty content for non-final chunks). After validation, only the active (last) chunk remains resident in memory; historical chunks are represented by lightweight placeholders and loaded on demand when accessed.
 - **FR-005**: On startup, the system MUST verify cross-chunk linkage by confirming that the first block of chunk N+1 references the hash of the last block of chunk N.
@@ -111,7 +111,7 @@ As a node operator, I want the node to verify the integrity of all chunk files o
 - **SC-001**: After a shutdown/restart cycle with blocks spanning multiple chunks, 100% of blocks present before shutdown are recoverable and queryable after restart.
 - **SC-002**: Shutdown save operations write only chunks that have been modified, reducing unnecessary disk writes to zero for clean chunks.
 - **SC-003**: Startup detects and reports any corrupted or unlinked chunk files, loading the longest valid prefix without crashing.
-- **SC-004**: A node with 10 chunk files completes startup integrity verification and is ready to serve requests within a reasonable time relative to chain size. With `fast_startup` enabled, startup skips validation and loads the chain immediately from sequential discovery.
+- **SC-004**: A node with 10 chunk files completes startup integrity verification and is ready to serve requests. No specific latency target is defined pre-1.0; startup time scales linearly with chunk count. With `fast_startup` enabled, startup skips validation and loads the chain immediately from sequential discovery.
 - **SC-005**: No data is silently lost or corrupted during normal shutdown/startup cycles under any supported operating conditions.
 
 ## Clarifications
