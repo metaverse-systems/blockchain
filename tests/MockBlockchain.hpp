@@ -164,6 +164,10 @@ public:
         return (blocks.size() + chunkSize - 1) / chunkSize;
     }
 
+    uint32_t getCurrentDifficulty() const override {
+        return 4;
+    }
+
     nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) override {
         if (blockIndex >= blocks.size()) {
             throw std::out_of_range("Block index out of range");

@@ -77,6 +77,8 @@ tests/chunk_recovery_tests
 tests/chunk_replace_tests
 tests/merkle_tests
 tests/merkle_rpc_integration_tests
+tests/cli_tests
+tests/rpc_expansion_tests
 
 # Test artifacts
 *.trs

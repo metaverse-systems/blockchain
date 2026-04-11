@@ -613,6 +613,93 @@ void RpcServer::do_read()
                     return;
                 }
                 
+                if(object["method"] == "getNodeStatus")
+                {
+                    nlohmann::json result;
+                    result["chainLength"] = bc.getChainLength();
+                    result["chunkCount"] = bc.getChunkCount();
+                    result["syncState"] = (sync_status && sync_status->isSyncing.load()) ? "syncing" : "idle";
+                    result["currentDifficulty"] = bc.getCurrentDifficulty();
+                    result["inboundPeers"] = peer_manager ? peer_manager->inbound_count() : static_cast<size_t>(0);
+                    result["outboundPeers"] = peer_manager ? peer_manager->outbound_count() : static_cast<size_t>(0);
+                    result["nodeUuid"] = peer_manager ? peer_manager->get_node_uuid() : "";
+                    buffer.consume(buffer.size());
+                    outputStream << resultJsonMessage(object["id"], result) << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "getBlockRange")
+                {
+                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
+                        || !object["params"].contains("startIndex") || !object["params"]["startIndex"].is_number_integer()
+                        || !object["params"].contains("endIndex") || !object["params"]["endIndex"].is_number_integer()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+                    auto startIndex = object["params"]["startIndex"].get<size_t>();
+                    auto endIndex = object["params"]["endIndex"].get<size_t>();
+                    bool headersOnly = false;
+                    if (object["params"].contains("headersOnly") && object["params"]["headersOnly"].is_boolean()) {
+                        headersOnly = object["params"]["headersOnly"].get<bool>();
+                    }
+
+                    if (startIndex > endIndex) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Invalid range: startIndex exceeds endIndex") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    static constexpr size_t kMaxBlockRange = 1000;
+                    if (endIndex - startIndex + 1 > kMaxBlockRange) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32602, "Range too large: maximum 1000 blocks per request") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    size_t chainLength = bc.getChainLength();
+                    if (startIndex >= chainLength) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32001, "Start index out of range") << std::endl;
+                        this->do_write();
+                        return;
+                    }
+
+                    if (endIndex >= chainLength) {
+                        endIndex = chainLength - 1;
+                    }
+
+                    nlohmann::json blocks = nlohmann::json::array();
+                    for (size_t i = startIndex; i <= endIndex; i++) {
+                        Block b = bc.getBlockByIndex(i);
+                        blocks.push_back(headersOnly ? b.toHeaderJson() : b.toJson());
+                    }
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], blocks.dump()) << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "getChainLength")
+                {
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], std::to_string(bc.getChainLength())) << std::endl;
+                    this->do_write();
+                    return;
+                }
+
+                if(object["method"] == "getChunkCount")
+                {
+                    buffer.consume(buffer.size());
+                    outputStream << resultMessage(object["id"], std::to_string(bc.getChunkCount())) << std::endl;
+                    this->do_write();
+                    return;
+                }
+
                 buffer.consume(buffer.size());
                 outputStream << invalidMethodMessage(object["id"], object["method"]) << std::endl;
                 this->do_write();

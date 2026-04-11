@@ -63,7 +63,7 @@ class Blockchain : public IBlockchain
     uint32_t calculateNewDifficulty();
     uint32_t getDifficultyForHeight(size_t height);
     const ConsensusConfig &getConfig() const { return config; }
-    uint32_t getCurrentDifficulty() const { return currentDifficulty; }
+    uint32_t getCurrentDifficulty() const override { return currentDifficulty; }
     size_t getChainBlockCount() const;
     size_t getChainLength() const override;
     size_t getChunkCount() const override;

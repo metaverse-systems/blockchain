@@ -14,6 +14,8 @@ Last updated: 2026-04-11
 | 006  | Transaction Model (Stream-Based Key/Value Store) | Structured `StreamEntry` arrays replace opaque block data, named-stream publish via RPC, history and latest-mode queries, explicit/implicit stream creation, per-node publish permissions via `config.json`, P2P validation, 128 MB entry size cap, base64 binary support |
 | 007  | Multi-Chunk Persistence & Recovery | Auto-save chunks when they reach capacity, load all existing chunk files on startup, detect and report corrupted chunk files, `getChainLength`/`getChunkCount` on `IBlockchain`, startup chain recovery |
 | 008  | Merkle Tree & Block Header Optimization | Per-block Merkle root (RFC 6962 domain-separated SHA-256), `getInclusionProof`/`verifyInclusionProof`/`getBlockHeader` JSON-RPC endpoints, O(log n) inclusion proofs, lightweight header-only block view, block hash now incorporates Merkle root instead of serialized entries |
+| 009  | CLI & Configuration | Command-line argument parsing (data directory, RPC/P2P ports, peer list, log level), `config.json` support with runtime validation, `--help` output, `getopt`-based option handling |
+| 010  | RPC API Expansion | Four new JSON-RPC methods: `getNodeStatus` (comprehensive health snapshot), `getBlockRange` (batch block retrieval with 1000-block cap and optional headers-only mode), `getChainLength`, `getChunkCount`; read-only endpoints with no transport-layer changes |
 
 ## Suggested Specs
 
@@ -30,14 +32,6 @@ Last updated: 2026-04-11
 The daemon takes a single positional argument (blockchain directory). Ports are hardcoded (12345/12346). There is no way to configure the peer list, log level, or other runtime parameters without editing code. Add a proper CLI and config system.
 
 **Scope**: Command-line argument parsing (port, peer list, log level), extend `config.json` support, validate all config at startup, `--help` output.
-
----
-
-#### 010 — RPC API Expansion
-
-The JSON-RPC server exposes only `addBlock`, `getBlockByIndex`, and `getBlocksByKeys`. Operators and clients need introspection and management endpoints. Add status, chain info, and peer management RPCs.
-
-**Scope**: `getChainLength`, `getChunkCount`, `getNodeStatus`, `getPeers`, `addPeer`, `getBlockRange` methods; JSON-RPC error codes per spec.
 
 ---
 
@@ -103,10 +97,10 @@ No way to verify block inclusion without downloading the full chain. Design a li
 004 Peer Discovery ─────┼── Tier 1: COMPLETE ✓
 005 Block Propagation ──┘
 006 Transaction Model ──┐
-007 Multi-Chunk Persist ┼── Tier 2: 006 complete, 007–008 next
+007 Multi-Chunk Persist ┼── Tier 2: COMPLETE ✓
 008 Merkle Tree ────────┘
 009 CLI & Config ───────┐
-010 RPC Expansion ──────┼── Tier 3: usability
+010 RPC Expansion ──────┼── Tier 3: 009–010 complete, 011 next
 011 Graceful Lifecycle ─┘
 012 Integration Tests ──┐
 013 CI/CD Pipeline ─────┼── Tier 4: quality
@@ -114,4 +108,4 @@ No way to verify block inclusion without downloading the full chain. Design a li
 015–017 ────────────────── Tier 5: future
 ```
 
-Tier 1 is complete. 006 (Transaction Model) is complete, making 007 (Multi-Chunk Persistence) the next priority — it is the most impactful remaining spec since chains with >100 blocks currently lose data. 008 (Merkle Tree) can follow or run in parallel. Tier 3 specs (009–011) are independent and can proceed alongside Tier 2.
+Tiers 1 and 2 are complete. 009 (CLI & Config) and 010 (RPC Expansion) are complete. 011 (Graceful Lifecycle) is the next priority. Tier 4 specs (012–014) are independent and can proceed alongside Tier 3.
