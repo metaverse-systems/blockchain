@@ -84,7 +84,7 @@ As a project maintainer, I want CI to test with multiple compilers (GCC, Clang o
 - **FR-002**: The CI pipeline MUST build the project on Linux, macOS, and Windows.
 - **FR-003**: The CI pipeline MUST run the full test suite (all test binaries) after a successful build on each platform.
 - **FR-004**: The CI pipeline MUST test with at least four compiler configurations: Linux GCC, Linux Clang, macOS Clang, and Windows MinGW-w64 GCC (via MSYS2).
-- **FR-005**: The CI pipeline MUST cache compiled dependencies (Boost, OpenSSL) to avoid rebuilding them on every run.
+- **FR-005**: The CI pipeline MUST cache dependencies where beneficial (MSYS2 packages on Windows). Linux and macOS package installation is fast and does not require caching.
 - **FR-006**: The CI pipeline MUST report build and test results as **required** status checks on pull requests. A pull request MUST NOT be mergeable unless all CI checks pass.
 - **FR-007**: The CI pipeline MUST enforce per-step timeouts to prevent hung builds from blocking the pipeline indefinitely. The total pipeline duration for a cached build MUST NOT exceed 30 minutes.
 - **FR-008**: The CI pipeline MUST install all required dependencies (Boost with Serialization and Program Options, OpenSSL, Catch2, autotools) on each platform.
@@ -96,7 +96,7 @@ As a project maintainer, I want CI to test with multiple compilers (GCC, Clang o
 - **Workflow**: The top-level CI/CD configuration that defines when the pipeline runs and what jobs it contains.
 - **Job**: A single unit of work within the pipeline, targeting a specific platform and compiler combination.
 - **Build Matrix**: The set of platform-compiler combinations that are tested (Linux GCC, Linux Clang, macOS Clang, Windows MinGW-w64 GCC).
-- **Dependency Cache**: Stored compiled artifacts for Boost and OpenSSL that persist across CI runs to speed up builds.
+- **Dependency Cache**: Stored MSYS2 packages on Windows that persist across CI runs to speed up builds. Linux/macOS use fast package managers and do not require caching.
 
 ## Success Criteria
 
@@ -104,7 +104,7 @@ As a project maintainer, I want CI to test with multiple compilers (GCC, Clang o
 
 - **SC-001**: Every push to `main` and every pull request triggers automated builds on all three platforms without manual intervention.
 - **SC-002**: A developer can see pass/fail build status on a pull request within 30 minutes of pushing (cached build).
-- **SC-003**: All existing test binaries (12+ test programs) pass on all supported platform-compiler combinations.
+- **SC-003**: All existing test binaries (14 test programs) pass on all supported platform-compiler combinations.
 - **SC-004**: Cached builds complete at least twice as fast as cold builds.
 - **SC-005**: A deliberately introduced compilation error on one platform is caught and reported by CI before merging.
 - **SC-006**: A deliberately introduced test failure is caught and reported by CI before merging.
@@ -124,7 +124,7 @@ As a project maintainer, I want CI to test with multiple compilers (GCC, Clang o
 - GitHub Actions is the CI/CD platform, as the project is hosted on GitHub.
 - The existing autotools build system (`configure.ac`, `Makefile.am`) is the canonical build method and will be used as-is without modification.
 - Platform-specific package managers (apt on Linux, Homebrew on macOS, vcpkg or Chocolatey on Windows) are available in CI runner images for installing dependencies.
-- The existing test suite (12 test binaries using Catch2) is the complete set of tests to run; no new tests are introduced by this spec.
+- The existing test suite (14 test binaries using Catch2) is the complete set of tests to run; no new tests are introduced by this spec.
 - Boost 1.50+ and OpenSSL are available as packages on all three CI platforms.
 - The project's C++20 requirement is supported by the compiler versions available on current CI runner images.
 - Windows CI uses MSYS2 with MinGW-w64 GCC/Clang, which supports the autotools build system natively. MSVC is not used.
