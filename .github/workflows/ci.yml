@@ -54,7 +54,7 @@ jobs:
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install boost openssl@3 catch2 autoconf automake libtool pkg-config
+        run: brew install boost openssl@3 catch2 autoconf automake autoconf-archive libtool pkg-config
 
       - name: Setup MSYS2 (Windows)
         if: runner.os == 'Windows'
