@@ -4,7 +4,10 @@
 #include "../src/Block.hpp"
 #include "../src/StreamEntry.hpp"
 #include "../src/SyncState.hpp"
+#include "../src/Blockchain.hpp"
+#include "../src/Chunk.hpp"
 #include "MockBlockchain.hpp"
+#include <filesystem>
 
 // Integration tests: BlockPropagation + MockBlockchain + PeerManager interactions
 
@@ -142,4 +145,76 @@ TEST_CASE("Integration: full pipeline with sync queue", "[integration][block_pro
 
     REQUIRE(bc.appended_blocks.size() == 1);
     REQUIRE(relay_count == 1);
+}
+
+// T060c: Network integration - peer receives 101+ blocks, verifies chunk
+// auto-save and recovery across restart using real Blockchain<Chunk>
+TEST_CASE("Integration: 101+ blocks via appendBlock trigger chunk auto-save and survive recovery", "[integration][persistence]") {
+    auto dir = std::filesystem::temp_directory_path() / "bp_integ_T060c";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+
+    // Phase 1: Build a chain with >100 blocks and verify chunk file auto-saved
+    {
+        ConsensusConfig cfg;
+        cfg.initialDifficulty = 0;
+        cfg.miningTimeout = 5;
+        Blockchain<Chunk> bc(dir.string(), cfg);
+
+        // Simulate receiving 105 blocks from a peer via appendBlock
+        std::string prevHash = bc.getBlockByIndex(0).hash;
+        for (int i = 1; i <= 105; i++) {
+            StreamEntry e;
+            e.stream = "net";
+            e.key = "k" + std::to_string(i);
+            e.data = "payload_" + std::to_string(i);
+
+            Block b;
+            b.index = static_cast<size_t>(i);
+            b.timestamp = static_cast<uint64_t>(std::time(nullptr));
+            b.entries = {e};
+            b.prevHash = prevHash;
+            b.difficulty = 0;
+            b.nonce = 0;
+            b.hash = b.calculateHash();
+            prevHash = b.hash;
+
+            bc.appendBlock(b);
+        }
+
+        REQUIRE(bc.getChainLength() == 106);
+        REQUIRE(bc.getChunkCount() == 2);
+
+        // chunk_000000.dat should have been auto-saved when it filled at 100 blocks
+        REQUIRE(std::filesystem::exists(dir / "chunk_000000.dat"));
+
+        // Save the active chunk before "shutdown"
+        bc.saveAllChunks();
+        REQUIRE(std::filesystem::exists(dir / "chunk_000001.dat"));
+    }
+
+    // Phase 2: Recover from disk (simulates daemon restart) and verify data
+    {
+        ConsensusConfig cfg;
+        cfg.initialDifficulty = 0;
+        cfg.miningTimeout = 5;
+        Blockchain<Chunk> bc2(dir.string(), cfg);
+        bc2.recoverChain();
+
+        REQUIRE(bc2.getChainLength() == 106);
+        REQUIRE(bc2.getChunkCount() == 2);
+
+        // Verify first and last blocks are intact
+        Block first = bc2.getBlockByIndex(1);
+        REQUIRE(first.entries[0].data == "payload_1");
+
+        Block last = bc2.getBlockByIndex(105);
+        REQUIRE(last.entries[0].data == "payload_105");
+
+        // Verify a block across the chunk boundary
+        Block boundary = bc2.getBlockByIndex(100);
+        REQUIRE(boundary.entries[0].data == "payload_100");
+    }
+
+    std::filesystem::remove_all(dir);
 }

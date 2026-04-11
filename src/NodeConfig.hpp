@@ -31,6 +31,11 @@ public:
     // Peer discovery settings
     PeerConfig peers;
 
+    // Persistence settings
+    struct PersistenceConfig {
+        uint32_t save_interval_seconds = 300;
+    } persistence;
+
     // Streams settings
     struct StreamsConfig {
         std::vector<std::string> allowed_streams;

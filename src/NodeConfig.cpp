@@ -38,6 +38,9 @@ nlohmann::json NodeConfig::default_json() {
         }},
         {"streams", {
             {"allowed_streams", nlohmann::json::array()}
+        }},
+        {"persistence", {
+            {"save_interval_seconds", 300}
         }}
     };
 }
@@ -136,6 +139,12 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
         if (s.contains("allowed_streams") && s["allowed_streams"].is_array()) {
             cfg.streams.allowed_streams = s["allowed_streams"].get<std::vector<std::string>>();
         }
+    }
+
+    // Persistence
+    if (j.contains("persistence")) {
+        auto &p = j["persistence"];
+        if (p.contains("save_interval_seconds")) p["save_interval_seconds"].get_to(cfg.persistence.save_interval_seconds);
     }
 
     cfg.validate();

@@ -144,6 +144,14 @@ public:
         return blocks.size();
     }
 
+    size_t getChainLength() const override {
+        return blocks.size();
+    }
+
+    size_t getChunkCount() const override {
+        return (blocks.size() + chunkSize - 1) / chunkSize;
+    }
+
     // Helper to create a valid next block for testing (mines a nonce for PoW)
     Block createValidNextBlock(const std::string &data = "test") {
         StreamEntry entry;

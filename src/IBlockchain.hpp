@@ -41,6 +41,8 @@ class IBlockchain
     virtual Block getBlockByIndex(size_t index) = 0;
     virtual void replaceChain(const std::vector<Block> &candidateBlocks) = 0;
     virtual size_t getChainBlockCount() const = 0;
+    virtual size_t getChainLength() const = 0;
+    virtual size_t getChunkCount() const = 0;
 
     static bool isValidNewBlock(const Block &newBlock, const Block &previousBlock, const ConsensusConfig &config)
     {

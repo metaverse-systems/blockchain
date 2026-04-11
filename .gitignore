@@ -125,8 +125,10 @@ src/network/.dirstamp
 Thumbs.db
 bc-dir
 tests/block_propagation_tests
-.gitignore
 tests/block_propagation_integration_tests
-tests/block_propagation_integration_tests.trs
-tests/block_propagation_tests.trs
-tests/blockchain_tests.trs
+tests/blockchain_tests
+tests/chunk_persistence_tests
+tests/chunk_recovery_tests
+tests/chunk_replace_tests
+*.trs
+*.dat

@@ -4,22 +4,27 @@ void Chunk::save()
 {
     std::stringstream ss;
     ss << "chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
-    std::filesystem::path path = this->blockchainPath / ss.str();
+    std::filesystem::path finalPath = this->blockchainPath / ss.str();
+    std::filesystem::path tmpPath = this->blockchainPath / (ss.str() + ".tmp");
 
-    std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << " in " << path << std::endl;
+    std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << " in " << finalPath << std::endl;
     
-    std::ofstream ofs(path, std::ios::binary);
-    if(!ofs.good())
     {
-        throw std::runtime_error("Error: Could not write to file " + ss.str());
-    }
-    boost::archive::binary_oarchive oa(ofs);
-    oa << *this;
+        std::ofstream ofs(tmpPath, std::ios::binary);
+        if(!ofs.good())
+        {
+            throw std::runtime_error("Error: Could not write to file " + tmpPath.string());
+        }
+        boost::archive::binary_oarchive oa(ofs);
+        oa << *this;
 
-    if(!ofs.good())
-    {
-        throw std::runtime_error("Error: Could not write to file " + ss.str());
+        if(!ofs.good())
+        {
+            throw std::runtime_error("Error: Could not write to file " + tmpPath.string());
+        }
     }
+
+    std::filesystem::rename(tmpPath, finalPath);
 }
 
 void Chunk::load()

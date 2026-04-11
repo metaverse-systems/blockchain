@@ -50,10 +50,17 @@ int main(int argc, char *argv[])
     int timeout_seconds = static_cast<int>(node_config.network.timeout_seconds);
 
     Blockchain<Chunk> bc(blockchainDir, node_config.to_consensus_config());
-    bc.loadChunk(0);
-    bc.loadKeys();
-    bc.loadStreams();
-    bc.loadStreamIndex();
+
+    // Recovery: discover chunk files on disk, load active chunk and indexes
+    size_t discoveredChunks = bc.discoverChunks();
+    if (discoveredChunks > 0) {
+        bc.recoverChain();
+    } else {
+        bc.loadChunk(0);
+        bc.loadKeys();
+        bc.loadStreams();
+        bc.loadStreamIndex();
+    }
     bc.dumpBlocks();
 
     SyncStatus sync_status;
@@ -118,14 +125,16 @@ int main(int argc, char *argv[])
     // Start peer manager (connects to seeds, starts exchange timer)
     peer_manager.start();
 
+    // Start periodic save timer if configured
+    bc.setSaveIntervalSeconds(node_config.persistence.save_interval_seconds);
+    bc.startPeriodicSave(io_context);
+
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](const boost::system::error_code&, int) {
         logMessage("INFO", "Shutting down...");
+        bc.stopPeriodicSave();
         peer_manager.save_peers();
-        bc.saveChunk(0);
-        bc.saveKeys();
-        bc.saveStreams();
-        bc.saveStreamIndex();
+        bc.saveAllChunks();
         io_context.stop();
     });
 
