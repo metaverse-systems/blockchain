@@ -16,10 +16,14 @@ class IBlockchain
 {
   private:
     std::filesystem::path blockchainPath;
+    bool shutting_down_ = false;
   public:
     const size_t chunkSize = 100;
 
     virtual ~IBlockchain() = default;
+
+    bool isShuttingDown() const { return shutting_down_; }
+    void setShuttingDown() { shutting_down_ = true; }
     
     virtual void loadChunk(size_t chunk_id) = 0;
     virtual void freeChunk(size_t chunk_id) = 0;

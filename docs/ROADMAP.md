@@ -16,6 +16,7 @@ Last updated: 2026-04-11
 | 008  | Merkle Tree & Block Header Optimization | Per-block Merkle root (RFC 6962 domain-separated SHA-256), `getInclusionProof`/`verifyInclusionProof`/`getBlockHeader` JSON-RPC endpoints, O(log n) inclusion proofs, lightweight header-only block view, block hash now incorporates Merkle root instead of serialized entries |
 | 009  | CLI & Configuration | Command-line argument parsing (data directory, RPC/P2P ports, peer list, log level), `config.json` support with runtime validation, `--help` output, `getopt`-based option handling |
 | 010  | RPC API Expansion | Four new JSON-RPC methods: `getNodeStatus` (comprehensive health snapshot), `getBlockRange` (batch block retrieval with 1000-block cap and optional headers-only mode), `getChainLength`, `getChunkCount`; read-only endpoints with no transport-layer changes |
+| 011  | Graceful Multi-Chunk Shutdown & Startup | Per-chunk dirty tracking, block ingestion freeze on SIGINT/SIGTERM, dirty-aware saveAllChunks, full-chain recovery with validation and cross-chunk linkage checks, index rebuild from chunks, `fast_startup` config option |
 
 ## Suggested Specs
 
@@ -37,9 +38,7 @@ The daemon takes a single positional argument (blockchain directory). Ports are 
 
 #### 011 — Graceful Multi-Chunk Shutdown & Startup
 
-Signal handler saves only chunk 0 and keys. Multi-chunk chains lose unsaved data on shutdown. Startup loads only chunk 0. Fix the lifecycle to persist and restore the full chain state.
-
-**Scope**: Iterate all dirty chunks on shutdown, track dirty state per chunk, sequential chunk load on startup, startup integrity check.
+*Completed. See spec 011 in Completed table above.*
 
 ---
 
@@ -100,7 +99,7 @@ No way to verify block inclusion without downloading the full chain. Design a li
 007 Multi-Chunk Persist ┼── Tier 2: COMPLETE ✓
 008 Merkle Tree ────────┘
 009 CLI & Config ───────┐
-010 RPC Expansion ──────┼── Tier 3: 009–010 complete, 011 next
+010 RPC Expansion ──────┼── Tier 3: COMPLETE ✓
 011 Graceful Lifecycle ─┘
 012 Integration Tests ──┐
 013 CI/CD Pipeline ─────┼── Tier 4: quality
@@ -108,4 +107,4 @@ No way to verify block inclusion without downloading the full chain. Design a li
 015–017 ────────────────── Tier 5: future
 ```
 
-Tiers 1 and 2 are complete. 009 (CLI & Config) and 010 (RPC Expansion) are complete. 011 (Graceful Lifecycle) is the next priority. Tier 4 specs (012–014) are independent and can proceed alongside Tier 3.
+Tiers 1, 2, and 3 are complete. Tier 4 specs (012–014) are independent and can proceed as the next priority.

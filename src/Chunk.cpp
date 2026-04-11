@@ -25,6 +25,7 @@ void Chunk::save()
     }
 
     std::filesystem::rename(tmpPath, finalPath);
+    this->clearDirty();
 }
 
 void Chunk::load()
@@ -41,6 +42,8 @@ void Chunk::load()
     std::ifstream ifs(path, std::ios::binary);
     boost::archive::binary_iarchive ia(ifs);
     ia >> *this;
+
+    this->clearDirty();
 
     std::cout << "Loaded " << this->blocks.size() << " blocks from chunk " << this->index << " in " << path << std::endl;
 }

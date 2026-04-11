@@ -17,9 +17,9 @@
 
 **Purpose**: Build system and test infrastructure for the feature
 
-- [ ] T001 Add `lifecycle_tests` and `lifecycle_integration_tests` test targets to `tests/Makefile.am`
-- [ ] T002 [P] Add `lifecycle_tests` and `lifecycle_integration_tests` to `.gitignore`
-- [ ] T003 [P] Create test scaffold for `tests/lifecycle_tests.cpp` with Catch2 includes and empty test cases
+- [X] T001 Add `lifecycle_tests` and `lifecycle_integration_tests` test targets to `tests/Makefile.am`
+- [X] T002 [P] Add `lifecycle_tests` and `lifecycle_integration_tests` to `.gitignore`
+- [X] T003 [P] Create test scaffold for `tests/lifecycle_tests.cpp` with Catch2 includes and empty test cases
 
 ---
 
@@ -29,13 +29,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Add `dirty_` bool field, `isDirty()`, `markDirty()`, `clearDirty()` methods to `IChunk` in `src/IChunk.hpp`; intercept `push_back()`, `emplace_back()`, and `resize()` to call `markDirty()` automatically
-- [ ] T005 Update `Chunk::save()` in `src/Chunk.cpp` to call `clearDirty()` after successful write
-- [ ] T006 Update `Chunk::load()` in `src/Chunk.cpp` to call `clearDirty()` after successful load
-- [ ] T007 Add `shutting_down_` bool field, `isShuttingDown()`, and `setShuttingDown()` methods to `IBlockchain` in `src/IBlockchain.hpp`
-- [ ] T008 Add `fast_startup` bool field (default: `false`) to `PersistenceConfig` struct in `src/NodeConfig.hpp`
-- [ ] T009 Parse `fast_startup` from `persistence` section in `NodeConfig::load()` in `src/NodeConfig.cpp`; add to known-keys validation and default config generation
-- [ ] T010 Update `config.README` generation in `NodeConfig::generate_readme()` in `src/NodeConfig.cpp` to document the `fast_startup` option
+- [X] T004 Add `dirty_` bool field, `isDirty()`, `markDirty()`, `clearDirty()` methods to `IChunk` in `src/IChunk.hpp`; intercept `push_back()`, `emplace_back()`, and `resize()` to call `markDirty()` automatically
+- [X] T005 Update `Chunk::save()` in `src/Chunk.cpp` to call `clearDirty()` after successful write
+- [X] T006 Update `Chunk::load()` in `src/Chunk.cpp` to call `clearDirty()` after successful load
+- [X] T007 Add `shutting_down_` bool field, `isShuttingDown()`, and `setShuttingDown()` methods to `IBlockchain` in `src/IBlockchain.hpp`
+- [X] T008 Add `fast_startup` bool field (default: `false`) to `PersistenceConfig` struct in `src/NodeConfig.hpp`
+- [X] T009 Parse `fast_startup` from `persistence` section in `NodeConfig::load()` in `src/NodeConfig.cpp`; add to known-keys validation and default config generation
+- [X] T010 Update `config.README` generation in `NodeConfig::generate_readme()` in `src/NodeConfig.cpp` to document the `fast_startup` option
 
 **Checkpoint**: Foundation ready — dirty tracking, shutdown freeze, and fast_startup config are in place
 
@@ -49,17 +49,17 @@
 
 ### Tests for User Story 1
 
-- [ ] T011 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `saveAllChunks()` saves only dirty chunks (create 3 MockChunks, mark 2 dirty, assert only those 2 are saved)
-- [ ] T012 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `saveAllChunks()` skips empty chunks (zero blocks) even if marked dirty
-- [ ] T013 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `appendBlock()` throws/rejects when `shutting_down_` is true
-- [ ] T014 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `publish()` throws/rejects when `shutting_down_` is true
+- [X] T011 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `saveAllChunks()` saves only dirty chunks (create 3 MockChunks, mark 2 dirty, assert only those 2 are saved)
+- [X] T012 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `saveAllChunks()` skips empty chunks (zero blocks) even if marked dirty
+- [X] T013 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `appendBlock()` throws/rejects when `shutting_down_` is true
+- [X] T014 [P] [US1] Write unit test in `tests/lifecycle_tests.cpp`: verify `publish()` throws/rejects when `shutting_down_` is true
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Rewrite `Blockchain::saveAllChunks()` in `src/Blockchain.cpp` to iterate all chunks in `chain` vector; save each chunk where `isDirty() == true && size() > 0`; log errors per-chunk and continue on failure; save keys/streams/streamIndex after chunks
-- [ ] T016 [US1] Add `shutting_down_` guard to `Blockchain::appendBlock()` in `src/Blockchain.cpp` — throw `std::runtime_error` if `isShuttingDown()` returns true
-- [ ] T017 [US1] Add `shutting_down_` guard to `Blockchain::publish()` in `src/Blockchain.cpp` — throw `std::runtime_error` if `isShuttingDown()` returns true
-- [ ] T018 [US1] Update signal handler in `src/main.cpp` to call `bc.setShuttingDown()` as the first action before `stopPeriodicSave()`, `save_peers()`, and `saveAllChunks()`
+- [X] T015 [US1] Rewrite `Blockchain::saveAllChunks()` in `src/Blockchain.cpp` to iterate all chunks in `chain` vector; save each chunk where `isDirty() == true && size() > 0`; log errors per-chunk and continue on failure; save keys/streams/streamIndex after chunks
+- [X] T016 [US1] Add `shutting_down_` guard to `Blockchain::appendBlock()` in `src/Blockchain.cpp` — throw `std::runtime_error` if `isShuttingDown()` returns true
+- [X] T017 [US1] Add `shutting_down_` guard to `Blockchain::publish()` in `src/Blockchain.cpp` — throw `std::runtime_error` if `isShuttingDown()` returns true
+- [X] T018 [US1] Update signal handler in `src/main.cpp` to call `bc.setShuttingDown()` as the first action before `stopPeriodicSave()`, `save_peers()`, and `saveAllChunks()`
 
 **Checkpoint**: Shutdown now preserves all dirty chunks. US1 is independently testable via `make check`
 
@@ -73,17 +73,17 @@
 
 ### Tests for User Story 2
 
-- [ ] T019 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` loads all valid chunks and reports correct `totalBlockCount_` and `chunkCount_`
-- [ ] T020 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` stops at corrupted chunk and operates with valid prefix
-- [ ] T021 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` detects cross-chunk linkage break and loads only the valid prefix
-- [ ] T022 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` with no chunk files on disk creates fresh genesis chain
+- [X] T019 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` loads all valid chunks and reports correct `totalBlockCount_` and `chunkCount_`
+- [X] T020 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` stops at corrupted chunk and operates with valid prefix
+- [X] T021 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` detects cross-chunk linkage break and loads only the valid prefix
+- [X] T022 [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` with no chunk files on disk creates fresh genesis chain
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Refactor `recoverChain()` in `src/Blockchain.cpp` to properly handle multi-chunk startup: create placeholders for all valid chunks, load only the active (last) chunk, free historical chunks after validation. Index rebuild logic is handled by T024c
-- [ ] T024 [US2] Ensure `recoverChain()` logs a success message with total block count and chunk count on successful full-chain recovery in `src/Blockchain.cpp`
-- [ ] T024b [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` rebuilds key/stream/stream-key indexes from chunk data when index files (`keys.dat`, `streams.dat`, `stream_index.dat`) are missing but chunk files are valid
-- [ ] T024c [US2] Ensure `recoverChain()` in `src/Blockchain.cpp` explicitly detects missing index files and triggers a full index rebuild by iterating all blocks across all valid chunks
+- [X] T023 [US2] Refactor `recoverChain()` in `src/Blockchain.cpp` to properly handle multi-chunk startup: create placeholders for all valid chunks, load only the active (last) chunk, free historical chunks after validation. Index rebuild logic is handled by T024c
+- [X] T024 [US2] Ensure `recoverChain()` logs a success message with total block count and chunk count on successful full-chain recovery in `src/Blockchain.cpp`
+- [X] T024b [P] [US2] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` rebuilds key/stream/stream-key indexes from chunk data when index files (`keys.dat`, `streams.dat`, `stream_index.dat`) are missing but chunk files are valid
+- [X] T024c [US2] Ensure `recoverChain()` in `src/Blockchain.cpp` explicitly detects missing index files and triggers a full index rebuild by iterating all blocks across all valid chunks
 
 **Checkpoint**: Startup now discovers and loads the full chain. US1 + US2 form the complete shutdown/restart cycle
 
@@ -97,17 +97,17 @@
 
 ### Tests for User Story 3
 
-- [ ] T025 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify `IChunk::push_back()` sets `dirty_` to true
-- [ ] T026 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify `Chunk::save()` clears `dirty_` flag
-- [ ] T027 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify `Chunk::load()` clears `dirty_` flag
-- [ ] T028 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify newly constructed chunk has `dirty_ == false`
-- [ ] T029 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify periodic save (`startPeriodicSave`) only writes dirty chunks via the updated `saveAllChunks()`
+- [X] T025 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify `IChunk::push_back()` sets `dirty_` to true
+- [X] T026 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify `Chunk::save()` clears `dirty_` flag
+- [X] T027 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify `Chunk::load()` clears `dirty_` flag
+- [X] T028 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify newly constructed chunk has `dirty_ == false`
+- [X] T029 [P] [US3] Write unit test in `tests/lifecycle_tests.cpp`: verify periodic save (`startPeriodicSave`) only writes dirty chunks via the updated `saveAllChunks()`
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] Verify `Blockchain::publish()` in `src/Blockchain.cpp` correctly marks the target chunk dirty via `push_back()` auto-marking (no manual marking needed since T004 hooks mutations)
-- [ ] T031 [US3] Verify `Blockchain::appendBlock()` in `src/Blockchain.cpp` correctly marks the target chunk dirty via `push_back()` auto-marking
-- [ ] T032 [US3] Ensure `Blockchain::replaceChain()` in `src/Blockchain.cpp` marks all rebuilt chunks dirty (the existing `push_back` loop already triggers auto-marking from T004; verify and log)
+- [X] T030 [US3] Verify `Blockchain::publish()` in `src/Blockchain.cpp` correctly marks the target chunk dirty via `push_back()` auto-marking (no manual marking needed since T004 hooks mutations)
+- [X] T031 [US3] Verify `Blockchain::appendBlock()` in `src/Blockchain.cpp` correctly marks the target chunk dirty via `push_back()` auto-marking
+- [X] T032 [US3] Ensure `Blockchain::replaceChain()` in `src/Blockchain.cpp` marks all rebuilt chunks dirty (the existing `push_back` loop already triggers auto-marking from T004; verify and log)
 
 **Checkpoint**: Dirty tracking is complete. Saves are now I/O-efficient
 
@@ -121,18 +121,18 @@
 
 ### Tests for User Story 4
 
-- [ ] T033 [P] [US4] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` with `fast_startup=true` skips validation and loads all discovered chunks
-- [ ] T034 [P] [US4] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` with `fast_startup=false` (default) validates each chunk and stops on corruption
+- [X] T033 [P] [US4] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` with `fast_startup=true` skips validation and loads all discovered chunks
+- [X] T034 [P] [US4] Write unit test in `tests/lifecycle_tests.cpp`: verify `recoverChain()` with `fast_startup=false` (default) validates each chunk and stops on corruption
 
 > Note: T020 and T034 test overlapping scenarios (corruption detection). Implementers may share a helper function for creating corrupted chunk fixtures.
 
-- [ ] T035 [P] [US4] Write unit test in `tests/lifecycle_tests.cpp`: verify zero-byte chunk file is treated as corrupted and excluded from valid prefix
+- [X] T035 [P] [US4] Write unit test in `tests/lifecycle_tests.cpp`: verify zero-byte chunk file is treated as corrupted and excluded from valid prefix
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] Add `fast_startup` parameter to `recoverChain()` signature in `src/Blockchain.hpp` and `src/Blockchain.cpp`; when true, skip the `validateChunk()` loop and cross-chunk linkage checks
-- [ ] T037 [US4] Pass `node_config.persistence.fast_startup` to `bc.recoverChain()` call in `src/main.cpp`
-- [ ] T038 [US4] Add zero-byte file detection in `validateChunk()` in `src/Blockchain.cpp` — return false if chunk file exists but has zero size
+- [X] T036 [US4] Add `fast_startup` parameter to `recoverChain()` signature in `src/Blockchain.hpp` and `src/Blockchain.cpp`; when true, skip the `validateChunk()` loop and cross-chunk linkage checks
+- [X] T037 [US4] Pass `node_config.persistence.fast_startup` to `bc.recoverChain()` call in `src/main.cpp`
+- [X] T038 [US4] Add zero-byte file detection in `validateChunk()` in `src/Blockchain.cpp` — return false if chunk file exists but has zero size
 
 **Checkpoint**: All 4 user stories are complete. Full lifecycle is now robust
 
@@ -142,12 +142,12 @@
 
 **Purpose**: Integration tests, build verification, and documentation updates
 
-- [ ] T039 [P] Create integration test file `tests/lifecycle_integration_tests.cpp` with Catch2; test multi-chunk shutdown/restart cycle: create chain with 3+ chunks, save via `saveAllChunks()`, clear in-memory state, run `recoverChain()`, verify all blocks match
-- [ ] T039b [P] Write integration test in `tests/lifecycle_integration_tests.cpp`: invoke `BlockPropagation::appendReceivedBlock()` after `bc.setShuttingDown()` and verify the block is rejected (covers US1 acceptance scenario 5 end-to-end through the propagation layer)
-- [ ] T040 [P] Verify `lifecycle_integration_tests` test target exists in `tests/Makefile.am` (added in T001); fix if missing
-- [ ] T041 Run `make check` to verify all existing and new tests pass
-- [ ] T042 Update `docs/ROADMAP.md`: move spec 011 from "Suggested Specs" to "Completed" table with one-line summary; update "Last updated" date
-- [ ] T043 Run quickstart.md validation steps against a local node to verify end-to-end behavior
+- [X] T039 [P] Create integration test file `tests/lifecycle_integration_tests.cpp` with Catch2; test multi-chunk shutdown/restart cycle: create chain with 3+ chunks, save via `saveAllChunks()`, clear in-memory state, run `recoverChain()`, verify all blocks match
+- [X] T039b [P] Write integration test in `tests/lifecycle_integration_tests.cpp`: invoke `BlockPropagation::appendReceivedBlock()` after `bc.setShuttingDown()` and verify the block is rejected (covers US1 acceptance scenario 5 end-to-end through the propagation layer)
+- [X] T040 [P] Verify `lifecycle_integration_tests` test target exists in `tests/Makefile.am` (added in T001); fix if missing
+- [X] T041 Run `make check` to verify all existing and new tests pass
+- [X] T042 Update `docs/ROADMAP.md`: move spec 011 from "Suggested Specs" to "Completed" table with one-line summary; update "Last updated" date
+- [X] T043 Run quickstart.md validation steps against a local node to verify end-to-end behavior
 
 ---
 

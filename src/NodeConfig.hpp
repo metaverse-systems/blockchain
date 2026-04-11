@@ -35,6 +35,7 @@ public:
     // Persistence settings
     struct PersistenceConfig {
         uint32_t save_interval_seconds = 300;
+        bool fast_startup = false;
     } persistence;
 
     // Streams settings

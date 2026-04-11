@@ -79,6 +79,8 @@ tests/merkle_tests
 tests/merkle_rpc_integration_tests
 tests/cli_tests
 tests/rpc_expansion_tests
+tests/lifecycle_tests
+tests/lifecycle_integration_tests
 
 # Test artifacts
 *.trs
@@ -107,3 +109,4 @@ Thumbs.db
 
 # Misc
 node_modules/
+tests/cli_tests

@@ -69,7 +69,7 @@ class Blockchain : public IBlockchain
     size_t getChunkCount() const override;
     void saveAllChunks();
     size_t discoverChunks();
-    void recoverChain();
+    void recoverChain(bool fast_startup = false);
     bool validateChunk(size_t chunkIndex);
     void archiveChainFiles();
     void startPeriodicSave(boost::asio::io_context &io);

@@ -15,20 +15,24 @@ class IChunk
     std::vector<Block> blocks;
     std::size_t index;
     std::filesystem::path blockchainPath;
+    bool dirty_ = false;
 
     IChunk(std::size_t index, std::filesystem::path blockchainPath) : index(index),blockchainPath(blockchainPath) {}
-    void push_back(Block &Block) { this->blocks.push_back(Block); }
+    void push_back(Block &Block) { this->blocks.push_back(Block); dirty_ = true; }
     auto back() -> Block & { return this->blocks.back(); }
     auto size() -> std::size_t { return this->blocks.size(); }
     auto begin() -> decltype(this->blocks.begin()) { return this->blocks.begin(); }
     auto end() -> decltype(this->blocks.end()) { return this->blocks.end(); }
     auto at(std::size_t index) -> decltype(this->blocks.at(index)) { return this->blocks.at(index); }
     auto operator[](std::size_t index) -> decltype(this->blocks[index]) { return this->blocks[index]; }
-    void resize(std::size_t size) { this->blocks.resize(size); }
+    void resize(std::size_t size) { this->blocks.resize(size); dirty_ = true; }
     void reserve(std::size_t size) { this->blocks.reserve(size); }
     void clear() { this->blocks.clear(); }
-    void emplace_back(const Block &Block) { this->blocks.emplace_back(Block); }
+    void emplace_back(const Block &Block) { this->blocks.emplace_back(Block); dirty_ = true; }
     bool isBlockPresent(size_t index) { return (this->blocks.size() > 0) && (this->blocks.at(index % this->blocks.size()).index == index);};
+    bool isDirty() const { return dirty_; }
+    void markDirty() { dirty_ = true; }
+    void clearDirty() { dirty_ = false; }
     void dump()
     {
         std::cout << "Chunk " << this->index << " has " << this->blocks.size() << " blocks" << std::endl;

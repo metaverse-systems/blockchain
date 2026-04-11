@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
     // Recovery: discover chunk files on disk, load active chunk and indexes
     size_t discoveredChunks = bc.discoverChunks();
     if (discoveredChunks > 0) {
-        bc.recoverChain();
+        bc.recoverChain(node_config.persistence.fast_startup);
     } else {
         bc.loadChunk(0);
         bc.loadKeys();
@@ -205,6 +205,7 @@ int main(int argc, char *argv[])
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](const boost::system::error_code&, int) {
         logMessage("INFO", "Shutting down...");
+        bc.setShuttingDown();
         bc.stopPeriodicSave();
         peer_manager.save_peers();
         bc.saveAllChunks();

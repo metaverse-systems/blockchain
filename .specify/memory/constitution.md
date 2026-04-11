@@ -1,26 +1,30 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 1.1.0
-Bump rationale: MINOR — two new principles added (XII, XIII);
-no existing principles removed or redefined.
+Version change: 1.1.0 → 1.2.0
+Bump rationale: MINOR — materially expanded guidance on two
+existing principles (II, III); no principles removed or
+redefined.
 
-Modified principles: none
+Modified principles:
+  - Principle II: Build System — added mandatory `-j8` for all
+    `make` invocations
+  - Principle III: Full Test Coverage — added requirement to
+    run each test binary individually rather than the full
+    suite at once
 
-Added sections:
-  - Principle XII: .gitignore Maintenance
-  - Principle XIII: Roadmap Currency
+Added sections: none
 
 Removed sections: none
 
 Templates requiring updates:
   - .specify/templates/plan-template.md         ✅ compatible (Constitution Check is dynamic)
   - .specify/templates/spec-template.md         ✅ compatible (no constitution-specific tokens)
-  - .specify/templates/tasks-template.md        ✅ compatible (generic docs/ update placeholder exists)
+  - .specify/templates/tasks-template.md        ✅ compatible (generic structure)
   - .specify/templates/checklist-template.md    ✅ compatible
+  - .github/copilot-instructions.md             ✅ updated (Commands section reflects -j8 and individual test execution)
 
-Follow-up TODOs:
-  - .gitignore: add `tests/cli_tests` (missing from 009 implementation)
+Follow-up TODOs: none
 -->
 
 # metaverse-systems/blockchain Constitution
@@ -43,6 +47,11 @@ MUST use `configure.ac`, `Makefile.am`, and the Autotools
 toolchain. Migration to another build system is prohibited
 without a constitution amendment.
 
+All `make` invocations MUST use `-j8` for parallel
+compilation (e.g., `make -j8`, `make -j8 check`). Single-
+threaded builds waste developer time and are prohibited in
+both local development and CI.
+
 ### III. Full Test Coverage
 
 Every new feature MUST include both unit tests and network
@@ -50,6 +59,18 @@ integration tests. The test framework is Catch2. Mock objects
 (`MockChunk`, `MockSessionHandler`, `MockAcceptor`) MUST be
 used to isolate units under test. Test binaries MUST be
 runnable via `make check`.
+
+When running tests, each test binary MUST be executed
+individually rather than running `make check` as a single
+monolithic invocation. This ensures clear per-binary
+pass/fail reporting and avoids masking failures in long
+test runs. Example:
+
+```bash
+./tests/blockchain_tests
+./tests/lifecycle_tests
+./tests/lifecycle_integration_tests
+```
 
 ### IV. Code Style
 
@@ -142,6 +163,9 @@ The following actions are **unconditionally prohibited**:
 - Committing directly to the `main` branch.
 - Adding unapproved external dependencies.
 - Introducing code that does not compile under `-std=c++20`.
+- Running `make` without `-j8`.
+- Running the full test suite as a single `make check`
+  invocation instead of executing test binaries individually.
 - Merging a changeset that adds build targets without updating
   `.gitignore`.
 - Completing a feature without updating `docs/ROADMAP.md`.
@@ -150,9 +174,10 @@ The following actions are **unconditionally prohibited**:
 
 1. Create a feature branch from `main`.
 2. Implement changes with full unit and integration tests.
-3. Ensure `make check` passes locally.
-4. Open a pull request for review.
-5. Merge only after review approval and passing CI.
+3. Build with `make -j8`.
+4. Run each test binary individually to confirm all pass.
+5. Open a pull request for review.
+6. Merge only after review approval and passing CI.
 
 ## Governance
 
@@ -170,4 +195,4 @@ Amendments require:
 All pull requests and code reviews MUST verify compliance with
 these principles.
 
-**Version**: 1.1.0 | **Ratified**: 2026-04-10 | **Last Amended**: 2026-04-11
+**Version**: 1.2.0 | **Ratified**: 2026-04-10 | **Last Amended**: 2026-04-11

@@ -43,7 +43,8 @@ nlohmann::json NodeConfig::default_json() {
             {"allowed_streams", nlohmann::json::array()}
         }},
         {"persistence", {
-            {"save_interval_seconds", 300}
+            {"save_interval_seconds", 300},
+            {"fast_startup", false}
         }}
     };
 }
@@ -149,6 +150,7 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
     if (j.contains("persistence")) {
         auto &p = j["persistence"];
         if (p.contains("save_interval_seconds")) p["save_interval_seconds"].get_to(cfg.persistence.save_interval_seconds);
+        if (p.contains("fast_startup")) p["fast_startup"].get_to(cfg.persistence.fast_startup);
     }
 
     // Detect unknown keys
@@ -163,7 +165,7 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
                    "discovery_enabled", "max_stored_peers", "reconnect_base_delay_seconds",
                    "reconnect_max_delay_seconds", "ban_threshold_errors", "ban_duration_seconds"}},
         {"streams", {"allowed_streams"}},
-        {"persistence", {"save_interval_seconds"}}
+        {"persistence", {"save_interval_seconds", "fast_startup"}}
     };
     for (auto &[key, val] : j.items()) {
         if (known_top.find(key) == known_top.end()) {
@@ -281,5 +283,6 @@ void NodeConfig::generate_readme(const std::filesystem::path &readme_path) {
         << "## streams\n"
         << "  allowed_streams  (array)  Permitted stream names  default: []\n\n"
         << "## persistence\n"
-        << "  save_interval_seconds  (uint32)  Auto-save interval  default: 300\n";
+        << "  save_interval_seconds  (uint32)  Auto-save interval              default: 300\n"
+        << "  fast_startup           (bool)    Skip chunk validation on start   default: false\n";
 }

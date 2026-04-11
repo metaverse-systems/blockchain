@@ -24,7 +24,13 @@ tests/
 
 ## Commands
 
-# Add commands for C++20 (`-std=c++20`)
+- Always use `make -j8` for all build invocations (e.g., `make -j8`, `make -j8 tests/lifecycle_tests`)
+- When running tests, execute each test binary individually instead of `make check`:
+  ```bash
+  ./tests/blockchain_tests
+  ./tests/lifecycle_tests
+  # ... etc.
+  ```
 
 ## Code Style
 

@@ -28,6 +28,10 @@ template<typename ChunkHandler>
 Block Blockchain<ChunkHandler>::publish(const std::string &stream, const std::string &key,
                                          const std::string &data, const std::vector<std::string> &keys)
 {
+    if (this->isShuttingDown()) {
+        throw std::runtime_error("Cannot publish block: node is shutting down");
+    }
+
     // Auto-create stream if needed
     if (this->streamRegistry.find(stream) == this->streamRegistry.end()) {
         this->streamRegistry.insert(stream);
@@ -219,6 +223,10 @@ std::pair<size_t, StreamEntry> Blockchain<ChunkHandler>::getStreamEntry(
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::appendBlock(const Block &block)
 {
+    if (this->isShuttingDown()) {
+        throw std::runtime_error("Cannot append block: node is shutting down");
+    }
+
     size_t chunkIndex = block.index / this->chunkSize;
 
     // If the current active chunk is full, auto-save and free it
@@ -458,12 +466,14 @@ size_t Blockchain<ChunkHandler>::getChunkCount() const
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::saveAllChunks()
 {
-    // Save the active (last) chunk
-    if (!this->chain.empty()) {
-        try {
-            this->chain.back().save();
-        } catch (const std::exception &e) {
-            logMessage("ERROR", "Failed to save active chunk: " + std::string(e.what()));
+    // Save all dirty, non-empty chunks
+    for (size_t i = 0; i < this->chain.size(); i++) {
+        if (this->chain[i].isDirty() && this->chain[i].size() > 0) {
+            try {
+                this->chain[i].save();
+            } catch (const std::exception &e) {
+                logMessage("ERROR", "Failed to save chunk " + std::to_string(i) + ": " + std::string(e.what()));
+            }
         }
     }
 
@@ -509,6 +519,13 @@ bool Blockchain<ChunkHandler>::validateChunk(size_t chunkIndex)
     ss << "chunk_" << std::setfill('0') << std::setw(6) << chunkIndex << ".dat";
     std::filesystem::path chunkPath = this->blockchainPath / ss.str();
 
+    // Zero-byte file detection
+    if (std::filesystem::file_size(chunkPath) == 0) {
+        logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
+                   + " at " + chunkPath.string() + " is zero bytes");
+        return false;
+    }
+
     try {
         ChunkHandler chunk(chunkIndex, this->blockchainPath);
         chunk.load();
@@ -549,7 +566,7 @@ bool Blockchain<ChunkHandler>::validateChunk(size_t chunkIndex)
 }
 
 template<typename ChunkHandler>
-void Blockchain<ChunkHandler>::recoverChain()
+void Blockchain<ChunkHandler>::recoverChain(bool fast_startup)
 {
     size_t numChunks = this->discoverChunks();
 
@@ -562,35 +579,44 @@ void Blockchain<ChunkHandler>::recoverChain()
     // Validate contiguous prefix
     size_t validChunks = 0;
     size_t totalBlocks = 0;
-    std::string lastBlockHash;
 
-    for (size_t i = 0; i < numChunks; i++) {
-        if (!this->validateChunk(i)) {
-            logMessage("WARN", "Stopping at chunk " + std::to_string(i) + " due to validation failure");
-            break;
+    if (fast_startup) {
+        // Skip validation — trust all discovered chunks
+        for (size_t i = 0; i < numChunks; i++) {
+            ChunkHandler chunk(i, this->blockchainPath);
+            chunk.load();
+            totalBlocks += chunk.blocks.size();
+            validChunks++;
         }
+    } else {
+        for (size_t i = 0; i < numChunks; i++) {
+            if (!this->validateChunk(i)) {
+                logMessage("WARN", "Stopping at chunk " + std::to_string(i) + " due to validation failure");
+                break;
+            }
 
-        // Cross-chunk linkage validation
-        if (i > 0) {
-            ChunkHandler prevChunk(i - 1, this->blockchainPath);
-            prevChunk.load();
-            ChunkHandler currChunk(i, this->blockchainPath);
-            currChunk.load();
+            // Cross-chunk linkage validation
+            if (i > 0) {
+                ChunkHandler prevChunk(i - 1, this->blockchainPath);
+                prevChunk.load();
+                ChunkHandler currChunk(i, this->blockchainPath);
+                currChunk.load();
 
-            if (!currChunk.blocks.empty() && !prevChunk.blocks.empty()) {
-                if (currChunk.blocks[0].prevHash != prevChunk.blocks.back().hash) {
-                    logMessage("ERROR", "Cross-chunk linkage failed between chunk "
-                               + std::to_string(i - 1) + " and " + std::to_string(i));
-                    break;
+                if (!currChunk.blocks.empty() && !prevChunk.blocks.empty()) {
+                    if (currChunk.blocks[0].prevHash != prevChunk.blocks.back().hash) {
+                        logMessage("ERROR", "Cross-chunk linkage failed between chunk "
+                                   + std::to_string(i - 1) + " and " + std::to_string(i));
+                        break;
+                    }
                 }
             }
-        }
 
-        // Count blocks in this chunk
-        ChunkHandler chunk(i, this->blockchainPath);
-        chunk.load();
-        totalBlocks += chunk.blocks.size();
-        validChunks++;
+            // Count blocks in this chunk
+            ChunkHandler chunk(i, this->blockchainPath);
+            chunk.load();
+            totalBlocks += chunk.blocks.size();
+            validChunks++;
+        }
     }
 
     if (validChunks == 0) {
@@ -612,24 +638,32 @@ void Blockchain<ChunkHandler>::recoverChain()
     // Load only the active (last) chunk into memory
     this->chain.back().load();
 
-    // Rebuild indexes from all chunks
-    bool keysLoaded = false, streamsLoaded = false, streamIndexLoaded = false;
+    // Check if index files exist on disk
+    bool keysExist = std::filesystem::exists(this->blockchainPath / "keys.dat");
+    bool streamsExist = std::filesystem::exists(this->blockchainPath / "streams.dat");
+    bool streamIndexExist = std::filesystem::exists(this->blockchainPath / "stream_index.dat");
 
-    try {
-        this->loadKeys();
-        keysLoaded = true;
-    } catch (...) {}
-    try {
-        this->loadStreams();
-        streamsLoaded = true;
-    } catch (...) {}
-    try {
-        this->loadStreamIndex();
-        streamIndexLoaded = true;
-    } catch (...) {}
+    if (keysExist && streamsExist && streamIndexExist) {
+        // All index files present — attempt to load them
+        try {
+            this->loadKeys();
+        } catch (...) {
+            keysExist = false;
+        }
+        try {
+            this->loadStreams();
+        } catch (...) {
+            streamsExist = false;
+        }
+        try {
+            this->loadStreamIndex();
+        } catch (...) {
+            streamIndexExist = false;
+        }
+    }
 
-    // If any index failed to load, rebuild from chunks
-    if (!keysLoaded || !streamsLoaded || !streamIndexLoaded) {
+    // If any index is missing or failed to load, rebuild from chunks
+    if (!keysExist || !streamsExist || !streamIndexExist) {
         logMessage("INFO", "Rebuilding missing indexes from chunk files");
         this->keyIndexMap.clear();
         this->streamRegistry.clear();
