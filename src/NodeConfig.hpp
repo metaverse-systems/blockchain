@@ -23,6 +23,7 @@ public:
         uint16_t rpc_port = 12345;
         uint16_t p2p_port = 12346;
         uint32_t timeout_seconds = 30;
+        std::string log_level = "info";
     } network;
 
     // Consensus settings
@@ -45,10 +46,14 @@ public:
     static NodeConfig load(const std::filesystem::path &config_path);
 
     // Validate the loaded configuration; throws std::invalid_argument on failure
-    void validate() const;
+    // blockchain_dir is used to resolve relative TLS paths for file-existence checks
+    void validate(const std::filesystem::path &blockchain_dir = {}) const;
 
     // Generate a default config.json at the given path
     static void generate_default(const std::filesystem::path &config_path);
+
+    // Generate a config.README documentation file at the given path
+    static void generate_readme(const std::filesystem::path &readme_path);
 
     // Build a ConsensusConfig from the loaded values
     ConsensusConfig to_consensus_config() const { return consensus; }

@@ -6,6 +6,7 @@
 #include "Block.hpp"
 #include "Blockchain.hpp"
 #include "BlockPropagation.hpp"
+#include "CliParser.hpp"
 #include "ConsensusConfig.hpp"
 #include "NodeConfig.hpp"
 #include "PeerManager.hpp"
@@ -20,22 +21,94 @@ using boost::asio::ip::tcp;
 
 int main(int argc, char *argv[])
 {
-    if(argc < 2)
-    {
-        std::cerr << "Usage: " << argv[0] << " <path to blockchain directory>" << std::endl;
+    CliOptions cli;
+    try {
+        cli = CliParser::parse(argc, argv);
+    } catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        std::cerr << CliParser::usage_string() << "\n";
         return 1;
     }
 
-    std::filesystem::path blockchainDir(argv[1]);
+    if (cli.show_help) {
+        std::cout << CliParser::usage_string() << "\n";
+        return 0;
+    }
+    if (cli.show_version) {
+        std::cout << CliParser::version_string() << "\n";
+        return 0;
+    }
 
-    // Load config.json from blockchain data directory
+    if (cli.blockchain_dir.empty()) {
+        std::cerr << CliParser::usage_string() << "\n";
+        return 1;
+    }
+
+    std::filesystem::path blockchainDir(cli.blockchain_dir);
+
+    if (!std::filesystem::exists(blockchainDir)) {
+        std::cerr << "Error: blockchain directory does not exist: " << blockchainDir.string() << "\n";
+        return 1;
+    }
+
+    // Handle --generate-config before loading any config
+    if (cli.generate_config) {
+        auto cfg_path = blockchainDir / "config.json";
+        if (std::filesystem::exists(cfg_path)) {
+            std::cerr << "Error: config.json already exists at " << cfg_path.string() << "\n";
+            return 1;
+        }
+        try {
+            NodeConfig::generate_default(cfg_path);
+            NodeConfig::generate_readme(blockchainDir / "config.README");
+            std::cout << "Generated " << cfg_path.string() << "\n";
+            std::cout << "Generated " << (blockchainDir / "config.README").string() << "\n";
+        } catch (const std::exception &e) {
+            std::cerr << "Error: " << e.what() << "\n";
+            return 1;
+        }
+        return 0;
+    }
+
+    // Determine config path (CLI --config or default)
+    std::filesystem::path config_path = cli.config_path
+        ? std::filesystem::path(*cli.config_path)
+        : blockchainDir / "config.json";
+
+    // Load config.json
     NodeConfig node_config;
     try {
-        node_config = NodeConfig::load(blockchainDir / "config.json");
+        node_config = NodeConfig::load(config_path);
     } catch (const std::exception &e) {
         logMessage("ERROR", "Failed to load config: " + std::string(e.what()));
         return 1;
     }
+
+    // Apply CLI overrides onto loaded config
+    if (cli.rpc_port) node_config.network.rpc_port = *cli.rpc_port;
+    if (cli.p2p_port) node_config.network.p2p_port = *cli.p2p_port;
+    if (cli.log_level) node_config.network.log_level = *cli.log_level;
+    for (const auto &seed : cli.seed_nodes) {
+        // Parse host:port seed node strings
+        auto colon = seed.rfind(':');
+        if (colon != std::string::npos) {
+            PeerAddress addr;
+            addr.host = seed.substr(0, colon);
+            addr.port = static_cast<uint16_t>(std::stoi(seed.substr(colon + 1)));
+            node_config.peers.seed_nodes.push_back(addr);
+        }
+    }
+
+    // Validate merged config
+    try {
+        node_config.validate(blockchainDir);
+    } catch (const std::invalid_argument &e) {
+        std::cerr << e.what();
+        return 1;
+    }
+
+    // Set global log level from final config
+    setLogLevel(parseLogLevel(node_config.network.log_level));
 
     // Resolve TLS paths relative to blockchainDir if not absolute
     auto resolvePath = [&](const std::string &p) -> std::string {

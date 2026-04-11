@@ -13,10 +13,10 @@
 
 **Purpose**: Build system changes and new source file scaffolding
 
-- [ ] T001 Add `AX_BOOST_PROGRAM_OPTIONS` check to `configure.ac` and regenerate configure
-- [ ] T002 Add `-lboost_program_options` to `blockchain_LDADD` in `src/Makefile.am`
-- [ ] T003 [P] Create `src/CliParser.hpp` with `CliOptions` struct and `CliParser` class declaration per data-model.md
-- [ ] T004 [P] Create `src/CliParser.cpp` with stub `parse()` that returns default `CliOptions`
+- [X] T001 Add `AX_BOOST_PROGRAM_OPTIONS` check to `configure.ac` and regenerate configure
+- [X] T002 Add `-lboost_program_options` to `blockchain_LDADD` in `src/Makefile.am`
+- [X] T003 [P] Create `src/CliParser.hpp` with `CliOptions` struct and `CliParser` class declaration per data-model.md
+- [X] T004 [P] Create `src/CliParser.cpp` with stub `parse()` that returns default `CliOptions`
 
 ---
 
@@ -26,10 +26,10 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Add `LogLevel` enum, `setLogLevel()`, `getLogLevel()`, and `parseLogLevel()` declarations to `src/utils.hpp`
-- [ ] T006 Implement `LogLevel` global atomic, `setLogLevel()`, `getLogLevel()`, `parseLogLevel()` in `src/utils.cpp`; add early-return filter and `"DEBUG"` color to `logMessage()`
-- [ ] T007 Add `log_level` field (`std::string`, default `"info"`) to `NodeConfig::NetworkConfig` in `src/NodeConfig.hpp`
-- [ ] T008 Add `log_level` parsing to `NodeConfig::load()` and add `"log_level"` to `default_json()` network section in `src/NodeConfig.cpp`
+- [X] T005 Add `LogLevel` enum, `setLogLevel()`, `getLogLevel()`, and `parseLogLevel()` declarations to `src/utils.hpp`
+- [X] T006 Implement `LogLevel` global atomic, `setLogLevel()`, `getLogLevel()`, `parseLogLevel()` in `src/utils.cpp`; add early-return filter and `"DEBUG"` color to `logMessage()`
+- [X] T007 Add `log_level` field (`std::string`, default `"info"`) to `NodeConfig::NetworkConfig` in `src/NodeConfig.hpp`
+- [X] T008 Add `log_level` parsing to `NodeConfig::load()` and add `"log_level"` to `default_json()` network section in `src/NodeConfig.cpp`
 
 **Checkpoint**: Foundation ready — LogLevel filtering works, NodeConfig reads log_level from config.json
 
@@ -43,10 +43,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement `CliParser::parse()` in `src/CliParser.cpp` using Boost.ProgramOptions with all option definitions from contracts/cli-interface.md (--help, --version, --config, --rpc-port, --p2p-port, --seed-node, --log-level, --generate-config, positional blockchain-dir)
-- [ ] T010 [US1] Add version output using `PACKAGE_NAME` and `PACKAGE_VERSION` from `config.h` in `src/CliParser.cpp`; include `config.h` via adjusted include path or `-I` flag
-- [ ] T011 [US1] Replace manual `argc`/`argv` parsing in `src/main.cpp` with `CliParser::parse()`; handle `--help` (print and exit 0), `--version` (print and exit 0), and no-arguments (print usage and exit 1)
-- [ ] T012 [US1] Add CLI parser unit tests in `tests/cli_tests.cpp`: test --help exits cleanly, --version prints version string, no-args shows usage; add `cli_tests` to `check_PROGRAMS` in `tests/Makefile.am`
+- [X] T009 [US1] Implement `CliParser::parse()` in `src/CliParser.cpp` using Boost.ProgramOptions with all option definitions from contracts/cli-interface.md (--help, --version, --config, --rpc-port, --p2p-port, --seed-node, --log-level, --generate-config, positional blockchain-dir)
+- [X] T010 [US1] Add version output using `PACKAGE_NAME` and `PACKAGE_VERSION` from `config.h` in `src/CliParser.cpp`; include `config.h` via adjusted include path or `-I` flag
+- [X] T011 [US1] Replace manual `argc`/`argv` parsing in `src/main.cpp` with `CliParser::parse()`; handle `--help` (print and exit 0), `--version` (print and exit 0), and no-arguments (print usage and exit 1)
+- [X] T012 [US1] Add CLI parser unit tests in `tests/cli_tests.cpp`: test --help exits cleanly, --version prints version string, no-args shows usage; add `cli_tests` to `check_PROGRAMS` in `tests/Makefile.am`
 
 **Checkpoint**: `blockchain --help` and `blockchain --version` work. No-args shows usage. All new tests pass via `make check`.
 
@@ -60,10 +60,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Add CLI override application logic in `src/main.cpp`: after `NodeConfig::load()`, apply `CliOptions.rpc_port`, `p2p_port`, `seed_nodes`, `log_level` onto the loaded `NodeConfig` fields; apply `--config` path resolution before loading
-- [ ] T014 [US2] Add blockchain directory existence check in `src/main.cpp` before config loading: if directory does not exist, print error to stderr and exit 1 (FR-016)
-- [ ] T015 [US2] Set global log level from final `NodeConfig.network.log_level` via `setLogLevel(parseLogLevel(...))` in `src/main.cpp` after override application
-- [ ] T016 [US2] Add CLI override unit tests in `tests/cli_tests.cpp`: test --rpc-port overrides config value, --p2p-port overrides config value, --seed-node appends to config seeds, --config loads alternate path, --log-level sets level, missing blockchain dir exits with error
+- [X] T013 [US2] Add CLI override application logic in `src/main.cpp`: after `NodeConfig::load()`, apply `CliOptions.rpc_port`, `p2p_port`, `seed_nodes`, `log_level` onto the loaded `NodeConfig` fields; apply `--config` path resolution before loading
+- [X] T014 [US2] Add blockchain directory existence check in `src/main.cpp` before config loading: if directory does not exist, print error to stderr and exit 1 (FR-016)
+- [X] T015 [US2] Set global log level from final `NodeConfig.network.log_level` via `setLogLevel(parseLogLevel(...))` in `src/main.cpp` after override application
+- [X] T016 [US2] Add CLI override unit tests in `tests/cli_tests.cpp`: test --rpc-port overrides config value, --p2p-port overrides config value, --seed-node appends to config seeds, --config loads alternate path, --log-level sets level, missing blockchain dir exits with error
 
 **Checkpoint**: All CLI flags override config.json correctly. Precedence chain CLI > file > defaults confirmed by tests.
 
@@ -77,8 +77,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Add `logMessage` filtering tests in `tests/cli_tests.cpp`: test that setting LogLevel::Error suppresses INFO/WARN messages, LogLevel::Debug shows all, LogLevel::Info suppresses DEBUG; test invalid log level string returns error
-- [ ] T018 [US3] Add config.json `log_level` round-trip test in `tests/node_config_tests.cpp`: write config with `"log_level": "debug"`, load it, verify `network.log_level == "debug"`; verify default is `"info"` when key is missing
+- [X] T017 [US3] Add `logMessage` filtering tests in `tests/cli_tests.cpp`: test that setting LogLevel::Error suppresses INFO/WARN messages, LogLevel::Debug shows all, LogLevel::Info suppresses DEBUG; test invalid log level string returns error
+- [X] T018 [US3] Add config.json `log_level` round-trip test in `tests/node_config_tests.cpp`: write config with `"log_level": "debug"`, load it, verify `network.log_level == "debug"`; verify default is `"info"` when key is missing
 
 **Checkpoint**: Log filtering works at all four levels. Config.json log_level is read and applied correctly.
 
@@ -92,9 +92,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T019 [US4] Implement `config.README` generation in `src/NodeConfig.cpp`: add a `generate_readme()` static method that writes a text file documenting each config section, field name, type, valid values, and default
-- [ ] T020 [US4] Implement `--generate-config` handler in `src/main.cpp`: after parsing CLI, if `generate_config` is true, verify blockchain_dir exists, check for existing config.json (refuse if exists, exit 1), call `NodeConfig::generate_default()` and `NodeConfig::generate_readme()`, exit 0
-- [ ] T021 [US4] Add `--generate-config` tests in `tests/cli_tests.cpp`: test config.json and config.README are created in empty directory; test existing config.json is not overwritten (exit 1); test generated config.json is valid and loadable
+- [X] T019 [US4] Implement `config.README` generation in `src/NodeConfig.cpp`: add a `generate_readme()` static method that writes a text file documenting each config section, field name, type, valid values, and default
+- [X] T020 [US4] Implement `--generate-config` handler in `src/main.cpp`: after parsing CLI, if `generate_config` is true, verify blockchain_dir exists, check for existing config.json (refuse if exists, exit 1), call `NodeConfig::generate_default()` and `NodeConfig::generate_readme()`, exit 0
+- [X] T021 [US4] Add `--generate-config` tests in `tests/cli_tests.cpp`: test config.json and config.README are created in empty directory; test existing config.json is not overwritten (exit 1); test generated config.json is valid and loadable
 
 **Checkpoint**: `--generate-config` creates both files. Refusal to overwrite confirmed by tests.
 
@@ -108,11 +108,11 @@
 
 ### Implementation for User Story 5
 
-- [ ] T022 [US5] Enhance `NodeConfig::validate()` in `src/NodeConfig.cpp` to accumulate all errors in a `std::vector<std::string>` instead of throwing on the first; add port range check (1–65535), port conflict check (rpc != p2p), TLS cert/key file existence check (resolved relative to blockchain dir); throw single exception with all errors joined
-- [ ] T023 [US5] Add `validate()` method signature update in `src/NodeConfig.hpp`: accept `std::filesystem::path blockchain_dir` parameter so TLS paths can be resolved
-- [ ] T024 [US5] Add unknown key detection in `NodeConfig::load()` in `src/NodeConfig.cpp`: after parsing, iterate JSON keys at top-level and per-section, compare against known key registry from data-model.md, call `logMessage("WARN", ...)` for each unknown key
-- [ ] T025 [US5] Update validation call site in `src/main.cpp` to pass `blockchainDir` to `validate()`; wrap in try/catch to print all errors to stderr before exiting
-- [ ] T026 [US5] Add validation tests in `tests/node_config_tests.cpp`: test port out of range triggers error, equal ports trigger error, missing TLS cert file triggers error, multiple errors collected in single throw, unknown config key warns but does not fail, valid config passes
+- [X] T022 [US5] Enhance `NodeConfig::validate()` in `src/NodeConfig.cpp` to accumulate all errors in a `std::vector<std::string>` instead of throwing on the first; add port range check (1–65535), port conflict check (rpc != p2p), TLS cert/key file existence check (resolved relative to blockchain dir); throw single exception with all errors joined
+- [X] T023 [US5] Add `validate()` method signature update in `src/NodeConfig.hpp`: accept `std::filesystem::path blockchain_dir` parameter so TLS paths can be resolved
+- [X] T024 [US5] Add unknown key detection in `NodeConfig::load()` in `src/NodeConfig.cpp`: after parsing, iterate JSON keys at top-level and per-section, compare against known key registry from data-model.md, call `logMessage("WARN", ...)` for each unknown key
+- [X] T025 [US5] Update validation call site in `src/main.cpp` to pass `blockchainDir` to `validate()`; wrap in try/catch to print all errors to stderr before exiting
+- [X] T026 [US5] Add validation tests in `tests/node_config_tests.cpp`: test port out of range triggers error, equal ports trigger error, missing TLS cert file triggers error, multiple errors collected in single throw, unknown config key warns but does not fail, valid config passes
 
 **Checkpoint**: Invalid configs produce multi-error output. Unknown keys warn. All tests pass.
 
@@ -122,9 +122,9 @@
 
 **Purpose**: Final integration verification
 
-- [ ] T027 [P] Update `tests/Makefile.am` to ensure `cli_tests` links against `boost_program_options` and all required source files
-- [ ] T028 Run full `make check` to verify all existing and new tests pass; include one integration test that starts the daemon with `--rpc-port 9999 --p2p-port 9998` and verifies bind via a connection attempt (constitution §III)
-- [ ] T029 Run quickstart.md validation steps 1–10 against built binary
+- [X] T027 [P] Update `tests/Makefile.am` to ensure `cli_tests` links against `boost_program_options` and all required source files
+- [X] T028 Run full `make check` to verify all existing and new tests pass; include one integration test that starts the daemon with `--rpc-port 9999 --p2p-port 9998` and verifies bind via a connection attempt (constitution §III)
+- [X] T029 Run quickstart.md validation steps 1–10 against built binary
 
 ---
 

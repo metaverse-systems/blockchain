@@ -19,6 +19,7 @@ AX_CXX_COMPILE_STDCXX(20, noext, mandatory)
 
 AX_BOOST_BASE([1.50],, [AC_MSG_ERROR([Could not find Boost])])
 AX_BOOST_SERIALIZATION(,[AC_MSG_ERROR([Could not find Boost.Serialization library])])
+AX_BOOST_PROGRAM_OPTIONS(,[AC_MSG_ERROR([Could not find Boost.ProgramOptions library])])
 
 # Checks for header files.
 

@@ -1,5 +1,7 @@
 #include "NodeConfig.hpp"
 #include <stdexcept>
+#include <set>
+#include <map>
 
 nlohmann::json NodeConfig::default_json() {
     return {
@@ -11,7 +13,8 @@ nlohmann::json NodeConfig::default_json() {
         {"network", {
             {"rpc_port", 12345},
             {"p2p_port", 12346},
-            {"timeout_seconds", 30}
+            {"timeout_seconds", 30},
+            {"log_level", "info"}
         }},
         {"consensus", {
             {"target_block_interval", 10},
@@ -102,6 +105,7 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
         if (n.contains("rpc_port")) n["rpc_port"].get_to(cfg.network.rpc_port);
         if (n.contains("p2p_port")) n["p2p_port"].get_to(cfg.network.p2p_port);
         if (n.contains("timeout_seconds")) n["timeout_seconds"].get_to(cfg.network.timeout_seconds);
+        if (n.contains("log_level")) n["log_level"].get_to(cfg.network.log_level);
     }
 
     // Consensus
@@ -147,42 +151,135 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
         if (p.contains("save_interval_seconds")) p["save_interval_seconds"].get_to(cfg.persistence.save_interval_seconds);
     }
 
+    // Detect unknown keys
+    static const std::set<std::string> known_top = {"tls", "network", "consensus", "peers", "streams", "persistence"};
+    static const std::map<std::string, std::set<std::string>> known_sub = {
+        {"tls", {"cert_file", "key_file", "ca_file"}},
+        {"network", {"rpc_port", "p2p_port", "timeout_seconds", "log_level"}},
+        {"consensus", {"target_block_interval", "adjustment_window", "max_adjustment_factor",
+                        "min_difficulty", "max_difficulty", "initial_difficulty",
+                        "mining_timeout", "max_future_timestamp", "max_reorg_depth"}},
+        {"peers", {"seed_nodes", "max_outbound", "max_inbound", "exchange_interval_seconds",
+                   "discovery_enabled", "max_stored_peers", "reconnect_base_delay_seconds",
+                   "reconnect_max_delay_seconds", "ban_threshold_errors", "ban_duration_seconds"}},
+        {"streams", {"allowed_streams"}},
+        {"persistence", {"save_interval_seconds"}}
+    };
+    for (auto &[key, val] : j.items()) {
+        if (known_top.find(key) == known_top.end()) {
+            logMessage("WARN", "Unknown config key: " + key);
+        } else if (val.is_object()) {
+            auto it = known_sub.find(key);
+            if (it != known_sub.end()) {
+                for (auto &[sub_key, sub_val] : val.items()) {
+                    if (it->second.find(sub_key) == it->second.end()) {
+                        logMessage("WARN", "Unknown config key: " + key + "." + sub_key);
+                    }
+                }
+            }
+        }
+    }
+
     cfg.validate();
     return cfg;
 }
 
-void NodeConfig::validate() const {
+void NodeConfig::validate(const std::filesystem::path &blockchain_dir) const {
+    std::vector<std::string> errors;
+
     if (tls.cert_file.empty()) {
-        throw std::invalid_argument("tls.cert_file must be non-empty");
+        errors.push_back("Error: tls.cert_file must be non-empty");
     }
     if (tls.key_file.empty()) {
-        throw std::invalid_argument("tls.key_file must be non-empty");
+        errors.push_back("Error: tls.key_file must be non-empty");
     }
     if (network.rpc_port == 0) {
-        throw std::invalid_argument("network.rpc_port must be > 0");
+        errors.push_back("Error: network.rpc_port: value " + std::to_string(network.rpc_port) + " out of valid range 1-65535");
     }
     if (network.p2p_port == 0) {
-        throw std::invalid_argument("network.p2p_port must be > 0");
+        errors.push_back("Error: network.p2p_port: value " + std::to_string(network.p2p_port) + " out of valid range 1-65535");
     }
     if (network.rpc_port == network.p2p_port) {
-        throw std::invalid_argument("network.rpc_port and network.p2p_port must differ");
+        errors.push_back("Error: network.rpc_port and network.p2p_port must not be equal (both are " + std::to_string(network.rpc_port) + ")");
+    }
+    if (!blockchain_dir.empty()) {
+        auto resolve = [&](const std::string &p) -> std::filesystem::path {
+            std::filesystem::path fp(p);
+            return fp.is_absolute() ? fp : blockchain_dir / fp;
+        };
+        if (!tls.cert_file.empty() && !std::filesystem::exists(resolve(tls.cert_file))) {
+            errors.push_back("Error: tls.cert_file: file not found: " + resolve(tls.cert_file).string());
+        }
+        if (!tls.key_file.empty() && !std::filesystem::exists(resolve(tls.key_file))) {
+            errors.push_back("Error: tls.key_file: file not found: " + resolve(tls.key_file).string());
+        }
     }
     if (peers.max_outbound == 0) {
-        throw std::invalid_argument("peers.max_outbound must be > 0");
+        errors.push_back("Error: peers.max_outbound must be > 0");
     }
     if (peers.max_inbound == 0) {
-        throw std::invalid_argument("peers.max_inbound must be > 0");
+        errors.push_back("Error: peers.max_inbound must be > 0");
     }
     if (peers.exchange_interval_seconds < 5) {
-        throw std::invalid_argument("peers.exchange_interval_seconds must be >= 5");
+        errors.push_back("Error: peers.exchange_interval_seconds must be >= 5");
     }
     if (peers.reconnect_base_delay_seconds < 1) {
-        throw std::invalid_argument("peers.reconnect_base_delay_seconds must be >= 1");
+        errors.push_back("Error: peers.reconnect_base_delay_seconds must be >= 1");
     }
     if (peers.reconnect_max_delay_seconds < peers.reconnect_base_delay_seconds) {
-        throw std::invalid_argument("peers.reconnect_max_delay_seconds must be >= reconnect_base_delay_seconds");
+        errors.push_back("Error: peers.reconnect_max_delay_seconds must be >= reconnect_base_delay_seconds");
     }
     if (peers.ban_threshold_errors < 1) {
-        throw std::invalid_argument("peers.ban_threshold_errors must be >= 1");
+        errors.push_back("Error: peers.ban_threshold_errors must be >= 1");
     }
+
+    if (!errors.empty()) {
+        std::string msg;
+        for (const auto &e : errors) {
+            msg += e + "\n";
+        }
+        throw std::invalid_argument(msg);
+    }
+}
+
+void NodeConfig::generate_readme(const std::filesystem::path &readme_path) {
+    std::ofstream ofs(readme_path);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Cannot create readme file: " + readme_path.string());
+    }
+    ofs << "# config.json Reference\n\n"
+        << "## tls\n"
+        << "  cert_file  (string)  TLS certificate file path        default: cert.pem\n"
+        << "  key_file   (string)  TLS private key file path        default: key.pem\n"
+        << "  ca_file    (string)  CA certificate for peer verify   default: (empty)\n\n"
+        << "## network\n"
+        << "  rpc_port          (uint16)  JSON-RPC listen port       default: 12345\n"
+        << "  p2p_port          (uint16)  P2P listen port            default: 12346\n"
+        << "  timeout_seconds   (uint32)  Network timeout            default: 30\n"
+        << "  log_level         (string)  Log verbosity: debug|info|warning|error  default: info\n\n"
+        << "## consensus\n"
+        << "  target_block_interval  (uint32)  Seconds between blocks     default: 10\n"
+        << "  adjustment_window      (uint32)  Blocks per difficulty adj   default: 10\n"
+        << "  max_adjustment_factor  (double)  Max difficulty multiplier   default: 4.0\n"
+        << "  min_difficulty         (uint32)  Minimum difficulty          default: 1\n"
+        << "  max_difficulty         (uint32)  Maximum difficulty          default: 16\n"
+        << "  initial_difficulty     (uint32)  Starting difficulty         default: 1\n"
+        << "  mining_timeout         (uint32)  Mining timeout seconds      default: 30\n"
+        << "  max_future_timestamp   (uint32)  Max future timestamp sec    default: 120\n"
+        << "  max_reorg_depth        (uint32)  Max chain reorganization    default: 100\n\n"
+        << "## peers\n"
+        << "  seed_nodes                    (array)   Initial peer addresses      default: []\n"
+        << "  max_outbound                  (uint32)  Max outbound connections    default: 8\n"
+        << "  max_inbound                   (uint32)  Max inbound connections     default: 32\n"
+        << "  exchange_interval_seconds     (uint32)  Peer exchange interval      default: 30\n"
+        << "  discovery_enabled             (bool)    Enable peer discovery       default: true\n"
+        << "  max_stored_peers              (uint32)  Max stored peer addresses   default: 256\n"
+        << "  reconnect_base_delay_seconds  (uint32)  Reconnect base delay       default: 5\n"
+        << "  reconnect_max_delay_seconds   (uint32)  Reconnect max delay        default: 300\n"
+        << "  ban_threshold_errors          (uint32)  Errors before banning      default: 10\n"
+        << "  ban_duration_seconds          (uint32)  Ban duration               default: 3600\n\n"
+        << "## streams\n"
+        << "  allowed_streams  (array)  Permitted stream names  default: []\n\n"
+        << "## persistence\n"
+        << "  save_interval_seconds  (uint32)  Auto-save interval  default: 300\n";
 }
