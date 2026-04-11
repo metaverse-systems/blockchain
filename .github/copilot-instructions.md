@@ -12,6 +12,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-11
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (SHA-256 via EVP), nlohmann/json (vendored `src/json.hpp`), getopt (POSIX, header-only) (009-cli-configuration)
 - `config.json` and `config.README` in blockchain data directory; Boost.Serialization binary archives for chain data (009-cli-configuration)
 - N/A (read-only endpoints; no new persistence) (010-rpc-api-expansion)
+- C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256, X.509 cert generation), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework) (012-integration-test-suite)
+- Boost.Serialization binary chunk files in temporary directories (cleaned per test) (012-integration-test-suite)
 
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored `src/json.hpp`), Catch2 (test only) (001-code-constitution-audit)
 
@@ -39,9 +41,9 @@ C++20 (`-std=c++20`): Follow standard conventions
 - Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
 
 ## Recent Changes
+- 012-integration-test-suite: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256, X.509 cert generation), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework)
 - 011-graceful-lifecycle: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (SHA-256 via EVP), nlohmann/json (vendored `src/json.hpp`)
 - 010-rpc-api-expansion: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored `src/json.hpp`)
-- 009-cli-configuration: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (SHA-256 via EVP), nlohmann/json (vendored `src/json.hpp`), getopt (POSIX, header-only)
 
 
 <!-- MANUAL ADDITIONS START -->
