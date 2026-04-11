@@ -89,56 +89,70 @@ jobs:
 
       - name: "Test: blockchain_tests"
         timeout-minutes: 5
-        run: ./tests/blockchain_tests
+        run: ./blockchain_tests
+        working-directory: tests
 
       - name: "Test: block_propagation_tests"
         timeout-minutes: 5
-        run: ./tests/block_propagation_tests
+        run: ./block_propagation_tests
+        working-directory: tests
 
       - name: "Test: block_propagation_integration_tests"
         timeout-minutes: 5
-        run: ./tests/block_propagation_integration_tests
+        run: ./block_propagation_integration_tests
+        working-directory: tests
 
       - name: "Test: chunk_persistence_tests"
         timeout-minutes: 5
-        run: ./tests/chunk_persistence_tests
+        run: ./chunk_persistence_tests
+        working-directory: tests
 
       - name: "Test: chunk_recovery_tests"
         timeout-minutes: 5
-        run: ./tests/chunk_recovery_tests
+        run: ./chunk_recovery_tests
+        working-directory: tests
 
       - name: "Test: chunk_replace_tests"
         timeout-minutes: 5
-        run: ./tests/chunk_replace_tests
+        run: ./chunk_replace_tests
+        working-directory: tests
 
       - name: "Test: merkle_tests"
         timeout-minutes: 5
-        run: ./tests/merkle_tests
+        run: ./merkle_tests
+        working-directory: tests
 
       - name: "Test: merkle_rpc_integration_tests"
         timeout-minutes: 5
-        run: ./tests/merkle_rpc_integration_tests
+        run: ./merkle_rpc_integration_tests
+        working-directory: tests
 
       - name: "Test: cli_tests"
         timeout-minutes: 5
-        run: ./tests/cli_tests
+        run: ./cli_tests
+        working-directory: tests
 
       - name: "Test: rpc_expansion_tests"
         timeout-minutes: 5
-        run: ./tests/rpc_expansion_tests
+        run: ./rpc_expansion_tests
+        working-directory: tests
 
       - name: "Test: lifecycle_tests"
         timeout-minutes: 5
-        run: ./tests/lifecycle_tests
+        run: ./lifecycle_tests
+        working-directory: tests
 
       - name: "Test: lifecycle_integration_tests"
         timeout-minutes: 5
-        run: ./tests/lifecycle_integration_tests
+        run: ./lifecycle_integration_tests
+        working-directory: tests
 
       - name: "Test: rpc_integration_tests"
         timeout-minutes: 5
-        run: ./tests/rpc_integration_tests
+        run: ./rpc_integration_tests
+        working-directory: tests
 
       - name: "Test: p2p_sync_integration_tests"
         timeout-minutes: 5
-        run: ./tests/p2p_sync_integration_tests
+        run: ./p2p_sync_integration_tests
+        working-directory: tests
