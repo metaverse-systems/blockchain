@@ -72,6 +72,7 @@ jobs:
             autotools
             make
             pkg-config
+            git
 
       - name: Build Catch2 from source (Windows)
         if: runner.os == 'Windows'
@@ -85,6 +86,8 @@ jobs:
         run: |
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$PKG_CONFIG_PATH"
+            export LDFLAGS="-L$(brew --prefix boost)/lib $LDFLAGS"
+            export CPPFLAGS="-I$(brew --prefix boost)/include $CPPFLAGS"
           fi
           autoreconf -fi
           ./configure
