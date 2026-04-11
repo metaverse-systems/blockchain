@@ -85,13 +85,17 @@ jobs:
 
       - name: Configure
         run: |
+          CONFIGURE_FLAGS=""
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$PKG_CONFIG_PATH"
             export LDFLAGS="-L$(brew --prefix boost)/lib $LDFLAGS"
             export CPPFLAGS="-I$(brew --prefix boost)/include $CPPFLAGS"
           fi
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            CONFIGURE_FLAGS="--with-boost-libdir=$MINGW_PREFIX/lib"
+          fi
           autoreconf -fi
-          ./configure
+          ./configure $CONFIGURE_FLAGS
 
       - name: Build
         run: make -j8
