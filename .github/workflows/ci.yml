@@ -70,6 +70,7 @@ jobs:
             mingw-w64-ucrt-x86_64-openssl
             mingw-w64-ucrt-x86_64-cmake
             autotools
+            autoconf-archive
             make
             pkg-config
             git
