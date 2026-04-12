@@ -36,7 +36,7 @@ Split the monolithic `Blockchain.cpp` (1,019 lines) into four focused modules: C
 | IX. Pre-1.0 API Stability | **N/A** | Internal refactoring; no API changes |
 | X. Low-Latency Performance | **PASS** | No performance regressions; function call delegation only |
 | XI. MIT License | **PASS** | New files are project-owned C++ |
-| XII. .gitignore Maintenance | **PASS** | No new binaries; existing test binaries unchanged |
+| XII. .gitignore Maintenance | **PASS** | 3 new test binaries (chain_persistence_tests, difficulty_engine_tests, merkle_proof_tests) covered by T041 .gitignore update |
 | XIII. Roadmap Currency | **PASS** | Will update `docs/ROADMAP.md` on completion |
 
 **Gate result: PASS** — no violations.
