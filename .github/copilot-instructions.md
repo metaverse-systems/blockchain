@@ -49,9 +49,9 @@ C++20 (`-std=c++20`): Follow standard conventions
 - Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
 
 ## Recent Changes
+- 017-blockchain-module-split: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
 - 016-audit-remediation: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
 - 015-compile-time-optimization: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization, Program Options), OpenSSL, nlohmann/json (vendored), Catch2 (test)
-- 014-documentation-developer-guide: Added GitHub-Flavored Markdown (documentation-only feature; no C++ changes) + N/A (Markdown files only; Mermaid diagrams rendered natively by GitHub)
 
 
 <!-- MANUAL ADDITIONS START -->
