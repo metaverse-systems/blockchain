@@ -8,6 +8,7 @@ AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CXX
+AC_PROG_RANLIB
 AM_INIT_AUTOMAKE([subdir-objects]) 
 
 # Checks for libraries.

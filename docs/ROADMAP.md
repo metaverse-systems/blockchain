@@ -20,6 +20,7 @@ Last updated: 2026-04-12
 | 012  | Integration Test Suite | End-to-end Catch2 integration tests over real TLS: 19 RPC endpoint tests (all JSON-RPC methods with positive/negative cases), 3 P2P tests (single-block propagation, multi-block propagation, 3-node relay), shared test infrastructure (TLS cert generation, in-process NodeInstance, synchronous RpcTestClient), bug fixes in BlockPropagation consensus config and PeerClient read loop |
 | 013  | CI/CD Pipeline | GitHub Actions workflow with matrix build (Linux GCC/Clang, macOS Clang, Windows MSYS2), per-binary test execution, MSYS2 caching, Catch2-from-source on Windows |
 | 014  | Documentation & Developer Guide | Expanded README with cross-platform build instructions and two-node quickstart, configuration reference (9 CLI flags, 30 config.json fields, TLS setup), RPC API reference (20 methods with curl examples), architecture overview with Mermaid diagrams, contributing guide |
+| 015  | Compile-Time Optimization | Shared static archive (`libblockchain_core.a`) eliminates redundant compilation of 11 core source files across 14 build targets, reducing compilation units from ~177 to ~34 (~81% reduction), clean build time from ~16 min to ~2.5 min |
 
 ## Suggested Specs
 
@@ -67,19 +68,25 @@ The daemon takes a single positional argument (blockchain directory). Ports are 
 
 ### Tier 5 — Future / Exploratory
 
-#### 015 — Smart Contract / Scripting Layer
+#### 015 — Compile-Time Optimization
+
+*Completed. See spec 015 in Completed table above.*
+
+---
+
+#### 016 — Smart Contract / Scripting Layer
 
 No programmability exists beyond storing opaque data strings. Explore adding a scripting or smart contract layer for programmable on-chain logic.
 
 ---
 
-#### 016 — Monitoring, Metrics & Health Endpoint
+#### 017 — Monitoring, Metrics & Health Endpoint
 
 No observability. Add a `/health` HTTP endpoint, Prometheus-compatible metrics (block height, peer count, chunk loads), and structured log leveling.
 
 ---
 
-#### 017 — Light Client Protocol
+#### 018 — Light Client Protocol
 
 No way to verify block inclusion without downloading the full chain. Design a light client protocol using Merkle proofs (depends on 008) for resource-constrained participants.
 
@@ -101,7 +108,8 @@ No way to verify block inclusion without downloading the full chain. Design a li
 012 Integration Tests ──┐
 013 CI/CD Pipeline ─────┼── Tier 4: COMPLETE ✓
 014 Documentation ──────┘
-015–017 ────────────────── Tier 5: future
+015 Compile-Time Opt ───── Tier 4b: COMPLETE ✓
+016–018 ────────────────── Tier 5: future
 ```
 
 Tiers 1–4 are complete. Tier 5 specs (015–017) are exploratory future work.

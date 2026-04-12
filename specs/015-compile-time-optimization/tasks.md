@@ -19,8 +19,8 @@
 
 **Purpose**: Baseline measurement and preparation
 
-- [ ] T001 Record baseline clean build time with `make clean && time make -j8 check TESTS=`
-- [ ] T002 Count baseline compilation units with `make clean && make -j8 check TESTS= 2>&1 | grep -c '\.cpp'`
+- [X] T001 Record baseline clean build time with `make clean && time make -j8 check TESTS=`
+- [X] T002 Count baseline compilation units with `make clean && make -j8 check TESTS= 2>&1 | grep -c '\.cpp'`
 
 ---
 
@@ -40,26 +40,26 @@
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] Add `noinst_LIBRARIES = libblockchain_core.a` with 11 core sources and flags `-std=c++20 -Wall -Wextra -pedantic $(BOOST_CPPFLAGS) ${OPENSSL_CFLAGS}` in src/Makefile.am
-- [ ] T004 [US1] Refactor `blockchain` target in src/Makefile.am to link `libblockchain_core.a` instead of listing core sources directly (keep only main.cpp and CliParser.cpp in `blockchain_SOURCES`)
-- [ ] T005 [US1] Refactor `blockchain_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T006 [P] [US1] Refactor `block_propagation_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T007 [P] [US1] Refactor `block_propagation_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T008 [P] [US1] Refactor `chunk_persistence_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T009 [P] [US1] Refactor `chunk_recovery_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T010 [P] [US1] Refactor `chunk_replace_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T011 [P] [US1] Refactor `merkle_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T012 [P] [US1] Refactor `merkle_rpc_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T013 [P] [US1] Refactor `cli_tests` target in tests/Makefile.am to drop all `../src/*.cpp` except `../src/CliParser.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T014 [P] [US1] Refactor `rpc_expansion_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T015 [P] [US1] Refactor `lifecycle_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T016 [P] [US1] Refactor `lifecycle_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T017 [P] [US1] Refactor `rpc_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T018 [P] [US1] Refactor `p2p_sync_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
-- [ ] T019 [US1] Run `autoreconf -fi && ./configure` to regenerate Makefiles with the new archive target
-- [ ] T020 [US1] Run `make -j8 check TESTS=` and verify all 14 binaries build successfully
-- [ ] T021 [US1] Run each test binary individually to verify all tests pass identically
-- [ ] T022 [US1] Record new clean build time with `make clean && time make -j8 check TESTS=` and verify ≥50% reduction
+- [X] T003 [US1] Add `noinst_LIBRARIES = libblockchain_core.a` with 11 core sources and flags `-std=c++20 -Wall -Wextra -pedantic $(BOOST_CPPFLAGS) ${OPENSSL_CFLAGS}` in src/Makefile.am
+- [X] T004 [US1] Refactor `blockchain` target in src/Makefile.am to link `libblockchain_core.a` instead of listing core sources directly (keep only main.cpp and CliParser.cpp in `blockchain_SOURCES`)
+- [X] T005 [US1] Refactor `blockchain_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T006 [P] [US1] Refactor `block_propagation_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T007 [P] [US1] Refactor `block_propagation_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T008 [P] [US1] Refactor `chunk_persistence_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T009 [P] [US1] Refactor `chunk_recovery_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T010 [P] [US1] Refactor `chunk_replace_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T011 [P] [US1] Refactor `merkle_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T012 [P] [US1] Refactor `merkle_rpc_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T013 [P] [US1] Refactor `cli_tests` target in tests/Makefile.am to drop all `../src/*.cpp` except `../src/CliParser.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T014 [P] [US1] Refactor `rpc_expansion_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T015 [P] [US1] Refactor `lifecycle_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T016 [P] [US1] Refactor `lifecycle_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T017 [P] [US1] Refactor `rpc_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T018 [P] [US1] Refactor `p2p_sync_integration_tests` target in tests/Makefile.am to drop all `../src/*.cpp` from `_SOURCES` and add `../src/libblockchain_core.a` to `_LDADD`
+- [X] T019 [US1] Run `autoreconf -fi && ./configure` to regenerate Makefiles with the new archive target
+- [X] T020 [US1] Run `make -j8 check TESTS=` and verify all 14 binaries build successfully
+- [X] T021 [US1] Run each test binary individually to verify all tests pass identically
+- [X] T022 [US1] Record new clean build time with `make clean && time make -j8 check TESTS=` and verify ≥50% reduction
 
 **Checkpoint**: Full build completes faster; all tests pass. US1 is the MVP.
 
@@ -73,9 +73,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] After a full build, run `touch src/Block.cpp && time make -j8 check TESTS=` and verify only Block.cpp is recompiled, the archive is updated, and affected binaries are re-linked
-- [ ] T024 [US2] After a full build, run `touch tests/block_tests.cpp && time make -j8 check TESTS=` and verify only `blockchain_tests` is rebuilt (archive untouched)
-- [ ] T025 [US2] After a full build, run `touch src/Block.hpp && time make -j8 check TESTS=` and verify header-change triggers recompilation of dependent archive objects and re-link of all binaries
+- [X] T023 [US2] After a full build, run `touch src/Block.cpp && time make -j8 check TESTS=` and verify only Block.cpp is recompiled, the archive is updated, and affected binaries are re-linked
+- [X] T024 [US2] After a full build, run `touch tests/block_tests.cpp && time make -j8 check TESTS=` and verify only `blockchain_tests` is rebuilt (archive untouched)
+- [X] T025 [US2] After a full build, run `touch src/Block.hpp && time make -j8 check TESTS=` and verify header-change triggers recompilation of dependent archive objects and re-link of all binaries
 
 **Checkpoint**: Incremental builds rebuild only the changed file and its downstream dependents.
 
@@ -89,7 +89,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Review .github/workflows/ci.yml and verify no changes are needed; specifically confirm that `make -j8 -C tests check TESTS=` correctly resolves the cross-directory dependency on `../src/libblockchain_core.a`
+- [X] T026 [US3] Review .github/workflows/ci.yml and verify no changes are needed; specifically confirm that `make -j8 -C tests check TESTS=` correctly resolves the cross-directory dependency on `../src/libblockchain_core.a`
 
 **Checkpoint**: CI pipeline requires no YAML changes; optimization is inherited automatically.
 
@@ -99,9 +99,9 @@
 
 **Purpose**: Housekeeping required by the constitution.
 
-- [ ] T027 [P] Add `src/libblockchain_core.a` to .gitignore
-- [ ] T028 Update docs/ROADMAP.md to mark 015-compile-time-optimization as completed
-- [ ] T029 Run quickstart.md validation: verify the "How to Add a New Test Binary" example in specs/015-compile-time-optimization/quickstart.md is accurate
+- [X] T027 [P] Add `src/libblockchain_core.a` to .gitignore
+- [X] T028 Update docs/ROADMAP.md to mark 015-compile-time-optimization as completed
+- [X] T029 Run quickstart.md validation: verify the "How to Add a New Test Binary" example in specs/015-compile-time-optimization/quickstart.md is accurate
 
 ---
 
