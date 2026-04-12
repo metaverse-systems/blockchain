@@ -116,7 +116,7 @@ A contributor wants to submit a code change. They read the contributing guide to
 - **FR-008**: An RPC API reference document MUST list every JSON-RPC method with its name, description, parameter schema, response schema, and at least one `curl` example using `--cacert ca.pem` for TLS verification (consistent with the quickstart TLS setup). Methods MUST be grouped by functional domain (Streams, Blocks, Peers, Node, Merkle, Sync) with a table of contents.
 - **FR-009**: The RPC API reference MUST document error responses including standard JSON-RPC error codes used by the node.
 - **FR-010**: An architecture overview document MUST describe the major subsystems (consensus, P2P networking, persistence, RPC) and their interactions, using Mermaid diagrams for visual representation.
-- **FR-011**: The architecture overview MUST describe the data flow for key operations (block mining, block propagation, chain sync, stream publish) with at least one Mermaid sequence or flowchart diagram.
+- **FR-011**: The architecture overview MUST describe the data flow for key operations (block mining, block propagation, chain sync, stream query) with at least one Mermaid sequence or flowchart diagram.
 - **FR-012**: A contributing guide MUST document how to build the project, run the test suite, coding conventions (C++20 standard, style expectations), and the pull request workflow.
 - **FR-013**: The README MUST link to all other documentation files so they are discoverable from the repository landing page.
 - **FR-014**: All documentation MUST be written in Markdown and stored in the repository (README.md at root, additional docs in `docs/`).
