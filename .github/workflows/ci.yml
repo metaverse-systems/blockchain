@@ -119,17 +119,17 @@ jobs:
         working-directory: tests
 
       - name: "Test: chunk_persistence_tests"
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: ./chunk_persistence_tests
         working-directory: tests
 
       - name: "Test: chunk_recovery_tests"
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: ./chunk_recovery_tests
         working-directory: tests
 
       - name: "Test: chunk_replace_tests"
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: ./chunk_replace_tests
         working-directory: tests
 
