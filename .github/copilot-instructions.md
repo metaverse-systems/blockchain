@@ -20,6 +20,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-12
 - N/A (no persistence changes) (014-documentation-developer-guide)
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization, Program Options), OpenSSL, nlohmann/json (vendored), Catch2 (test) (015-compile-time-optimization)
 - N/A (build-system-only change) (015-compile-time-optimization)
+- C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`) (016-audit-remediation)
+- Boost.Serialization binary chunk files (`chunk_NNNNNN.dat`), keys (`keys.dat`), streams (`streams.dat`, `stream_index.dat`) (016-audit-remediation)
 
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored `src/json.hpp`), Catch2 (test only) (001-code-constitution-audit)
 
@@ -47,9 +49,9 @@ C++20 (`-std=c++20`): Follow standard conventions
 - Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
 
 ## Recent Changes
+- 016-audit-remediation: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
 - 015-compile-time-optimization: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization, Program Options), OpenSSL, nlohmann/json (vendored), Catch2 (test)
 - 014-documentation-developer-guide: Added GitHub-Flavored Markdown (documentation-only feature; no C++ changes) + N/A (Markdown files only; Mermaid diagrams rendered natively by GitHub)
-- 013-ci-cd-pipeline: Added YAML (GitHub Actions workflow), C++20 (project under test) + GitHub Actions, MSYS2 (Windows), apt (Linux), Homebrew (macOS)
 
 
 <!-- MANUAL ADDITIONS START -->
