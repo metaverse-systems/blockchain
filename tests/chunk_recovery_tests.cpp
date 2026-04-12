@@ -252,6 +252,9 @@ TEST_CASE("Gap in chunk numbering stops loading at gap", "[US4][recovery]")
 // T042a: chunk file with restrictive permissions detected and logged
 TEST_CASE("Chunk file with restrictive permissions detected", "[US4][recovery]")
 {
+#ifdef _WIN32
+    SKIP("POSIX file permissions are not enforced on Windows");
+#endif
     auto dir = create_test_dir("T042a");
     {
         build_and_save_chain(dir, 201);
