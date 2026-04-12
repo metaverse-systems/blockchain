@@ -9,7 +9,7 @@
 
 ### Session 2026-04-12
 
-- Q: Which compile flags should the shared core objects use? → A: Option B — minimal base flags (`-std=c++20 -Wall -Wextra -pedantic $(BOOST_CPPFLAGS)`) for shared objects; the main binary and test binaries add their own additional flags independently
+- Q: Which compile flags should the shared core objects use? → A: Option B — base flags (`-std=c++20 -Wall -Wextra -pedantic $(BOOST_CPPFLAGS) ${OPENSSL_CFLAGS}`) for shared objects (OpenSSL CFLAGS required for header includes); the main binary adds `-O3` independently
 - Q: Should `blockchain_tests` (9 test files in one binary) be split into separate binaries? → A: No — keep as a single monolithic binary; test organization stays unchanged
 - Q: Should shared core objects use a static archive or libtool convenience library? → A: Plain static archive (`noinst_LIBRARIES`) — no libtool dependency
 - Q: Should SC-001 success threshold (50% reduction) be more aggressive given ~84% compile-unit reduction? → A: Keep 50% as the minimum threshold — conservative but achievable; actual results likely exceed it
@@ -75,7 +75,7 @@ As a project maintainer, I want CI builds to finish faster so that pull request 
 - **FR-002**: The build system MUST produce the same set of output binaries (1 main binary + 13 test binaries) with identical functionality
 - **FR-003**: The build system MUST continue to support parallel builds (`make -j8` or similar)
 - **FR-004**: The build system MUST continue to support incremental builds (only recompile what changed)
-- **FR-005**: Shared core objects MUST be compiled with minimal base flags (`-std=c++20 -Wall -Wextra -pedantic $(BOOST_CPPFLAGS)`); the main binary adds `-O3` and `${OPENSSL_CFLAGS}` to its own target-specific compilation, and test binaries use their existing flags at link time
+- **FR-005**: Shared core objects MUST be compiled with base flags (`-std=c++20 -Wall -Wextra -pedantic $(BOOST_CPPFLAGS) ${OPENSSL_CFLAGS}`); `${OPENSSL_CFLAGS}` is required because core sources (e.g., `network/*.cpp`) include OpenSSL headers. The main binary adds `-O3` to its own target-specific compilation, and test binaries use their existing flags at link time
 - **FR-006**: Adding a new test binary MUST NOT require re-listing all core source files; it should only specify its own test source and link against the shared static archive
 - **FR-007**: The build system MUST continue to work with the existing Autotools (Automake/Autoconf) toolchain
 
@@ -92,7 +92,7 @@ As a project maintainer, I want CI builds to finish faster so that pull request 
 - **SC-001**: Clean compile time (`make -j8 check TESTS=` from scratch) is reduced by at least 50% from the 13:20 baseline
 - **SC-002**: Incremental build time after a single core source file change is reduced proportionally (each changed source is compiled once, not once per target)
 - **SC-003**: All existing tests pass with identical results after the build restructuring
-- **SC-004**: The number of compilation units in a clean build is reduced from ~154 (11 sources × 14 targets) to ~25 (11 shared + 14 target-specific)
+- **SC-004**: The number of compilation units in a clean build is reduced from ~177 (11 core sources × 14 targets + 23 target-specific) to ~34 (11 shared + 23 target-specific)
 
 ## Assumptions
 
