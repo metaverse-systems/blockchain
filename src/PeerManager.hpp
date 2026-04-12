@@ -92,6 +92,7 @@ public:
     // Block propagation
     void broadcast_block(const Block &block);
     void relay_block(const Block &block, const std::string &exclude_key);
+    void send_to_peers(const Block &block, const std::string &exclude_key = "");
     void set_block_propagation(BlockPropagation *bp) { block_propagation_ = bp; }
 
     // Per-peer backoff state

@@ -628,30 +628,10 @@ void PeerManager::disconnect_and_remove(const std::string &host_raw, uint16_t po
 
 // --- Block Propagation ---
 
-void PeerManager::broadcast_block(const Block &block) {
-    // Send to all outbound connections
-    for (auto &[key, client] : outbound_connections_) {
-        if (client && client->is_connected()) {
-            client->send(block, PacketType::BLOCK);
-        }
-    }
-
-    // Send to all tracked inbound sessions
-    for (auto it = inbound_sessions_.begin(); it != inbound_sessions_.end(); ) {
-        auto session = it->second.lock();
-        if (session) {
-            session->send_packet_public(block, PacketType::BLOCK);
-            ++it;
-        } else {
-            it = inbound_sessions_.erase(it);
-        }
-    }
-}
-
-void PeerManager::relay_block(const Block &block, const std::string &exclude_key) {
+void PeerManager::send_to_peers(const Block &block, const std::string &exclude_key) {
     // Send to all outbound connections except the sender
     for (auto &[key, client] : outbound_connections_) {
-        if (key == exclude_key) continue;
+        if (!exclude_key.empty() && key == exclude_key) continue;
         if (client && client->is_connected()) {
             client->send(block, PacketType::BLOCK);
         }
@@ -661,7 +641,7 @@ void PeerManager::relay_block(const Block &block, const std::string &exclude_key
     for (auto it = inbound_sessions_.begin(); it != inbound_sessions_.end(); ) {
         auto session = it->second.lock();
         if (session) {
-            if (it->first != exclude_key) {
+            if (exclude_key.empty() || it->first != exclude_key) {
                 session->send_packet_public(block, PacketType::BLOCK);
             }
             ++it;
@@ -669,4 +649,12 @@ void PeerManager::relay_block(const Block &block, const std::string &exclude_key
             it = inbound_sessions_.erase(it);
         }
     }
+}
+
+void PeerManager::broadcast_block(const Block &block) {
+    send_to_peers(block);
+}
+
+void PeerManager::relay_block(const Block &block, const std::string &exclude_key) {
+    send_to_peers(block, exclude_key);
 }

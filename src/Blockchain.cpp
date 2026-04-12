@@ -60,15 +60,12 @@ Block Blockchain<ChunkHandler>::publish(const std::string &stream, const std::st
         }
         // Free the filled chunk from memory only if it was persisted to disk
         size_t filledIndex = this->chain.size() - 1;
-        std::stringstream chkSS;
-        chkSS << "chunk_" << std::setfill('0') << std::setw(6) << filledIndex << ".dat";
-        if (std::filesystem::exists(this->blockchainPath / chkSS.str())) {
+        if (std::filesystem::exists(this->blockchainPath / chunkFilename(filledIndex))) {
             this->chain[filledIndex].clear();
         }
         // Create new chunk
         this->chain.emplace_back(ChunkHandler(this->chain.size(), this->blockchainPath));
         this->chunkCount_ = this->chain.size();
-        this->dirty_ = false;
     }
 
     Block candidate;
@@ -152,42 +149,34 @@ std::vector<std::pair<size_t, StreamEntry>> Blockchain<ChunkHandler>::getStreamE
         return results;
     }
 
+    auto collectEntries = [&](size_t blockIdx, const std::string &filterKey) {
+        size_t chunkIdx = blockIdx / this->chunkSize;
+        if (chunkIdx < this->chain.size()) {
+            const auto &chunk = this->chain[chunkIdx];
+            size_t offsetInChunk = blockIdx % this->chunkSize;
+            if (offsetInChunk < chunk.blocks.size()) {
+                const Block &blk = chunk.blocks[offsetInChunk];
+                for (const auto &e : blk.entries) {
+                    if (e.stream == stream && (filterKey.empty() || e.key == filterKey)) {
+                        results.emplace_back(blockIdx, e);
+                    }
+                }
+            }
+        }
+    };
+
     if (!key.empty()) {
         auto keyIt = streamIt->second.find(key);
         if (keyIt == streamIt->second.end()) {
             return results;
         }
         for (auto blockIdx : keyIt->second) {
-            size_t chunkIdx = blockIdx / this->chunkSize;
-            if (chunkIdx < this->chain.size()) {
-                const auto &chunk = this->chain[chunkIdx];
-                size_t offsetInChunk = blockIdx % this->chunkSize;
-                if (offsetInChunk < chunk.blocks.size()) {
-                    const Block &blk = chunk.blocks[offsetInChunk];
-                    for (const auto &e : blk.entries) {
-                        if (e.stream == stream && e.key == key) {
-                            results.emplace_back(blockIdx, e);
-                        }
-                    }
-                }
-            }
+            collectEntries(blockIdx, key);
         }
     } else {
         for (const auto &[k, indices] : streamIt->second) {
             for (auto blockIdx : indices) {
-                size_t chunkIdx = blockIdx / this->chunkSize;
-                if (chunkIdx < this->chain.size()) {
-                    const auto &chunk = this->chain[chunkIdx];
-                    size_t offsetInChunk = blockIdx % this->chunkSize;
-                    if (offsetInChunk < chunk.blocks.size()) {
-                        const Block &blk = chunk.blocks[offsetInChunk];
-                        for (const auto &e : blk.entries) {
-                            if (e.stream == stream) {
-                                results.emplace_back(blockIdx, e);
-                            }
-                        }
-                    }
-                }
+                collectEntries(blockIdx, "");
             }
         }
         std::sort(results.begin(), results.end(),
@@ -237,9 +226,7 @@ void Blockchain<ChunkHandler>::appendBlock(const Block &block)
             logMessage("ERROR", "Failed to save filled chunk: " + std::string(e.what()));
         }
         size_t filledIndex = this->chain.size() - 1;
-        std::stringstream chkSS;
-        chkSS << "chunk_" << std::setfill('0') << std::setw(6) << filledIndex << ".dat";
-        if (std::filesystem::exists(this->blockchainPath / chkSS.str())) {
+        if (std::filesystem::exists(this->blockchainPath / chunkFilename(filledIndex))) {
             this->chain[filledIndex].clear();
         }
     }
@@ -345,6 +332,7 @@ void Blockchain<ChunkHandler>::saveChunk(size_t chunkIndex)
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::freeChunk(size_t chunkIndex)
 {
+    if (retainedChunks_.count(chunkIndex)) return;
     this->chain.at(chunkIndex).clear();
 }
 
@@ -444,11 +432,7 @@ void Blockchain<ChunkHandler>::dumpKeys()
 template<typename ChunkHandler>
 size_t Blockchain<ChunkHandler>::getChainBlockCount() const
 {
-    size_t count = 0;
-    for (const auto &chunk : this->chain) {
-        count += chunk.blocks.size();
-    }
-    return count;
+    return this->totalBlockCount_;
 }
 
 template<typename ChunkHandler>
@@ -502,9 +486,7 @@ size_t Blockchain<ChunkHandler>::discoverChunks()
 {
     size_t count = 0;
     while (true) {
-        std::stringstream ss;
-        ss << "chunk_" << std::setfill('0') << std::setw(6) << count << ".dat";
-        if (!std::filesystem::exists(this->blockchainPath / ss.str())) {
+        if (!std::filesystem::exists(this->blockchainPath / chunkFilename(count))) {
             break;
         }
         count++;
@@ -515,9 +497,7 @@ size_t Blockchain<ChunkHandler>::discoverChunks()
 template<typename ChunkHandler>
 bool Blockchain<ChunkHandler>::validateChunk(size_t chunkIndex)
 {
-    std::stringstream ss;
-    ss << "chunk_" << std::setfill('0') << std::setw(6) << chunkIndex << ".dat";
-    std::filesystem::path chunkPath = this->blockchainPath / ss.str();
+    std::filesystem::path chunkPath = this->blockchainPath / chunkFilename(chunkIndex);
 
     // Zero-byte file detection
     if (std::filesystem::file_size(chunkPath) == 0) {
@@ -684,6 +664,7 @@ void Blockchain<ChunkHandler>::recoverChain(bool fast_startup)
     this->totalBlockCount_ = totalBlocks;
     this->chunkCount_ = validChunks;
     this->dirty_ = false;
+    this->difficultyCache_.clear();
 
     // Free all chunks except the active one
     for (size_t i = 0; i + 1 < this->chain.size(); i++) {
@@ -722,12 +703,11 @@ void Blockchain<ChunkHandler>::archiveChainFiles()
 
     // Move all chunk files
     for (size_t i = 0; ; i++) {
-        std::stringstream ss;
-        ss << "chunk_" << std::setfill('0') << std::setw(6) << i << ".dat";
-        auto src = this->blockchainPath / ss.str();
+        auto fname = chunkFilename(i);
+        auto src = this->blockchainPath / fname;
         if (!std::filesystem::exists(src)) break;
         try {
-            std::filesystem::rename(src, archiveDir / ss.str());
+            std::filesystem::rename(src, archiveDir / fname);
         } catch (const std::exception &e) {
             logMessage("ERROR", "Failed to archive " + src.string() + ": " + std::string(e.what()));
         }
@@ -871,6 +851,7 @@ void Blockchain<ChunkHandler>::replaceChain(const std::vector<Block> &candidateB
     this->saveStreams();
     this->saveStreamIndex();
     this->dirty_ = false;
+    this->difficultyCache_.clear();
 
     logMessage("INFO", "Chain replaced with candidate chain of length "
                + std::to_string(candidateBlocks.size()));
@@ -924,16 +905,29 @@ uint32_t Blockchain<ChunkHandler>::getDifficultyForHeight(size_t height)
     // Walk through adjustment boundaries to compute what difficulty should be at this height
     uint32_t difficulty = this->config.initialDifficulty;
 
+    ChunkRetainGuard guard(*this);
+
     for (size_t boundaryHeight = this->config.adjustmentWindow;
          boundaryHeight <= height;
          boundaryHeight += this->config.adjustmentWindow)
     {
+        // Check difficulty cache for this boundary
+        auto cacheIt = difficultyCache_.find(boundaryHeight);
+        if (cacheIt != difficultyCache_.end()) {
+            difficulty = cacheIt->second;
+            continue;
+        }
+
         size_t windowStart = boundaryHeight - this->config.adjustmentWindow;
         size_t windowEnd = boundaryHeight;
 
         // Ensure blocks exist for this window
         size_t totalBlocks = this->getChainBlockCount();
         if (windowEnd >= totalBlocks) break;
+
+        // Retain chunks for multi-access
+        this->retainChunk(windowStart / this->chunkSize);
+        this->retainChunk(windowEnd / this->chunkSize);
 
         Block firstBlock = this->getBlockByIndex(windowStart);
         Block lastBlock = this->getBlockByIndex(windowEnd);
@@ -956,6 +950,7 @@ uint32_t Blockchain<ChunkHandler>::getDifficultyForHeight(size_t height)
             newDiff = static_cast<int32_t>(this->config.maxDifficulty);
 
         difficulty = static_cast<uint32_t>(newDiff);
+        difficultyCache_[boundaryHeight] = difficulty;
     }
 
     return difficulty;
