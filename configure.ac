@@ -2,12 +2,13 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.71])
-AC_INIT([blockchain], [0.0.1], [tim@metaverse.systems])
+AC_INIT([blockchain], [0.5.0], [tim@metaverse.systems])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CXX
+AC_PROG_RANLIB
 AM_INIT_AUTOMAKE([subdir-objects]) 
 
 # Checks for libraries.

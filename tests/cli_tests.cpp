@@ -44,7 +44,7 @@ TEST_CASE("CliParser -v sets show_version", "[CLI]") {
 TEST_CASE("CliParser version_string contains version", "[CLI]") {
     auto ver = CliParser::version_string();
     REQUIRE(ver.find("blockchain") != std::string::npos);
-    REQUIRE(ver.find("0.0.1") != std::string::npos);
+    REQUIRE(ver.find("0.5.0") != std::string::npos);
 }
 
 TEST_CASE("CliParser no-args returns empty blockchain_dir", "[CLI]") {
