@@ -205,13 +205,15 @@ TEST_CASE("PeerManager save_peers produces atomic output", "[PeerManager]") {
     pm.add_peer(e);
     pm.save_peers();
 
-    // Verify saved content
-    std::ifstream ifs(dir / "peers.json");
-    auto j = nlohmann::json::parse(ifs);
-    REQUIRE(j["node_uuid"] == pm.get_node_uuid());
-    REQUIRE(j["peers"].size() == 1);
-    REQUIRE(j["peers"][0]["host"] == "10.0.0.1");
-    REQUIRE(j["peers"][0]["port"] == 12346);
+    // Verify saved content (scoped so ifstream closes before cleanup)
+    {
+        std::ifstream ifs(dir / "peers.json");
+        auto j = nlohmann::json::parse(ifs);
+        REQUIRE(j["node_uuid"] == pm.get_node_uuid());
+        REQUIRE(j["peers"].size() == 1);
+        REQUIRE(j["peers"][0]["host"] == "10.0.0.1");
+        REQUIRE(j["peers"][0]["port"] == 12346);
+    }
 
     std::filesystem::remove_all(dir);
 }
