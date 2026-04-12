@@ -21,6 +21,7 @@ Last updated: 2026-04-12
 | 013  | CI/CD Pipeline | GitHub Actions workflow with matrix build (Linux GCC/Clang, macOS Clang, Windows MSYS2), per-binary test execution, MSYS2 caching, Catch2-from-source on Windows |
 | 014  | Documentation & Developer Guide | Expanded README with cross-platform build instructions and two-node quickstart, configuration reference (9 CLI flags, 30 config.json fields, TLS setup), RPC API reference (20 methods with curl examples), architecture overview with Mermaid diagrams, contributing guide |
 | 015  | Compile-Time Optimization | Shared static archive (`libblockchain_core.a`) eliminates redundant compilation of 11 core source files across 14 build targets, reducing compilation units from ~177 to ~34 (~81% reduction), clean build time from ~16 min to ~2.5 min |
+| 016  | Code Audit Remediation | Fixed 5 bugs (block count, dirty flag, merkle root, IPv6 parsing, pending pool), cached difficulty per boundary with ChunkRetainGuard, extracted shared utilities (chunkFilename, parsePeerKey, RPC helpers, send_to_peers), added TestHelpers.hpp, single-threaded io_context enforcement |
 
 ## Suggested Specs
 

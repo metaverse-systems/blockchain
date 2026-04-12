@@ -3,6 +3,7 @@
 #include "../src/StreamEntry.hpp"
 #include "../src/Blockchain.hpp"
 #include "../src/Chunk.hpp"
+#include "TestHelpers.hpp"
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -22,10 +23,7 @@ void cleanup_test_dir(const std::filesystem::path &dir) {
 // Helper: build a chain with N blocks, save all chunks, and return the directory
 // The blockchain object is destroyed after this, simulating shutdown.
 void build_and_save_chain(const std::filesystem::path &dir, size_t blockCount) {
-    ConsensusConfig cfg;
-    cfg.initialDifficulty = 0;
-    cfg.minDifficulty = 0;
-    cfg.miningTimeout = 60;
+    auto cfg = TestHelpers::defaultConsensusConfig();
     Blockchain<Chunk> bc(dir, cfg);
 
     for (size_t i = 1; i < blockCount; i++) {
@@ -106,10 +104,7 @@ TEST_CASE("New block appended seamlessly after recovery", "[US2][recovery]")
     {
         build_and_save_chain(dir, 105);
 
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
         bc.recoverChain();
 

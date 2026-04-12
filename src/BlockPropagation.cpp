@@ -2,6 +2,7 @@
 #include "PeerManager.hpp"
 #include "utils.hpp"
 #include "ConsensusConfig.hpp"
+#include <algorithm>
 
 BlockPropagation::BlockPropagation(IBlockchain &bc, SyncStatus &sync_status, RelayCallback relay_cb)
     : bc_(bc), sync_status_(sync_status), relay_cb_(std::move(relay_cb))
@@ -56,34 +57,44 @@ void BlockPropagation::defer_block(const Block &block, const std::string &sender
 {
     evict_expired();
 
-    if (pending_pool_.size() >= kMaxPendingPool) {
-        // Evict oldest entry
-        auto oldest_it = pending_pool_.begin();
-        auto oldest_time = oldest_it->second.inserted_at;
-        for (auto it = pending_pool_.begin(); it != pending_pool_.end(); ++it) {
-            if (it->second.inserted_at < oldest_time) {
-                oldest_it = it;
-                oldest_time = it->second.inserted_at;
-            }
-        }
-        pending_pool_.erase(oldest_it);
+    if (pending_map_.size() >= kMaxPendingPool) {
+        // O(1) eviction: pop oldest from front of deque
+        const auto &oldest_key = pending_order_.front();
+        pending_map_.erase(oldest_key);
+        pending_order_.pop_front();
     }
 
-    PendingBlock pb;
-    pb.block = block;
-    pb.sender_key = sender_key;
-    pb.inserted_at = std::chrono::steady_clock::now();
-    pending_pool_[block.prevHash] = std::move(pb);
+    const auto &key = block.prevHash;
+    if (pending_map_.contains(key)) {
+        // Already waiting on this prevHash — update entry, preserve order
+        PendingBlock pb;
+        pb.block = block;
+        pb.sender_key = sender_key;
+        pb.inserted_at = std::chrono::steady_clock::now();
+        pending_map_[key] = std::move(pb);
+    } else {
+        PendingBlock pb;
+        pb.block = block;
+        pb.sender_key = sender_key;
+        pb.inserted_at = std::chrono::steady_clock::now();
+        pending_map_[key] = std::move(pb);
+        pending_order_.push_back(key);
+    }
 
     logMessage("INFO", "Deferred block #" + std::to_string(block.index) + " waiting for predecessor");
 }
 
 void BlockPropagation::resolve_pending(const std::string &new_block_hash)
 {
-    auto it = pending_pool_.find(new_block_hash);
-    if (it != pending_pool_.end()) {
+    auto it = pending_map_.find(new_block_hash);
+    if (it != pending_map_.end()) {
         auto pb = std::move(it->second);
-        pending_pool_.erase(it);
+        pending_map_.erase(it);
+        // Remove from order deque
+        auto order_it = std::find(pending_order_.begin(), pending_order_.end(), new_block_hash);
+        if (order_it != pending_order_.end()) {
+            pending_order_.erase(order_it);
+        }
         logMessage("INFO", "Resolving pending block #" + std::to_string(pb.block.index));
         on_block_received(pb.block, pb.sender_key);
     }
@@ -92,12 +103,20 @@ void BlockPropagation::resolve_pending(const std::string &new_block_hash)
 void BlockPropagation::evict_expired()
 {
     auto now = std::chrono::steady_clock::now();
-    for (auto it = pending_pool_.begin(); it != pending_pool_.end(); ) {
+    // Walk from front (oldest) and evict expired entries
+    while (!pending_order_.empty()) {
+        auto it = pending_map_.find(pending_order_.front());
+        if (it == pending_map_.end()) {
+            // Stale entry in order deque
+            pending_order_.pop_front();
+            continue;
+        }
         if (now - it->second.inserted_at > kPendingTTL) {
             logMessage("INFO", "Evicting expired pending block #" + std::to_string(it->second.block.index));
-            it = pending_pool_.erase(it);
+            pending_map_.erase(it);
+            pending_order_.pop_front();
         } else {
-            ++it;
+            break;
         }
     }
 }
@@ -106,7 +125,17 @@ void BlockPropagation::evict_expired()
 
 void BlockPropagation::appendReceivedBlock(const Block &block)
 {
-    bc_.appendBlock(block);
+    // Verify merkle root and hash integrity using verify-then-cache constructor
+    try {
+        Block verified(block.index, block.timestamp, block.prevHash,
+                       block.entries, block.nonce, block.difficulty,
+                       block.merkleRoot, block.hash);
+        bc_.appendBlock(verified);
+    } catch (const std::invalid_argument &e) {
+        logMessage("WARN", "Block #" + std::to_string(block.index)
+                   + " rejected: " + std::string(e.what()));
+        return;
+    }
     bc_.saveChunk(block.index / bc_.chunkSize);
     bc_.saveKeys();
 }
@@ -119,12 +148,10 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
     if (!check_rate_limit(sender_key)) {
         logMessage("WARN", "Rate limit exceeded for peer " + sender_key + ", dropping block #" + std::to_string(block.index));
         if (peer_manager_) {
-            auto colon = sender_key.find(':');
-            if (colon != std::string::npos) {
-                auto host = sender_key.substr(0, colon);
-                auto port = static_cast<uint16_t>(std::stoi(sender_key.substr(colon + 1)));
+            try {
+                auto [host, port] = parsePeerKey(sender_key);
                 peer_manager_->increment_error(host, port);
-            }
+            } catch (const std::invalid_argument &) {}
         }
         return;
     }
@@ -165,12 +192,10 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
         if (!IBlockchain::isValidNewBlock(block, tip, config)) {
             logMessage("WARN", "Invalid block #" + std::to_string(block.index) + " from " + sender_key);
             if (peer_manager_) {
-                auto colon = sender_key.find(':');
-                if (colon != std::string::npos) {
-                    auto host = sender_key.substr(0, colon);
-                    auto port = static_cast<uint16_t>(std::stoi(sender_key.substr(colon + 1)));
+                try {
+                    auto [host, port] = parsePeerKey(sender_key);
                     peer_manager_->increment_error(host, port);
-                }
+                } catch (const std::invalid_argument &) {}
             }
             return;
         }

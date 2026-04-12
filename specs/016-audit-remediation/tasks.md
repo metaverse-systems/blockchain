@@ -19,7 +19,7 @@
 
 **Purpose**: Verify baseline before making changes
 
-- [ ] T001 Verify clean build with `make -j8` and all existing test binaries pass
+- [X] T001 Verify clean build with `make -j8` and all existing test binaries pass
 
 ---
 
@@ -29,7 +29,7 @@
 
 **⚠️ CRITICAL**: Test tasks in all user stories depend on this helper module
 
-- [ ] T002 Create shared test utilities module in tests/TestHelpers.hpp providing createTestDir(), cleanupTestDir(), defaultConsensusConfig(), mineTestBlock(), and buildValidChain()
+- [X] T002 Create shared test utilities module in tests/TestHelpers.hpp providing createTestDir(), cleanupTestDir(), defaultConsensusConfig(), mineTestBlock(), and buildValidChain()
 
 **Checkpoint**: Foundational test infrastructure ready — user story work can begin
 
@@ -43,13 +43,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] Fix getChainBlockCount() to return totalBlockCount_ instead of iterating freed chunks in src/Blockchain.cpp
-- [ ] T004 [US1] Fix dirty_ flag premature clear in publish() — move clear to after chunk save in src/Blockchain.cpp
+- [X] T003 [US1] Fix getChainBlockCount() to return totalBlockCount_ instead of iterating freed chunks in src/Blockchain.cpp
+- [X] T004 [US1] Fix dirty_ flag premature clear in publish() — move clear to after chunk save in src/Blockchain.cpp
 
 ### Tests for User Story 1
 
-- [ ] T005 [P] [US1] Add tests for block count correctness across freed chunks in tests/blockchain_tests.cpp (covers edge cases: empty chain with zero chunks, all chunks freed from memory)
-- [ ] T006 [P] [US1] Add test for dirty_ flag behavior during chunk rotation in tests/lifecycle_tests.cpp (covers edge case: dirty_ checked during concurrent save+append)
+- [X] T005 [P] [US1] Add tests for block count correctness across freed chunks in tests/blockchain_tests.cpp (covers edge cases: empty chain with zero chunks, all chunks freed from memory)
+- [X] T006 [P] [US1] Add test for dirty_ flag behavior during chunk rotation in tests/lifecycle_tests.cpp (covers edge case: dirty_ checked during concurrent save+append)
 
 **Checkpoint**: Block count is always accurate regardless of freed chunks. `dirty_` flag is consistent through publish.
 
@@ -63,12 +63,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T007 [P] [US2] Add single-threaded io_context::run() guard (std::atomic<int> + runtime abort if count != 1, not assert()) and threading model documentation comment in src/main.cpp (validates SC-002: single-threaded enforcement eliminates data races by construction)
-- [ ] T008 [P] [US2] Replace pending_pool_ with pending_map_ (unordered_map) + pending_order_ (deque) in src/BlockPropagation.hpp and implement O(1) insert/evict/expire/lookup in src/BlockPropagation.cpp
+- [X] T007 [P] [US2] Add single-threaded io_context::run() guard (std::atomic<int> + runtime abort if count != 1, not assert()) and threading model documentation comment in src/main.cpp (validates SC-002: single-threaded enforcement eliminates data races by construction)
+- [X] T008 [P] [US2] Replace pending_pool_ with pending_map_ (unordered_map) + pending_order_ (deque) in src/BlockPropagation.hpp and implement O(1) insert/evict/expire/lookup in src/BlockPropagation.cpp
 
 ### Tests for User Story 2
 
-- [ ] T009 [US2] Add tests for pending pool O(1) eviction and insertion-order behavior in tests/block_propagation_tests.cpp
+- [X] T009 [US2] Add tests for pending pool O(1) eviction and insertion-order behavior in tests/block_propagation_tests.cpp
 
 **Checkpoint**: Single-threaded model is enforced at runtime. Pending pool operations are O(1).
 
@@ -82,15 +82,15 @@
 
 ### Implementation for User Story 3
 
-- [ ] T010 [US3] Add difficultyCache_ (unordered_map<size_t, uint32_t>), retainedChunks_ (set<size_t>), and ChunkRetainGuard RAII class to src/Blockchain.hpp
-- [ ] T011 [US3] Implement chunk retention — make freeChunk() a no-op for retained chunks, add retainChunk()/releaseChunks() in src/Blockchain.cpp
-- [ ] T012 [US3] Implement difficulty caching in getDifficultyForHeight() — check/populate difficultyCache_ per adjustment boundary, wrap in ChunkRetainGuard in src/Blockchain.cpp
-- [ ] T013 [US3] Apply ChunkRetainGuard in recoverChain() validation loop and invalidate difficultyCache_ on replaceChain()/recoverChain() in src/Blockchain.cpp
+- [X] T010 [US3] Add difficultyCache_ (unordered_map<size_t, uint32_t>), retainedChunks_ (set<size_t>), and ChunkRetainGuard RAII class to src/Blockchain.hpp
+- [X] T011 [US3] Implement chunk retention — make freeChunk() a no-op for retained chunks, add retainChunk()/releaseChunks() in src/Blockchain.cpp
+- [X] T012 [US3] Implement difficulty caching in getDifficultyForHeight() — check/populate difficultyCache_ per adjustment boundary, wrap in ChunkRetainGuard in src/Blockchain.cpp
+- [X] T013 [US3] Apply ChunkRetainGuard in recoverChain() validation loop and invalidate difficultyCache_ on replaceChain()/recoverChain() in src/Blockchain.cpp
 
 ### Tests for User Story 3
 
-- [ ] T014 [P] [US3] Add tests for difficulty cache hit/miss and invalidation on replaceChain in tests/consensus_tests.cpp (use MockChunk to count loadChunk() calls and verify same chunk is not loaded more than once per calculation)
-- [ ] T015 [P] [US3] Add tests for chunk retention during multi-access operations in tests/chunk_persistence_tests.cpp (use MockChunk to verify freeChunk() is a no-op while ChunkRetainGuard is active)
+- [X] T014 [P] [US3] Add tests for difficulty cache hit/miss and invalidation on replaceChain in tests/consensus_tests.cpp (use MockChunk to count loadChunk() calls and verify same chunk is not loaded more than once per calculation)
+- [X] T015 [P] [US3] Add tests for chunk retention during multi-access operations in tests/chunk_persistence_tests.cpp (use MockChunk to verify freeChunk() is a no-op while ChunkRetainGuard is active)
 
 **Checkpoint**: Difficulty calculation is cached per boundary. Chunks stay loaded during multi-block scans.
 
@@ -104,14 +104,14 @@
 
 ### Implementation for User Story 4
 
-- [ ] T016 [P] [US4] Add chunkFilename(size_t index) returning "chunk_NNNNNN.dat" to src/utils.hpp and src/utils.cpp
-- [ ] T017 [P] [US4] Add static makeJsonRpcError(id, code, message, data) and makeJsonRpcResult(id, result) helpers to src/network/RpcServer.cpp
-- [ ] T018 [P] [US4] Add send_to_peers(const Block& block, const std::string& exclude_key = "") to src/PeerManager.hpp and src/PeerManager.cpp
-- [ ] T019 [US4] Replace all inline chunk filename constructions (8 sites) with chunkFilename() in src/Blockchain.cpp and src/Chunk.cpp
-- [ ] T020 [US4] Replace all RPC error/result boilerplate (9 methods) with makeJsonRpcError()/makeJsonRpcResult() calls in src/network/RpcServer.cpp
-- [ ] T021 [US4] Replace broadcast_block() and relay_block() with send_to_peers() calls in src/PeerManager.cpp
-- [ ] T022 [US4] Extract shared block-lookup lambda in getStreamEntries() with-key and without-key branches in src/Blockchain.cpp
-- [ ] T023 [US4] Update test files that duplicate setup patterns to use TestHelpers.hpp (createTestDir, defaultConsensusConfig, mineTestBlock) — target files: tests/block_tests.cpp, tests/consensus_tests.cpp, tests/chunk_persistence_tests.cpp, tests/chunk_recovery_tests.cpp, tests/chunk_replace_tests.cpp, tests/lifecycle_tests.cpp, tests/lifecycle_integration_tests.cpp, tests/block_propagation_tests.cpp, tests/block_propagation_integration_tests.cpp
+- [X] T016 [P] [US4] Add chunkFilename(size_t index) returning "chunk_NNNNNN.dat" to src/utils.hpp and src/utils.cpp
+- [X] T017 [P] [US4] Add static makeJsonRpcError(id, code, message, data) and makeJsonRpcResult(id, result) helpers to src/network/RpcServer.cpp
+- [X] T018 [P] [US4] Add send_to_peers(const Block& block, const std::string& exclude_key = "") to src/PeerManager.hpp and src/PeerManager.cpp
+- [X] T019 [US4] Replace all inline chunk filename constructions (8 sites) with chunkFilename() in src/Blockchain.cpp and src/Chunk.cpp
+- [X] T020 [US4] Replace all RPC error/result boilerplate (9 methods) with makeJsonRpcError()/makeJsonRpcResult() calls in src/network/RpcServer.cpp
+- [X] T021 [US4] Replace broadcast_block() and relay_block() with send_to_peers() calls in src/PeerManager.cpp
+- [X] T022 [US4] Extract shared block-lookup lambda in getStreamEntries() with-key and without-key branches in src/Blockchain.cpp
+- [X] T023 [US4] Update test files that duplicate setup patterns to use TestHelpers.hpp (createTestDir, defaultConsensusConfig, mineTestBlock) — target files: tests/block_tests.cpp, tests/consensus_tests.cpp, tests/chunk_persistence_tests.cpp, tests/chunk_recovery_tests.cpp, tests/chunk_replace_tests.cpp, tests/lifecycle_tests.cpp, tests/lifecycle_integration_tests.cpp, tests/block_propagation_tests.cpp, tests/block_propagation_integration_tests.cpp
 
 **Checkpoint**: All duplication clusters resolved. Each pattern maintained in a single location.
 
@@ -125,9 +125,9 @@
 
 ### Implementation for User Story 5
 
-- [ ] T024 [US5] Add Block constructor overload accepting pre-computed merkleRoot and hash — verify merkle root against entries, throw std::invalid_argument on mismatch — in src/Block.hpp and src/Block.cpp
-- [ ] T025 [US5] Update block sync/receive code to use the verify-then-cache constructor in src/BlockPropagation.cpp
-- [ ] T026 [US5] Add tests for merkle root verification on received blocks (valid and invalid) in tests/block_propagation_tests.cpp
+- [X] T024 [US5] Add Block constructor overload accepting pre-computed merkleRoot and hash — verify merkle root against entries, throw std::invalid_argument on mismatch — in src/Block.hpp and src/Block.cpp
+- [X] T025 [US5] Update block sync/receive code to use the verify-then-cache constructor in src/BlockPropagation.cpp
+- [X] T026 [US5] Add tests for merkle root verification on received blocks (valid and invalid) in tests/block_propagation_tests.cpp
 
 **Checkpoint**: Received blocks verify and cache the sender's merkle root. Invalid merkle roots are rejected.
 
@@ -141,9 +141,9 @@
 
 ### Implementation for User Story 6
 
-- [ ] T027 [US6] Add parsePeerKey(const string& key) returning pair<string, uint16_t> with rfind/bracket-aware parsing to src/utils.hpp and src/utils.cpp
-- [ ] T028 [US6] Replace sender_key.find(':') calls with parsePeerKey() in src/BlockPropagation.cpp
-- [ ] T029 [US6] Add tests for IPv4, IPv6, and malformed peer key parsing in tests/block_propagation_tests.cpp
+- [X] T027 [US6] Add parsePeerKey(const string& key) returning pair<string, uint16_t> with rfind/bracket-aware parsing to src/utils.hpp and src/utils.cpp
+- [X] T028 [US6] Replace sender_key.find(':') calls with parsePeerKey() in src/BlockPropagation.cpp
+- [X] T029 [US6] Add tests for IPv4, IPv6, and malformed peer key parsing in tests/block_propagation_tests.cpp
 
 **Checkpoint**: IPv6 sender keys parsed correctly. Malformed keys throw with descriptive errors.
 
@@ -153,10 +153,10 @@
 
 **Purpose**: Final validation and documentation updates
 
-- [ ] T030 Update docs/AUDIT.md with remediation status for all addressed issues (bugs, duplication, performance, thread safety)
-- [ ] T031 Run all test binaries individually per quickstart.md to validate no regressions
-- [ ] T032 [P] Verify shared utility adoption via grep checks from quickstart.md (zero inline chunk filenames, ≤2 jsonrpc boilerplate, zero sender_key.find)
-- [ ] T033 Update docs/ROADMAP.md — move 016-audit-remediation to Completed table with summary and date (constitution §XIII)
+- [X] T030 Update docs/AUDIT.md with remediation status for all addressed issues (bugs, duplication, performance, thread safety)
+- [X] T031 Run all test binaries individually per quickstart.md to validate no regressions
+- [X] T032 [P] Verify shared utility adoption via grep checks from quickstart.md (zero inline chunk filenames, ≤2 jsonrpc boilerplate, zero sender_key.find)
+- [X] T033 Update docs/ROADMAP.md — move 016-audit-remediation to Completed table with summary and date (constitution §XIII)
 
 ---
 

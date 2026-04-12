@@ -31,6 +31,32 @@ Block::Block(size_t index, uint64_t time, std::string prev_hash, std::vector<Str
     this->hash = calculateHash();
 }
 
+Block::Block(size_t index, uint64_t time, std::string prev_hash,
+             std::vector<StreamEntry> entries, uint64_t nonce, uint32_t difficulty,
+             std::string merkleRoot, std::string hash)
+    : index(index), timestamp(time), entries(std::move(entries)), prevHash(std::move(prev_hash)),
+      nonce(nonce), difficulty(difficulty), merkleRoot(std::move(merkleRoot)), hash(std::move(hash)) {
+    // Verify merkle root against entries
+    std::vector<std::string> leafHashes;
+    for (const auto &entry : this->entries) {
+        std::ostringstream oss;
+        boost::archive::binary_oarchive oa(oss);
+        oa << entry;
+        leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
+    }
+    std::string computedRoot = MerkleTree::computeMerkleRoot(leafHashes);
+    if (computedRoot != this->merkleRoot) {
+        throw std::invalid_argument("Merkle root mismatch: expected " + computedRoot
+                                    + " got " + this->merkleRoot);
+    }
+    // Verify hash against block contents
+    std::string computedHash = calculateHash();
+    if (computedHash != this->hash) {
+        throw std::invalid_argument("Block hash mismatch: expected " + computedHash
+                                    + " got " + this->hash);
+    }
+}
+
 std::string Block::calculateHash() const
 {
     std::stringstream ss;

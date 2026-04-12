@@ -212,6 +212,15 @@ int main(int argc, char *argv[])
         io_context.stop();
     });
 
+    // All async handlers in this application assume single-threaded
+    // io_context execution. Do NOT add threads or call io_context.run()
+    // from multiple threads without first adding strand/mutex protection
+    // to BlockPropagation, PeerManager, Blockchain, and RpcServer.
+    static std::atomic<int> run_count{0};
+    if (++run_count != 1) {
+        std::cerr << "FATAL: io_context::run() must be called from exactly one thread" << std::endl;
+        std::abort();
+    }
     io_context.run();
   
     return 0;

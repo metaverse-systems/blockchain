@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <memory>
 #include "Block.hpp"
 #include "StreamEntry.hpp"
@@ -28,6 +29,8 @@ class Blockchain : public IBlockchain
     boost::asio::io_context* io_context_ = nullptr;
     std::shared_ptr<boost::asio::steady_timer> save_timer_;
     uint32_t save_interval_seconds_ = 0;
+    std::unordered_map<size_t, uint32_t> difficultyCache_;
+    std::set<size_t> retainedChunks_;
   public:
     
     Blockchain(std::filesystem::path path, ConsensusConfig cfg = ConsensusConfig())
@@ -80,4 +83,26 @@ class Blockchain : public IBlockchain
     nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) override;
     nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
                                          const nlohmann::json &proofArray) override;
+
+    // Chunk retention for multi-access operations
+    void retainChunk(size_t chunkIndex) { retainedChunks_.insert(chunkIndex); }
+    void releaseChunks() {
+        for (auto idx : retainedChunks_) {
+            if (idx + 1 < this->chain.size() && !this->chain[idx].blocks.empty()) {
+                this->chain[idx].clear();
+            }
+        }
+        retainedChunks_.clear();
+    }
+
+    // RAII guard for chunk retention
+    class ChunkRetainGuard {
+    public:
+        explicit ChunkRetainGuard(Blockchain &bc) : bc_(bc) {}
+        ~ChunkRetainGuard() { bc_.releaseChunks(); }
+        ChunkRetainGuard(const ChunkRetainGuard&) = delete;
+        ChunkRetainGuard& operator=(const ChunkRetainGuard&) = delete;
+    private:
+        Blockchain &bc_;
+    };
 };

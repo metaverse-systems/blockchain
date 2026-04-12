@@ -1,11 +1,11 @@
 #include "Chunk.hpp"
+#include "utils.hpp"
 
 void Chunk::save()
 {
-    std::stringstream ss;
-    ss << "chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
-    std::filesystem::path finalPath = this->blockchainPath / ss.str();
-    std::filesystem::path tmpPath = this->blockchainPath / (ss.str() + ".tmp");
+    auto fname = chunkFilename(this->index);
+    std::filesystem::path finalPath = this->blockchainPath / fname;
+    std::filesystem::path tmpPath = this->blockchainPath / (fname + ".tmp");
 
     std::cout << "Saving " << this->blocks.size() << " blocks to chunk " << this->index << " in " << finalPath << std::endl;
     
@@ -30,10 +30,7 @@ void Chunk::save()
 
 void Chunk::load()
 {
-    std::stringstream ss;
-    ss << "chunk_" << std::setfill('0') << std::setw(6) << this->index << ".dat";
-
-    std::filesystem::path path = this->blockchainPath / ss.str();
+    std::filesystem::path path = this->blockchainPath / chunkFilename(this->index);
 
     if (!std::filesystem::exists(path)) {
         return;

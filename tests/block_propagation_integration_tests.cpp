@@ -7,6 +7,7 @@
 #include "../src/Blockchain.hpp"
 #include "../src/Chunk.hpp"
 #include "MockBlockchain.hpp"
+#include "TestHelpers.hpp"
 #include <filesystem>
 
 // Integration tests: BlockPropagation + MockBlockchain + PeerManager interactions

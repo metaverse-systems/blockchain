@@ -23,6 +23,9 @@ struct Block {
     Block();
     Block(size_t index, uint64_t timestamp, std::string prevHash,
           std::vector<StreamEntry> entries, uint64_t nonce = 0, uint32_t difficulty = 0);
+    Block(size_t index, uint64_t timestamp, std::string prevHash,
+          std::vector<StreamEntry> entries, uint64_t nonce, uint32_t difficulty,
+          std::string merkleRoot, std::string hash);
     std::string calculateHash() const;
     void dump();
 

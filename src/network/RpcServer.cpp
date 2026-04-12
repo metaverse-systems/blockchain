@@ -720,101 +720,53 @@ void RpcServer::do_write()
 
 nlohmann::json RpcServer::invalidJsonRpcMessage()
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32600;
-    response["error"]["message"] = "Invalid JSON-RPC message";
-    response["id"] = nullptr;
-    return response;
+    return errorMessageWithData(nullptr, -32600, "Invalid JSON-RPC message", nullptr);
 }
 
 nlohmann::json RpcServer::noIdMessage()
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32600;
-    response["error"]["message"] = "JSON-RPC requests must include an 'id'";
-    response["id"] = nullptr;
-    return response;
+    return errorMessageWithData(nullptr, -32600, "JSON-RPC requests must include an 'id'", nullptr);
 }
 
 nlohmann::json RpcServer::invalidMethodMessage(nlohmann::json id, std::string method)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32601;
-    response["error"]["message"] = "Invalid method: " + method;
-    response["id"] = id;
-    return response;
+    return errorMessage(id, -32601, "Invalid method: " + method);
 }
 
 nlohmann::json RpcServer::invalidParamsMessage(nlohmann::json id)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32602;
-    response["error"]["message"] = "Invalid parameters";
-    response["id"] = id;
-    return response;
+    return errorMessage(id, -32602, "Invalid parameters");
 }
 
 nlohmann::json RpcServer::resultMessage(nlohmann::json id, std::string result)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["result"] = result;
-    response["id"] = id;
-    return response;
+    return resultJsonMessage(id, result);
 }
 
 nlohmann::json RpcServer::miningTimeoutMessage(nlohmann::json id, std::string detail)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32000;
-    response["error"]["message"] = detail;
-    response["id"] = id;
-    return response;
+    return errorMessage(id, -32000, detail);
 }
 
 nlohmann::json RpcServer::syncInProgressMessage(nlohmann::json id)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32001;
-    response["error"]["message"] = "Node is syncing";
-    response["error"]["data"] = "publish is unavailable while chain synchronization is in progress";
-    response["id"] = id;
-    return response;
+    return errorMessageWithData(id, -32001, "Node is syncing",
+                                 "publish is unavailable while chain synchronization is in progress");
 }
 
 nlohmann::json RpcServer::syncStartedMessage(nlohmann::json id)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["result"] = "sync_started";
-    response["id"] = id;
-    return response;
+    return resultJsonMessage(id, "sync_started");
 }
 
 nlohmann::json RpcServer::noPeerMessage(nlohmann::json id)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32003;
-    response["error"]["message"] = "No peer connected";
-    response["id"] = id;
-    return response;
+    return errorMessage(id, -32003, "No peer connected");
 }
 
 nlohmann::json RpcServer::syncAlreadyInProgressMessage(nlohmann::json id)
 {
-    nlohmann::json response;
-    response["jsonrpc"] = "2.0";
-    response["error"]["code"] = -32002;
-    response["error"]["message"] = "Sync already in progress";
-    response["id"] = id;
-    return response;
+    return errorMessage(id, -32002, "Sync already in progress");
 }
 
 nlohmann::json RpcServer::resultJsonMessage(nlohmann::json id, nlohmann::json result)

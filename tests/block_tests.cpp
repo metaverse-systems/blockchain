@@ -5,6 +5,7 @@
 #include "../src/MockChunk.hpp"
 #include "../src/Chunk.hpp"
 #include "../src/MerkleTree.hpp"
+#include "TestHelpers.hpp"
 #include <filesystem>
 #include <sstream>
 #include <boost/archive/binary_oarchive.hpp>
@@ -277,4 +278,63 @@ TEST_CASE("toHeaderJson hash matches full block hash", "[Block][header][US3]") {
 
     REQUIRE(hj["hash"].get<std::string>() == b.hash);
     REQUIRE(hj["merkleRoot"].get<std::string>() == b.merkleRoot);
+}
+
+// --- T005: Block count correctness across freed chunks ---
+
+TEST_CASE("getChainBlockCount returns correct total after chunks are freed", "[Blockchain][US1]") {
+    auto dir = std::filesystem::temp_directory_path() / "test_blockcount_freed";
+    std::filesystem::create_directories(dir);
+
+    auto cfg = TestHelpers::defaultConsensusConfig();
+    Blockchain<MockChunk> bc(dir, cfg);
+
+    // Genesis block already creates 1 block
+    REQUIRE(bc.getChainBlockCount() == 1);
+
+    // Publish blocks to fill multiple chunks
+    for (int i = 0; i < 150; i++) {
+        bc.publish("test", "k" + std::to_string(i), "data", {"k" + std::to_string(i)});
+    }
+
+    // Should have 151 blocks (genesis + 150)
+    REQUIRE(bc.getChainBlockCount() == 151);
+    // getChainBlockCount should match getChainLength
+    REQUIRE(bc.getChainBlockCount() == bc.getChainLength());
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("getChainBlockCount returns 1 for empty chain with only genesis", "[Blockchain][US1]") {
+    auto dir = std::filesystem::temp_directory_path() / "test_blockcount_genesis";
+    std::filesystem::create_directories(dir);
+
+    auto cfg = TestHelpers::defaultConsensusConfig();
+    Blockchain<MockChunk> bc(dir, cfg);
+
+    REQUIRE(bc.getChainBlockCount() == 1);
+    REQUIRE(bc.getChainLength() == 1);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("getChainBlockCount consistent after chunk rotation", "[Blockchain][US1]") {
+    auto dir = std::filesystem::temp_directory_path() / "test_blockcount_rotation";
+    std::filesystem::create_directories(dir);
+
+    auto cfg = TestHelpers::defaultConsensusConfig();
+    Blockchain<MockChunk> bc(dir, cfg);
+
+    // Fill exactly one chunk (100 blocks = genesis + 99 published)
+    for (int i = 0; i < 99; i++) {
+        bc.publish("test", "k" + std::to_string(i), "data", {"k"});
+    }
+    REQUIRE(bc.getChainBlockCount() == 100);
+
+    // Trigger chunk rotation
+    bc.publish("test", "k_rotate", "data", {"k"});
+    REQUIRE(bc.getChainBlockCount() == 101);
+    REQUIRE(bc.getChainBlockCount() == bc.getChainLength());
+
+    std::filesystem::remove_all(dir);
 }

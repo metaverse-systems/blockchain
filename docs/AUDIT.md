@@ -401,3 +401,32 @@ Ordered by impact and effort:
 | 8 | Add `chunkFilename()` utility (§3.5) | Single source of truth for paths | Trivial |
 | 9 | Split `Blockchain.cpp` into focused modules (§6.2) | Maintainability at scale | High |
 | 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.4) | Reduces coupling | Medium |
+
+---
+
+## 9. Remediation Status (016-audit-remediation)
+
+**Date:** 2026-04-12
+
+| # | Issue | Status | Details |
+|---|-------|--------|---------|
+| 1 | `getChainBlockCount()` ignores `totalBlockCount_` (§2.1) | **Fixed** | Returns `totalBlockCount_` directly |
+| 2 | `dirty_` flag cleared prematurely in `publish()` (§2.4) | **Fixed** | Removed premature `dirty_ = false` in chunk rotation |
+| 3 | Merkle root recomputed on deserialized blocks (§2.2) | **Fixed** | Added verify-then-cache Block constructor; used in `appendReceivedBlock()` |
+| 4 | `sender_key` IPv6 parsing fragile (§2.3) | **Fixed** | New `parsePeerKey()` utility with bracket-aware IPv6 support |
+| 5 | Single-threaded enforcement (§5) | **Fixed** | `std::atomic<int>` guard in `main.cpp` aborts if `io_context.run()` entered twice |
+| 6 | Pending pool O(n) linear scan (§4.3) | **Fixed** | Replaced with `unordered_map` + `deque` for O(1) operations |
+| 7 | Difficulty cache missing (§4.2) | **Fixed** | `difficultyCache_` + `ChunkRetainGuard` RAII; invalidated on `replaceChain()`/`recoverChain()` |
+| 8 | Chunk filename duplication (§3.5) | **Fixed** | `chunkFilename()` in `utils.hpp`; all 8 inline sites replaced |
+| 9 | RPC response boilerplate (§3.1) | **Fixed** | Shared `errorMessage()`/`resultJsonMessage()` helpers; 13 → 3 inline sites |
+| 10 | Broadcast/relay duplication (§3.3) | **Fixed** | `send_to_peers()` in `PeerManager`; `broadcast_block()`/`relay_block()` delegate |
+| 11 | Stream entry lookup duplication (§3.4) | **Fixed** | Extracted shared `collectEntries` lambda in `getStreamEntries()` |
+| 12 | Test setup duplication (§7.4) | **Fixed** | `TestHelpers.hpp` with shared utilities; 9 test files updated |
+
+### Not Addressed (deferred)
+
+| # | Issue | Reason |
+|---|-------|--------|
+| 9 | Split `Blockchain.cpp` into modules (§6.2) | High effort; architecture change outside audit scope |
+| 10 | Narrow `IBlockchain` interfaces (§6.4) | Medium effort; deferred to future refactoring |
+| — | RPC dispatch table (§4.6, §6.1) | Deferred; helper extraction sufficient for now |

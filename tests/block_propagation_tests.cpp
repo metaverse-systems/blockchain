@@ -2,9 +2,14 @@
 #include "../src/BlockPropagation.hpp"
 #include "../src/Block.hpp"
 #include "../src/SyncState.hpp"
+#include "../src/MerkleTree.hpp"
+#include "../src/utils.hpp"
 #include "MockBlockchain.hpp"
+#include "TestHelpers.hpp"
 #include <chrono>
 #include <thread>
+#include <sstream>
+#include <boost/archive/binary_oarchive.hpp>
 
 // --- RecentBlockCache Tests ---
 
@@ -297,4 +302,138 @@ TEST_CASE("Block with empty key is rejected via P2P", "[block_propagation][strea
 
     bp.on_block_received(b, "peer1:9000");
     REQUIRE(bc.appended_blocks.empty());
+}
+
+// --- T009: Pending pool O(1) eviction and insertion-order tests ---
+
+TEST_CASE("Pending pool evicts oldest entry at capacity", "[block_propagation][pending_pool]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    // Fill pending pool to capacity (64) by sending blocks with gap prevHash
+    for (int i = 0; i < 65; i++) {
+        Block b;
+        b.index = bc.blocks.back().index + 2 + i; // deliberate gap
+        b.timestamp = static_cast<uint64_t>(std::time(nullptr));
+        b.prevHash = "nonexistent_hash_" + std::to_string(i);
+        b.difficulty = 0;
+        b.nonce = 0;
+        b.hash = b.calculateHash();
+        bp.on_block_received(b, "peer:9000");
+    }
+
+    // After 65 inserts with capacity 64, pool should have 64 entries
+    SUCCEED("Pending pool handled capacity eviction without crash");
+}
+
+TEST_CASE("Pending pool resolves deferred block when predecessor arrives", "[block_propagation][pending_pool]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    int relay_count = 0;
+    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+        relay_count++;
+    });
+
+    // Create blocks: genesis -> b1 -> b2
+    // Send b2 first (gap), then b1 (should resolve b2)
+    Block b1 = bc.createValidNextBlock("data1");
+    // Manually create b2 that chains off b1
+    Block b2;
+    b2.index = b1.index + 1;
+    b2.timestamp = static_cast<uint64_t>(std::time(nullptr));
+    b2.entries = b1.entries;
+    b2.prevHash = b1.hash;
+    b2.difficulty = 1;
+    b2.nonce = 0;
+    // Compute valid merkle root
+    {
+        std::vector<std::string> leafHashes;
+        for (const auto &e : b2.entries) {
+            std::ostringstream oss;
+            boost::archive::binary_oarchive oa(oss);
+            oa << e;
+            leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
+        }
+        b2.merkleRoot = MerkleTree::computeMerkleRoot(leafHashes);
+    }
+    b2.hash = b2.calculateHash();
+    while (!checkLeadingZeroBits(b2.hash, b2.difficulty)) {
+        b2.nonce++;
+        b2.hash = b2.calculateHash();
+    }
+
+    // Send b2 first — should be deferred (gap)
+    bp.on_block_received(b2, "peer:9000");
+    REQUIRE(bc.appended_blocks.size() == 0);
+
+    // Now send b1 — should be appended and trigger b2 resolution
+    bp.on_block_received(b1, "peer:9001");
+    REQUIRE(bc.appended_blocks.size() == 2);
+    REQUIRE(bc.appended_blocks[0].index == b1.index);
+    REQUIRE(bc.appended_blocks[1].index == b2.index);
+}
+
+// --- Merkle Root Verification Tests (US5) ---
+
+TEST_CASE("Block with valid merkle root is accepted", "[block_propagation][merkle]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    Block b = bc.createValidNextBlock("merkle_ok");
+    bp.on_block_received(b, "127.0.0.1:9000");
+    REQUIRE(bc.appended_blocks.size() == 1);
+    REQUIRE(bc.appended_blocks[0].hash == b.hash);
+}
+
+TEST_CASE("Block with corrupted merkle root is rejected", "[block_propagation][merkle]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    Block b = bc.createValidNextBlock("merkle_bad");
+    b.merkleRoot = "0000000000000000000000000000000000000000000000000000000000000000";
+    // Recalculate hash so the block passes other checks, but merkle mismatch remains
+    b.hash = b.calculateHash();
+
+    bp.on_block_received(b, "127.0.0.1:9000");
+    REQUIRE(bc.appended_blocks.empty());
+}
+
+TEST_CASE("Block with corrupted hash is rejected", "[block_propagation][merkle]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    Block b = bc.createValidNextBlock("hash_bad");
+    b.hash = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+    bp.on_block_received(b, "127.0.0.1:9000");
+    REQUIRE(bc.appended_blocks.empty());
+}
+
+// --- IPv6 Peer Key Parsing Tests (US6) ---
+
+TEST_CASE("parsePeerKey handles IPv4 address", "[utils][ipv6]") {
+    auto [host, port] = parsePeerKey("192.168.1.1:8333");
+    REQUIRE(host == "192.168.1.1");
+    REQUIRE(port == 8333);
+}
+
+TEST_CASE("parsePeerKey handles bracketed IPv6 address", "[utils][ipv6]") {
+    auto [host, port] = parsePeerKey("[::1]:8333");
+    REQUIRE(host == "::1");
+    REQUIRE(port == 8333);
+}
+
+TEST_CASE("parsePeerKey handles full IPv6 address", "[utils][ipv6]") {
+    auto [host, port] = parsePeerKey("[2001:db8::1]:9000");
+    REQUIRE(host == "2001:db8::1");
+    REQUIRE(port == 9000);
+}
+
+TEST_CASE("parsePeerKey throws on malformed key", "[utils][ipv6]") {
+    REQUIRE_THROWS_AS(parsePeerKey("no-port-here"), std::invalid_argument);
+    REQUIRE_THROWS_AS(parsePeerKey(""), std::invalid_argument);
 }

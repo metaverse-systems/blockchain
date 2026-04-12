@@ -46,7 +46,8 @@ private:
     static constexpr size_t kMaxDedupCache = 512;
 
     // PendingBlock pool (max 64, 60s TTL)
-    std::unordered_map<std::string, PendingBlock> pending_pool_;
+    std::unordered_map<std::string, PendingBlock> pending_map_;
+    std::deque<std::string> pending_order_;
     static constexpr size_t kMaxPendingPool = 64;
     static constexpr std::chrono::seconds kPendingTTL{60};
 

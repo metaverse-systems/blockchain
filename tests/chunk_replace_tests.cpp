@@ -3,6 +3,7 @@
 #include "../src/StreamEntry.hpp"
 #include "../src/Blockchain.hpp"
 #include "../src/Chunk.hpp"
+#include "TestHelpers.hpp"
 #include <filesystem>
 #include <fstream>
 
@@ -52,10 +53,7 @@ TEST_CASE("replaceChain moves old files to timestamped backup dir", "[US8][repla
 {
     auto dir = create_test_dir("T056");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         cfg.maxReorgDepth = 1000;
         Blockchain<Chunk> bc(dir, cfg);
 
@@ -90,10 +88,7 @@ TEST_CASE("replaceChain handles backup dir creation failure gracefully", "[US8][
 {
     auto dir = create_test_dir("T057");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         cfg.maxReorgDepth = 1000;
         Blockchain<Chunk> bc(dir, cfg);
 
@@ -120,10 +115,7 @@ TEST_CASE("replaceChain persists all new chunk files", "[US8][replace]")
 {
     auto dir = create_test_dir("T058");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         cfg.maxReorgDepth = 1000;
         Blockchain<Chunk> bc(dir, cfg);
 

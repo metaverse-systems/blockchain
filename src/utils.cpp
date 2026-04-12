@@ -155,3 +155,21 @@ bool checkLeadingZeroBits(const std::string &hashStr, uint32_t bitsNeeded)
     }
     return zeroBits >= bitsNeeded;
 }
+
+std::string chunkFilename(size_t index) {
+    std::ostringstream ss;
+    ss << "chunk_" << std::setfill('0') << std::setw(6) << index << ".dat";
+    return ss.str();
+}
+
+std::pair<std::string, uint16_t> parsePeerKey(const std::string &key) {
+    if (key.empty()) throw std::invalid_argument("empty peer key");
+    auto last_colon = key.rfind(':');
+    if (last_colon == std::string::npos || last_colon == 0)
+        throw std::invalid_argument("malformed peer key: " + key);
+    std::string host = key.substr(0, last_colon);
+    if (host.front() == '[' && host.back() == ']')
+        host = host.substr(1, host.size() - 2);
+    uint16_t port = static_cast<uint16_t>(std::stoi(key.substr(last_colon + 1)));
+    return {host, port};
+}

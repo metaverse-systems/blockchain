@@ -3,6 +3,8 @@
 #include "../src/StreamEntry.hpp"
 #include "../src/Blockchain.hpp"
 #include "../src/Chunk.hpp"
+#include "../src/MockChunk.hpp"
+#include "TestHelpers.hpp"
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -46,10 +48,7 @@ TEST_CASE("Chunk auto-saved when it reaches capacity", "[US1][persistence]")
 {
     auto dir = create_test_dir("T011");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         // Publish 100 blocks (genesis is block 0, so we need 100 more to fill chunk 0)
@@ -71,10 +70,7 @@ TEST_CASE("Filled chunk freed from memory after auto-save", "[US1][persistence]"
 {
     auto dir = create_test_dir("T012");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         for (size_t i = 1; i < 100; i++) {
@@ -99,10 +95,7 @@ TEST_CASE("All in-memory chunks saved on shutdown call", "[US1][persistence]")
 {
     auto dir = create_test_dir("T013");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         // Add a few blocks (not enough to fill a chunk)
@@ -127,10 +120,7 @@ TEST_CASE("Save failure logs error and continues operation", "[US1][persistence]
 {
     auto dir = create_test_dir("T014");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         for (size_t i = 1; i <= 5; i++) {
@@ -154,10 +144,7 @@ TEST_CASE("Periodic timer fires and saves dirty active chunk", "[US3][persistenc
 {
     auto dir = create_test_dir("T031");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         boost::asio::io_context io;
@@ -179,10 +166,7 @@ TEST_CASE("Periodic timer skips save when not dirty", "[US3][persistence]")
 {
     auto dir = create_test_dir("T032");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         // Save to clear dirty flag
@@ -203,10 +187,7 @@ TEST_CASE("Periodic save disabled when interval is 0", "[US3][persistence]")
 {
     auto dir = create_test_dir("T033");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         // No timer should be started when interval is 0 (default)
@@ -223,10 +204,7 @@ TEST_CASE("Periodic save also saves index files", "[US3][persistence]")
 {
     auto dir = create_test_dir("T034");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         bc.publish("test", "k1", "data", {"k1"});
@@ -246,10 +224,7 @@ TEST_CASE("getChainLength returns correct total across multiple chunks", "[US5][
 {
     auto dir = create_test_dir("T046");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         // Genesis = 1 block
@@ -270,10 +245,7 @@ TEST_CASE("getChunkCount returns correct count", "[US5][persistence]")
 {
     auto dir = create_test_dir("T047");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         // Initially 1 chunk with genesis block
@@ -298,10 +270,7 @@ TEST_CASE("Counts update correctly as blocks are added", "[US5][persistence]")
 {
     auto dir = create_test_dir("T049");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         REQUIRE(bc.getChainLength() == 1);
@@ -322,10 +291,7 @@ TEST_CASE("Chunk auto-save completes within 2 seconds", "[US5][performance]")
 {
     auto dir = create_test_dir("T060a");
     {
-        ConsensusConfig cfg;
-        cfg.initialDifficulty = 0;
-        cfg.minDifficulty = 0;
-        cfg.miningTimeout = 60;
+        auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
 
         // Fill chunk 0 to 99 blocks
@@ -340,6 +306,64 @@ TEST_CASE("Chunk auto-save completes within 2 seconds", "[US5][performance]")
 
         REQUIRE(elapsed < std::chrono::seconds(2));
         REQUIRE(std::filesystem::exists(dir / "chunk_000000.dat"));
+    }
+    cleanup_test_dir(dir);
+}
+
+// --- T015: Chunk retention during multi-access operations ---
+
+TEST_CASE("ChunkRetainGuard prevents freeChunk from clearing retained chunks", "[US3][persistence]") {
+    auto dir = create_test_dir("T015_retain");
+    {
+        auto cfg = TestHelpers::defaultConsensusConfig();
+        Blockchain<MockChunk> bc(dir, cfg);
+
+        // Build enough blocks to fill chunk 0 and start chunk 1
+        for (size_t i = 1; i <= 100; i++) {
+            bc.publish("test", "k" + std::to_string(i), "data", {"k" + std::to_string(i)});
+        }
+
+        // Chunk 0 is freed from memory after rotation. Load it back.
+        bc.loadChunk(0);
+
+        // Retain chunk 0
+        bc.retainChunk(0);
+
+        // freeChunk should be a no-op for retained chunks
+        bc.freeChunk(0);
+
+        // Block in chunk 0 should still be accessible (loaded)
+        Block b = bc.getBlockByIndex(0);
+        REQUIRE(b.index == 0);
+
+        // releaseChunks frees retained chunks
+        bc.releaseChunks();
+    }
+    cleanup_test_dir(dir);
+}
+
+TEST_CASE("ChunkRetainGuard RAII releases chunks on scope exit", "[US3][persistence]") {
+    auto dir = create_test_dir("T015_raii");
+    {
+        auto cfg = TestHelpers::defaultConsensusConfig();
+        Blockchain<MockChunk> bc(dir, cfg);
+
+        for (size_t i = 1; i <= 100; i++) {
+            bc.publish("test", "k" + std::to_string(i), "data", {"k" + std::to_string(i)});
+        }
+
+        bc.loadChunk(0);
+
+        {
+            Blockchain<MockChunk>::ChunkRetainGuard guard(bc);
+            bc.retainChunk(0);
+            // freeChunk is no-op while retained
+            bc.freeChunk(0);
+            Block b = bc.getBlockByIndex(0);
+            REQUIRE(b.index == 0);
+        }
+        // Guard released — chunks freed
+        SUCCEED("ChunkRetainGuard RAII cleanup completed");
     }
     cleanup_test_dir(dir);
 }

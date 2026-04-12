@@ -3,6 +3,7 @@
 #include "../src/StreamEntry.hpp"
 #include "../src/Blockchain.hpp"
 #include "../src/Chunk.hpp"
+#include "TestHelpers.hpp"
 #include <filesystem>
 #include <fstream>
 
@@ -19,11 +20,7 @@ void cleanup_test_dir(const std::filesystem::path &dir) {
 }
 
 ConsensusConfig test_config() {
-    ConsensusConfig cfg;
-    cfg.initialDifficulty = 0;
-    cfg.minDifficulty = 0;
-    cfg.miningTimeout = 60;
-    return cfg;
+    return TestHelpers::defaultConsensusConfig();
 }
 
 } // anonymous namespace

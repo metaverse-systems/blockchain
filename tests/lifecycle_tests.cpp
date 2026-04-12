@@ -5,6 +5,7 @@
 #include "../src/Chunk.hpp"
 #include "../src/MockChunk.hpp"
 #include "../src/NodeConfig.hpp"
+#include "TestHelpers.hpp"
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -22,11 +23,7 @@ void cleanup_test_dir(const std::filesystem::path &dir) {
 }
 
 ConsensusConfig test_config() {
-    ConsensusConfig cfg;
-    cfg.initialDifficulty = 0;
-    cfg.minDifficulty = 0;
-    cfg.miningTimeout = 60;
-    return cfg;
+    return TestHelpers::defaultConsensusConfig();
 }
 
 } // anonymous namespace
@@ -383,6 +380,35 @@ TEST_CASE("Zero-byte chunk file is treated as corrupted", "[lifecycle][us4]") {
     // Should only load chunk 0 since chunk 1 is zero-byte
     REQUIRE(bc2.getChunkCount() == 1);
     REQUIRE(bc2.getChainLength() == 100);
+
+    cleanup_test_dir(dir);
+}
+
+// --- T006: dirty_ flag behavior during chunk rotation ---
+
+TEST_CASE("dirty flag stays true through chunk rotation until save", "[lifecycle][US1]") {
+    auto dir = create_test_dir("dirty_flag_rotation");
+    Blockchain<MockChunk> bc(dir, test_config());
+
+    // Publish blocks — dirty_ should be true after this
+    bc.publish("test", "k1", "data", {"k"});
+    REQUIRE(bc.isDirty() == true);
+
+    // Fill chunk 0 to trigger rotation (100 blocks = genesis + 99 published)
+    for (int i = 2; i <= 99; i++) {
+        bc.publish("test", "k" + std::to_string(i), "data", {"k"});
+    }
+    // Still dirty before chunk rotation
+    REQUIRE(bc.isDirty() == true);
+
+    // Trigger chunk rotation (block 100 causes new chunk)
+    bc.publish("test", "k100", "data_rotate", {"k"});
+    // dirty_ should still be true after rotation — the new block was appended
+    REQUIRE(bc.isDirty() == true);
+
+    // Only saveAllChunks should clear dirty
+    bc.saveAllChunks();
+    REQUIRE(bc.isDirty() == false);
 
     cleanup_test_dir(dir);
 }
