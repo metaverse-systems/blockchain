@@ -1,1 +1,175 @@
 # metaverse-systems/blockchain
+
+A C++ blockchain node for storing and replicating data in a tamper-resistant way. Key capabilities:
+
+- **Proof-of-Work consensus** with automatic difficulty adjustment
+- **P2P networking** with peer discovery, gossip exchange, and block propagation
+- **Stream-based data model** — publish structured key/value entries to named streams
+- **Merkle proofs** for O(log n) block inclusion verification
+- **TLS everywhere** — both JSON-RPC and P2P interfaces require TLS
+- **Cross-platform** — builds on Linux, macOS, and Windows (MSYS2)
+
+## Build Prerequisites
+
+| Dependency | Minimum Version | Purpose |
+|-----------|----------------|---------|
+| GCC | 14 | C++20 compiler (Linux) |
+| Clang | 18 | C++20 compiler (Linux/macOS) |
+| Boost | — | Asio (networking), Serialization (persistence) |
+| OpenSSL | 3.x | SHA-256, TLS, certificate generation |
+| Catch2 | 3.x | Test framework |
+| Autotools | — | Build system (autoconf, automake, autoconf-archive, libtool, pkg-config) |
+
+## Build Instructions
+
+### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y autoconf-archive pkg-config \
+  libboost-serialization-dev libboost-program-options-dev \
+  libssl-dev catch2
+
+autoreconf -fi
+./configure
+make -j8
+```
+
+### macOS
+
+```bash
+brew install boost openssl@3 catch2 autoconf automake autoconf-archive libtool pkg-config
+
+export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$PKG_CONFIG_PATH"
+export LDFLAGS="-L$(brew --prefix boost)/lib $LDFLAGS"
+export CPPFLAGS="-I$(brew --prefix boost)/include $CPPFLAGS"
+
+autoreconf -fi
+./configure
+make -j8
+```
+
+### Windows (MSYS2 UCRT64)
+
+```bash
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-boost \
+  mingw-w64-ucrt-x86_64-openssl mingw-w64-ucrt-x86_64-cmake \
+  autotools autoconf-archive make pkg-config git
+
+# Build Catch2 from source (not available via pacman)
+git clone --depth 1 --branch v3.4.0 https://github.com/catchorg/Catch2.git /tmp/catch2
+cmake -S /tmp/catch2 -B /tmp/catch2/build -G "MSYS Makefiles" -DCMAKE_INSTALL_PREFIX=$MINGW_PREFIX
+cmake --build /tmp/catch2/build -j8
+cmake --install /tmp/catch2/build
+
+autoreconf -fi
+./configure --with-boost-libdir=$MINGW_PREFIX/lib
+make -j8
+```
+
+## Quickstart: Two-Node Network
+
+This walkthrough starts two connected blockchain nodes, publishes a stream entry on one, and verifies it propagates to the other.
+
+### 1. Create Blockchain Directories
+
+```bash
+mkdir -p node1 node2
+```
+
+### 2. Generate TLS Certificates
+
+Both RPC and P2P connections require TLS. Generate a shared CA and per-node certificates directly in each directory:
+
+```bash
+# Generate CA key and certificate
+openssl genpkey -algorithm RSA -out ca-key.pem -pkeyopt rsa_keygen_bits:2048
+openssl req -new -x509 -key ca-key.pem -out ca.pem -days 365 -subj "/CN=Blockchain CA"
+
+# Generate key and certificate for node 1
+openssl genpkey -algorithm RSA -out node1/key.pem -pkeyopt rsa_keygen_bits:2048
+openssl req -new -key node1/key.pem -out node1/node.csr -subj "/CN=localhost"
+openssl x509 -req -in node1/node.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial \
+  -out node1/cert.pem -days 365
+cp ca.pem node1/ca.pem
+
+# Generate key and certificate for node 2
+openssl genpkey -algorithm RSA -out node2/key.pem -pkeyopt rsa_keygen_bits:2048
+openssl req -new -key node2/key.pem -out node2/node.csr -subj "/CN=localhost"
+openssl x509 -req -in node2/node.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial \
+  -out node2/cert.pem -days 365
+cp ca.pem node2/ca.pem
+```
+
+See [docs/configuration.md](docs/configuration.md#tls-setup) for a full TLS reference.
+
+### 3. Generate Configuration Files
+
+```bash
+./src/blockchain --generate-config node1
+./src/blockchain --generate-config node2
+```
+
+Edit `node1/config.json` — use the defaults (RPC 12345, P2P 12346).
+
+Edit `node2/config.json` — change the ports so both nodes can run on the same machine:
+
+```json
+{
+  "network": {
+    "rpc_port": 12347,
+    "p2p_port": 12348
+  }
+}
+```
+
+### 4. Start Both Nodes
+
+```bash
+# Terminal 1
+./src/blockchain node1
+
+# Terminal 2
+./src/blockchain node2
+```
+
+### 5. Connect the Nodes
+
+Tell node 2 to connect to node 1's P2P port:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"addPeer","params":{"host":"127.0.0.1","port":12346}}' | \
+  openssl s_client -connect localhost:12347 -CAfile ca.pem -quiet 2>/dev/null
+```
+
+### 6. Publish a Stream Entry
+
+Publish data on node 1:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"publish","params":{"stream":"test","key":"hello","data":"world"}}' | \
+  openssl s_client -connect localhost:12345 -CAfile ca.pem -quiet 2>/dev/null
+```
+
+### 7. Verify Propagation
+
+Query node 2 to confirm the entry arrived:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"getStreamEntries","params":{"stream":"test"}}' | \
+  openssl s_client -connect localhost:12347 -CAfile ca.pem -quiet 2>/dev/null
+```
+
+You should see the `hello`/`world` entry in the response.
+
+## Documentation
+
+- [Configuration Reference](docs/configuration.md) — CLI flags, config.json schema, TLS setup
+- [RPC API Reference](docs/rpc-api.md) — all 20 JSON-RPC methods with examples
+- [Architecture Overview](docs/architecture.md) — subsystem overview and data flow diagrams
+- [Contributing Guide](docs/contributing.md) — building, testing, coding conventions, PR workflow
+- [Roadmap](docs/ROADMAP.md) — completed and planned features
+
+## License
+
+This project is licensed under the MIT License. See [COPYING](COPYING) for details.

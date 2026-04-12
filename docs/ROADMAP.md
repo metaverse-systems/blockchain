@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-11
+Last updated: 2026-04-12
 
 ## Completed
 
@@ -18,6 +18,8 @@ Last updated: 2026-04-11
 | 010  | RPC API Expansion | Four new JSON-RPC methods: `getNodeStatus` (comprehensive health snapshot), `getBlockRange` (batch block retrieval with 1000-block cap and optional headers-only mode), `getChainLength`, `getChunkCount`; read-only endpoints with no transport-layer changes |
 | 011  | Graceful Multi-Chunk Shutdown & Startup | Per-chunk dirty tracking, block ingestion freeze on SIGINT/SIGTERM, dirty-aware saveAllChunks, full-chain recovery with validation and cross-chunk linkage checks, index rebuild from chunks, `fast_startup` config option |
 | 012  | Integration Test Suite | End-to-end Catch2 integration tests over real TLS: 19 RPC endpoint tests (all JSON-RPC methods with positive/negative cases), 3 P2P tests (single-block propagation, multi-block propagation, 3-node relay), shared test infrastructure (TLS cert generation, in-process NodeInstance, synchronous RpcTestClient), bug fixes in BlockPropagation consensus config and PeerClient read loop |
+| 013  | CI/CD Pipeline | GitHub Actions workflow with matrix build (Linux GCC/Clang, macOS Clang, Windows MSYS2), per-binary test execution, MSYS2 caching, Catch2-from-source on Windows |
+| 014  | Documentation & Developer Guide | Expanded README with cross-platform build instructions and two-node quickstart, configuration reference (9 CLI flags, 30 config.json fields, TLS setup), RPC API reference (20 methods with curl examples), architecture overview with Mermaid diagrams, contributing guide |
 
 ## Suggested Specs
 
@@ -53,17 +55,13 @@ The daemon takes a single positional argument (blockchain directory). Ports are 
 
 #### 013 — CI/CD Pipeline
 
-No CI configuration exists. The constitution requires cross-platform support (Linux, macOS, Windows) but there is no automated verification. Add CI for all three platforms.
-
-**Scope**: GitHub Actions workflow, matrix build (Linux gcc/clang, macOS clang, Windows MSVC), `make check` on all platforms, artifact caching for Boost/OpenSSL.
+*Completed. See spec 013 in Completed table above.*
 
 ---
 
 #### 014 — Documentation & Developer Guide
 
-`README.md` contains a single heading. The quickstart and contract docs exist in the spec directory but are not surfaced to developers. Write user-facing documentation.
-
-**Scope**: README with build instructions, architecture overview, configuration guide, RPC API reference, contributing guide.
+*Completed. See spec 014 in Completed table above.*
 
 ---
 
@@ -101,9 +99,9 @@ No way to verify block inclusion without downloading the full chain. Design a li
 010 RPC Expansion ──────┼── Tier 3: COMPLETE ✓
 011 Graceful Lifecycle ─┘
 012 Integration Tests ──┐
-013 CI/CD Pipeline ─────┼── Tier 4: quality
+013 CI/CD Pipeline ─────┼── Tier 4: COMPLETE ✓
 014 Documentation ──────┘
 015–017 ────────────────── Tier 5: future
 ```
 
-Tiers 1, 2, and 3 are complete. Tier 4 specs (012–014) are independent and can proceed as the next priority.
+Tiers 1–4 are complete. Tier 5 specs (015–017) are exploratory future work.

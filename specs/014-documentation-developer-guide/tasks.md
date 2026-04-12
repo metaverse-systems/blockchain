@@ -17,7 +17,7 @@
 
 **Purpose**: Ensure documentation directory structure is ready
 
-- [ ] T001 Verify docs/ directory exists at repository root (already contains ROADMAP.md)
+- [X] T001 Verify docs/ directory exists at repository root (already contains ROADMAP.md)
 
 ---
 
@@ -29,14 +29,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Write project description section in README.md (FR-001): what the blockchain node does, key capabilities (PoW consensus, P2P networking, stream-based data, Merkle proofs, TLS everywhere)
-- [ ] T003 [US1] Write build prerequisites section in README.md (FR-002): compilers with minimum versions (GCC 14, Clang 18), libraries (Boost, OpenSSL, Catch2), and build tools for Linux, macOS, and Windows/MSYS2 — sourced from .github/workflows/ci.yml
-- [ ] T004 [US1] Write Linux build instructions section in README.md (FR-003): apt-get install, autoreconf, configure, make — sourced from research.md R5
-- [ ] T005 [US1] Write macOS build instructions section in README.md (FR-003): brew install, PKG_CONFIG_PATH/LDFLAGS/CPPFLAGS exports, autoreconf, configure, make — sourced from research.md R5
-- [ ] T006 [US1] Write Windows/MSYS2 build instructions section in README.md (FR-003): pacman install, Catch2 from source, autoreconf, configure with --with-boost-libdir, make — sourced from research.md R5
-- [ ] T007 [US1] Write quickstart section in README.md (FR-004): abbreviated TLS certificate generation steps (link to docs/configuration.md TLS section for full reference), creating two blockchain directories, generating config.json for each with different RPC/P2P ports, starting node 1, starting node 2, connecting via addPeer RPC call, publishing a stream entry on node 1, verifying propagation to node 2
-- [ ] T008 [US1] Write documentation links section in README.md (FR-013): links to docs/configuration.md, docs/rpc-api.md, docs/architecture.md, docs/contributing.md, and docs/ROADMAP.md
-- [ ] T009 [US1] Add license section to README.md referencing MIT license
+- [X] T002 [US1] Write project description section in README.md (FR-001): what the blockchain node does, key capabilities (PoW consensus, P2P networking, stream-based data, Merkle proofs, TLS everywhere)
+- [X] T003 [US1] Write build prerequisites section in README.md (FR-002): compilers with minimum versions (GCC 14, Clang 18), libraries (Boost, OpenSSL, Catch2), and build tools for Linux, macOS, and Windows/MSYS2 — sourced from .github/workflows/ci.yml
+- [X] T004 [US1] Write Linux build instructions section in README.md (FR-003): apt-get install, autoreconf, configure, make — sourced from research.md R5
+- [X] T005 [US1] Write macOS build instructions section in README.md (FR-003): brew install, PKG_CONFIG_PATH/LDFLAGS/CPPFLAGS exports, autoreconf, configure, make — sourced from research.md R5
+- [X] T006 [US1] Write Windows/MSYS2 build instructions section in README.md (FR-003): pacman install, Catch2 from source, autoreconf, configure with --with-boost-libdir, make — sourced from research.md R5
+- [X] T007 [US1] Write quickstart section in README.md (FR-004): abbreviated TLS certificate generation steps (link to docs/configuration.md TLS section for full reference), creating two blockchain directories, generating config.json for each with different RPC/P2P ports, starting node 1, starting node 2, connecting via addPeer RPC call, publishing a stream entry on node 1, verifying propagation to node 2
+- [X] T008 [US1] Write documentation links section in README.md (FR-013): links to docs/configuration.md, docs/rpc-api.md, docs/architecture.md, docs/contributing.md, and docs/ROADMAP.md
+- [X] T009 [US1] Add license section to README.md referencing MIT license
 
 **Checkpoint**: At this point, README.md is complete. A developer can build the project and run a two-node quickstart by following only the README.
 
@@ -50,11 +50,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Write CLI flags reference table in docs/configuration.md (FR-005): all 9 flags (--help, --version, --config, --rpc-port, --p2p-port, --seed-node, --log-level, --generate-config, positional blockchain-dir) with name, short form, type, default, and description — sourced from specs/009 CLI contract and research.md R6
-- [ ] T011 [US2] Write CLI precedence rules section in docs/configuration.md (FR-005): CLI flags > config.json > built-in defaults, with exit codes table
-- [ ] T012 [US2] Write config.json schema reference in docs/configuration.md (FR-006): all 30 fields organized by section (tls, network, consensus, peers, streams, persistence) with JSON key path, type, default value, and description — sourced from research.md R6
-- [ ] T013 [US2] Write TLS setup section in docs/configuration.md (FR-007): step-by-step OpenSSL commands for generating CA key, CA cert, server key, CSR, signed server cert; explain cert_file, key_file, ca_file config fields; note that both RPC and P2P require TLS
-- [ ] T014 [US2] Write a complete default config.json example in docs/configuration.md showing all sections with all fields and their defaults
+- [X] T010 [US2] Write CLI flags reference table in docs/configuration.md (FR-005): all 9 flags (--help, --version, --config, --rpc-port, --p2p-port, --seed-node, --log-level, --generate-config, positional blockchain-dir) with name, short form, type, default, and description — sourced from specs/009 CLI contract and research.md R6
+- [X] T011 [US2] Write CLI precedence rules section in docs/configuration.md (FR-005): CLI flags > config.json > built-in defaults, with exit codes table
+- [X] T012 [US2] Write config.json schema reference in docs/configuration.md (FR-006): all 30 fields organized by section (tls, network, consensus, peers, streams, persistence) with JSON key path, type, default value, and description — sourced from research.md R6
+- [X] T013 [US2] Write TLS setup section in docs/configuration.md (FR-007): step-by-step OpenSSL commands for generating CA key, CA cert, server key, CSR, signed server cert; explain cert_file, key_file, ca_file config fields; note that both RPC and P2P require TLS
+- [X] T014 [US2] Write a complete default config.json example in docs/configuration.md showing all sections with all fields and their defaults
 
 **Checkpoint**: docs/configuration.md is complete. An operator can fully configure a node using only this reference.
 
@@ -68,14 +68,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T015 [US3] Write introduction and table of contents in docs/rpc-api.md (FR-008): JSON-RPC 2.0 over TLS, base URL format, 6 domain groups (Streams, Blocks, Peers, Node, Merkle, Sync), pre-1.0 stability caveat
-- [ ] T016 [US3] Write Streams group in docs/rpc-api.md (FR-008): publish, createStream, listStreams, getStreamEntries, getStreamEntry — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/006 contract and RpcServer.cpp
-- [ ] T017 [US3] Write Blocks group in docs/rpc-api.md (FR-008): getBlockByIndex, getBlocksByKeys, getBlockRange — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/001 and 010 contracts and RpcServer.cpp
-- [ ] T018 [US3] Write Peers group in docs/rpc-api.md (FR-008): addPeer, removePeer, listPeers, banPeer, unbanPeer — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/004 contract and RpcServer.cpp
-- [ ] T019 [US3] Write Node group in docs/rpc-api.md (FR-008): getNodeStatus, getChainLength, getChunkCount — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/010 contract and RpcServer.cpp
-- [ ] T020 [US3] Write Merkle group in docs/rpc-api.md (FR-008): getInclusionProof, verifyInclusionProof, getBlockHeader — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/008 contract and RpcServer.cpp
-- [ ] T021 [US3] Write Sync group in docs/rpc-api.md (FR-008): requestSync — description, parameters table, request/response JSON, curl --cacert example — sourced from specs/003 contract and RpcServer.cpp
-- [ ] T022 [US3] Write error codes section in docs/rpc-api.md (FR-009): standard JSON-RPC error codes (-32700 parse error, -32600 invalid request, -32601 method not found, -32602 invalid params, -32603 internal error) plus application-specific errors from RpcServer.cpp
+- [X] T015 [US3] Write introduction and table of contents in docs/rpc-api.md (FR-008): JSON-RPC 2.0 over TLS, base URL format, 6 domain groups (Streams, Blocks, Peers, Node, Merkle, Sync), pre-1.0 stability caveat
+- [X] T016 [US3] Write Streams group in docs/rpc-api.md (FR-008): publish, createStream, listStreams, getStreamEntries, getStreamEntry — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/006 contract and RpcServer.cpp
+- [X] T017 [US3] Write Blocks group in docs/rpc-api.md (FR-008): getBlockByIndex, getBlocksByKeys, getBlockRange — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/001 and 010 contracts and RpcServer.cpp
+- [X] T018 [US3] Write Peers group in docs/rpc-api.md (FR-008): addPeer, removePeer, listPeers, banPeer, unbanPeer — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/004 contract and RpcServer.cpp
+- [X] T019 [US3] Write Node group in docs/rpc-api.md (FR-008): getNodeStatus, getChainLength, getChunkCount — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/010 contract and RpcServer.cpp
+- [X] T020 [US3] Write Merkle group in docs/rpc-api.md (FR-008): getInclusionProof, verifyInclusionProof, getBlockHeader — each with description, parameters table, request/response JSON, curl --cacert example — sourced from specs/008 contract and RpcServer.cpp
+- [X] T021 [US3] Write Sync group in docs/rpc-api.md (FR-008): requestSync — description, parameters table, request/response JSON, curl --cacert example — sourced from specs/003 contract and RpcServer.cpp
+- [X] T022 [US3] Write error codes section in docs/rpc-api.md (FR-009): standard JSON-RPC error codes (-32700 parse error, -32600 invalid request, -32601 method not found, -32602 invalid params, -32603 internal error) plus application-specific errors from RpcServer.cpp
 
 **Checkpoint**: docs/rpc-api.md is complete. A developer can integrate with all 20 RPC methods using only this reference.
 
@@ -89,15 +89,15 @@
 
 ### Implementation for User Story 4
 
-- [ ] T023 [US4] Write system overview section with Mermaid block diagram in docs/architecture.md (FR-010): show Consensus Engine, P2P Networking (PeerManager, PeerServer, PeerClient), Persistence Layer (Blockchain, Chunk), and RPC Server as connected subsystems — sourced from plan.md architecture research
-- [ ] T024 [US4] Write Consensus Engine subsection in docs/architecture.md (FR-010): PoW with leading zero bits, difficulty adjustment algorithm (target interval, adjustment window, log₂ ratio, clamping), mining timeout — sourced from ConsensusConfig.hpp
-- [ ] T025 [US4] Write P2P Networking subsection in docs/architecture.md (FR-010): dual-port model (RPC on 12345, P2P on 12346), mutual TLS for P2P, peer exchange gossip, ban/reputation system — sourced from PeerManager, PeerServer, PeerClient
-- [ ] T026 [US4] Write Persistence Layer subsection in docs/architecture.md (FR-010): chunk-based storage (100 blocks per chunk), lazy loading, dirty tracking, recovery with validation, index files (keys.dat, streams.dat, stream_index.dat) — sourced from Chunk.cpp, Blockchain.cpp
-- [ ] T027 [US4] Write RPC Server subsection in docs/architecture.md (FR-010): JSON-RPC 2.0 over TLS, session handling, sync-awareness (gating during sync) — sourced from RpcServer.cpp
-- [ ] T028 [US4] Write block mining data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): RPC publish → StreamEntry creation → Merkle root → PoW mining loop → chunk append → difficulty check — sourced from plan.md architecture research
-- [ ] T029 [US4] Write block propagation data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): PeerServer receives block → BlockPropagation dedup/rate-limit → validate → appendBlock → relay to other peers — sourced from plan.md architecture research
-- [ ] T030 [P] [US4] Write chain sync data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): PeerClient sends SyncQuery → receives SyncResponse chunks → validates and appends → replaceChain if longer
-- [ ] T031 [P] [US4] Write stream query data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): RPC getStreamEntries → stream index lookup → chunk lazy load → return entries
+- [X] T023 [US4] Write system overview section with Mermaid block diagram in docs/architecture.md (FR-010): show Consensus Engine, P2P Networking (PeerManager, PeerServer, PeerClient), Persistence Layer (Blockchain, Chunk), and RPC Server as connected subsystems — sourced from plan.md architecture research
+- [X] T024 [US4] Write Consensus Engine subsection in docs/architecture.md (FR-010): PoW with leading zero bits, difficulty adjustment algorithm (target interval, adjustment window, log₂ ratio, clamping), mining timeout — sourced from ConsensusConfig.hpp
+- [X] T025 [US4] Write P2P Networking subsection in docs/architecture.md (FR-010): dual-port model (RPC on 12345, P2P on 12346), mutual TLS for P2P, peer exchange gossip, ban/reputation system — sourced from PeerManager, PeerServer, PeerClient
+- [X] T026 [US4] Write Persistence Layer subsection in docs/architecture.md (FR-010): chunk-based storage (100 blocks per chunk), lazy loading, dirty tracking, recovery with validation, index files (keys.dat, streams.dat, stream_index.dat) — sourced from Chunk.cpp, Blockchain.cpp
+- [X] T027 [US4] Write RPC Server subsection in docs/architecture.md (FR-010): JSON-RPC 2.0 over TLS, session handling, sync-awareness (gating during sync) — sourced from RpcServer.cpp
+- [X] T028 [US4] Write block mining data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): RPC publish → StreamEntry creation → Merkle root → PoW mining loop → chunk append → difficulty check — sourced from plan.md architecture research
+- [X] T029 [US4] Write block propagation data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): PeerServer receives block → BlockPropagation dedup/rate-limit → validate → appendBlock → relay to other peers — sourced from plan.md architecture research
+- [X] T030 [P] [US4] Write chain sync data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): PeerClient sends SyncQuery → receives SyncResponse chunks → validates and appends → replaceChain if longer
+- [X] T031 [P] [US4] Write stream query data flow section with Mermaid sequence diagram in docs/architecture.md (FR-011): RPC getStreamEntries → stream index lookup → chunk lazy load → return entries
 
 **Checkpoint**: docs/architecture.md is complete. A new contributor can understand the system structure and key data flows.
 
@@ -111,11 +111,11 @@
 
 ### Implementation for User Story 5
 
-- [ ] T032 [US5] Write building section in docs/contributing.md (FR-012): link to README.md build instructions (avoid duplication)
-- [ ] T033 [US5] Write running tests section in docs/contributing.md (FR-012): list all test binaries with commands to run each individually (per constitution § III), explain that `make check` should not be used as a single invocation
-- [ ] T034 [US5] Write coding conventions section in docs/contributing.md (FR-012): C++20 standard, follow existing style (naming, indentation, brace placement, #pragma once), no formal formatter, commit message guidelines (imperative mood, concise summary line)
-- [ ] T035 [US5] Write dependencies policy section in docs/contributing.md (FR-012): approved set (Boost, OpenSSL, nlohmann/json, Catch2), adding new dependencies requires explicit approval
-- [ ] T036 [US5] Write pull request workflow section in docs/contributing.md (FR-012): create feature branch from main, implement with tests, build with make, run each test binary, open PR, merge after review — sourced from constitution § VIII
+- [X] T032 [US5] Write building section in docs/contributing.md (FR-012): link to README.md build instructions (avoid duplication)
+- [X] T033 [US5] Write running tests section in docs/contributing.md (FR-012): list all test binaries with commands to run each individually (per constitution § III), explain that `make check` should not be used as a single invocation
+- [X] T034 [US5] Write coding conventions section in docs/contributing.md (FR-012): C++20 standard, follow existing style (naming, indentation, brace placement, #pragma once), no formal formatter, commit message guidelines (imperative mood, concise summary line)
+- [X] T035 [US5] Write dependencies policy section in docs/contributing.md (FR-012): approved set (Boost, OpenSSL, nlohmann/json, Catch2), adding new dependencies requires explicit approval
+- [X] T036 [US5] Write pull request workflow section in docs/contributing.md (FR-012): create feature branch from main, implement with tests, build with make, run each test binary, open PR, merge after review — sourced from constitution § VIII
 
 **Checkpoint**: docs/contributing.md is complete. A contributor has everything needed to submit a change.
 
@@ -125,11 +125,11 @@
 
 **Purpose**: Final validation and roadmap update
 
-- [ ] T037 Verify all documentation links: every docs/*.md file linked from README.md, all cross-document references resolve (FR-013, SC-004)
-- [ ] T038 Verify completeness: every CLI flag from CliParser.cpp documented in docs/configuration.md (SC-002), every config.json field from NodeConfig.cpp documented (SC-002), every RPC method from RpcServer.cpp documented in docs/rpc-api.md (SC-003)
-- [ ] T039 Verify all curl examples in docs/rpc-api.md use `--cacert ca.pem` and contain no `-k` or `--insecure` flags
-- [ ] T040 Update docs/ROADMAP.md: move 014 to Completed table with summary, update "Last updated" date (constitution § XIII)
-- [ ] T041 Run quickstart.md verification steps from specs/014-documentation-developer-guide/quickstart.md; time the end-to-end walkthrough against the SC-001 target of 15 minutes
+- [X] T037 Verify all documentation links: every docs/*.md file linked from README.md, all cross-document references resolve (FR-013, SC-004)
+- [X] T038 Verify completeness: every CLI flag from CliParser.cpp documented in docs/configuration.md (SC-002), every config.json field from NodeConfig.cpp documented (SC-002), every RPC method from RpcServer.cpp documented in docs/rpc-api.md (SC-003)
+- [X] T039 Verify all curl examples in docs/rpc-api.md use `--cacert ca.pem` and contain no `-k` or `--insecure` flags
+- [X] T040 Update docs/ROADMAP.md: move 014 to Completed table with summary, update "Last updated" date (constitution § XIII)
+- [X] T041 Run quickstart.md verification steps from specs/014-documentation-developer-guide/quickstart.md; time the end-to-end walkthrough against the SC-001 target of 15 minutes
 
 ---
 

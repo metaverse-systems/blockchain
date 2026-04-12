@@ -112,3 +112,7 @@ Thumbs.db
 # Misc
 node_modules/
 tests/cli_tests
+node1
+node2
+*.pem
+*.srl
