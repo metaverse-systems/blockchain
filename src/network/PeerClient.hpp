@@ -49,6 +49,7 @@ class PeerClient : public std::enable_shared_from_this<PeerClient>
     const std::string& get_host() const { return host; }
     const std::string& get_port_str() const { return port; }
     unsigned short get_port() const { return static_cast<unsigned short>(std::stoi(port)); }
+    const std::string& get_remote_uuid() const { return remote_uuid_; }
 
   private:
     tcp::resolver resolver;
@@ -64,6 +65,7 @@ class PeerClient : public std::enable_shared_from_this<PeerClient>
     std::vector<char> read_body_buf;
     PeerManager *peer_manager = nullptr;
     BlockPropagation *block_propagation_ = nullptr;
+    std::string remote_uuid_;
 
     void send_peer_exchange();
     void send_sync_query();

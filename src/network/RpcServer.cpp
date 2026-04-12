@@ -738,7 +738,7 @@ nlohmann::json RpcServer::noIdMessage()
     return response;
 }
 
-nlohmann::json RpcServer::invalidMethodMessage(std::string id, std::string method)
+nlohmann::json RpcServer::invalidMethodMessage(nlohmann::json id, std::string method)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -748,7 +748,7 @@ nlohmann::json RpcServer::invalidMethodMessage(std::string id, std::string metho
     return response;
 }
 
-nlohmann::json RpcServer::invalidParamsMessage(std::string id)
+nlohmann::json RpcServer::invalidParamsMessage(nlohmann::json id)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -758,7 +758,7 @@ nlohmann::json RpcServer::invalidParamsMessage(std::string id)
     return response;
 }
 
-nlohmann::json RpcServer::resultMessage(std::string id, std::string result)
+nlohmann::json RpcServer::resultMessage(nlohmann::json id, std::string result)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -767,7 +767,7 @@ nlohmann::json RpcServer::resultMessage(std::string id, std::string result)
     return response;
 }
 
-nlohmann::json RpcServer::miningTimeoutMessage(std::string id, std::string detail)
+nlohmann::json RpcServer::miningTimeoutMessage(nlohmann::json id, std::string detail)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -777,7 +777,7 @@ nlohmann::json RpcServer::miningTimeoutMessage(std::string id, std::string detai
     return response;
 }
 
-nlohmann::json RpcServer::syncInProgressMessage(std::string id)
+nlohmann::json RpcServer::syncInProgressMessage(nlohmann::json id)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -788,7 +788,7 @@ nlohmann::json RpcServer::syncInProgressMessage(std::string id)
     return response;
 }
 
-nlohmann::json RpcServer::syncStartedMessage(std::string id)
+nlohmann::json RpcServer::syncStartedMessage(nlohmann::json id)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -797,7 +797,7 @@ nlohmann::json RpcServer::syncStartedMessage(std::string id)
     return response;
 }
 
-nlohmann::json RpcServer::noPeerMessage(std::string id)
+nlohmann::json RpcServer::noPeerMessage(nlohmann::json id)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -807,7 +807,7 @@ nlohmann::json RpcServer::noPeerMessage(std::string id)
     return response;
 }
 
-nlohmann::json RpcServer::syncAlreadyInProgressMessage(std::string id)
+nlohmann::json RpcServer::syncAlreadyInProgressMessage(nlohmann::json id)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -817,7 +817,7 @@ nlohmann::json RpcServer::syncAlreadyInProgressMessage(std::string id)
     return response;
 }
 
-nlohmann::json RpcServer::resultJsonMessage(std::string id, nlohmann::json result)
+nlohmann::json RpcServer::resultJsonMessage(nlohmann::json id, nlohmann::json result)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -826,7 +826,7 @@ nlohmann::json RpcServer::resultJsonMessage(std::string id, nlohmann::json resul
     return response;
 }
 
-nlohmann::json RpcServer::errorMessage(std::string id, int code, std::string message)
+nlohmann::json RpcServer::errorMessage(nlohmann::json id, int code, std::string message)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";
@@ -836,7 +836,7 @@ nlohmann::json RpcServer::errorMessage(std::string id, int code, std::string mes
     return response;
 }
 
-nlohmann::json RpcServer::errorMessageWithData(std::string id, int code, std::string message, nlohmann::json data)
+nlohmann::json RpcServer::errorMessageWithData(nlohmann::json id, int code, std::string message, nlohmann::json data)
 {
     nlohmann::json response;
     response["jsonrpc"] = "2.0";

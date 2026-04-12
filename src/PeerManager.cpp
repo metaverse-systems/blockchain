@@ -102,12 +102,25 @@ void PeerManager::save_peers() {
     }
 }
 
+// --- Address Normalization ---
+
+static std::string normalize_address(const std::string &host) {
+    // Strip IPv4-mapped IPv6 prefix so "::ffff:127.0.0.1" becomes "127.0.0.1"
+    const std::string prefix = "::ffff:";
+    if (host.size() > prefix.size() &&
+        host.compare(0, prefix.size(), prefix) == 0) {
+        return host.substr(prefix.size());
+    }
+    return host;
+}
+
 // --- Peer List Management ---
 
 bool PeerManager::add_peer(const PeerEntry &entry) {
+    auto norm_host = normalize_address(entry.host);
     // Check if already exists
     for (auto &p : peers_) {
-        if (p.host == entry.host && p.port == entry.port) {
+        if (p.host == norm_host && p.port == entry.port) {
             // Update existing entry
             if (!entry.node_uuid.empty()) p.node_uuid = entry.node_uuid;
             if (entry.last_seen > p.last_seen) p.last_seen = entry.last_seen;
@@ -121,6 +134,7 @@ bool PeerManager::add_peer(const PeerEntry &entry) {
     }
 
     peers_.push_back(entry);
+    peers_.back().host = norm_host;
     return true;
 }
 
@@ -134,7 +148,8 @@ void PeerManager::evict_oldest_peer() {
     peers_.erase(oldest);
 }
 
-bool PeerManager::remove_peer(const std::string &host, uint16_t port) {
+bool PeerManager::remove_peer(const std::string &host_raw, uint16_t port) {
+    auto host = normalize_address(host_raw);
     auto it = std::remove_if(peers_.begin(), peers_.end(),
         [&](const PeerEntry &p) { return p.host == host && p.port == port; });
     if (it != peers_.end()) {
@@ -148,14 +163,16 @@ std::vector<PeerEntry> PeerManager::get_peers() const {
     return peers_;
 }
 
-PeerEntry* PeerManager::find_peer(const std::string &host, uint16_t port) {
+PeerEntry* PeerManager::find_peer(const std::string &host_raw, uint16_t port) {
+    auto host = normalize_address(host_raw);
     for (auto &p : peers_) {
         if (p.host == host && p.port == port) return &p;
     }
     return nullptr;
 }
 
-const PeerEntry* PeerManager::find_peer(const std::string &host, uint16_t port) const {
+const PeerEntry* PeerManager::find_peer(const std::string &host_raw, uint16_t port) const {
+    auto host = normalize_address(host_raw);
     for (auto &p : peers_) {
         if (p.host == host && p.port == port) return &p;
     }
@@ -164,13 +181,21 @@ const PeerEntry* PeerManager::find_peer(const std::string &host, uint16_t port) 
 
 // --- Self-Filtering ---
 
+static bool is_loopback_address(const std::string &host) {
+    auto norm = normalize_address(host);
+    return norm == "127.0.0.1" || norm == "::1" || norm == "localhost";
+}
+
+bool PeerManager::is_self(const std::string &host, uint16_t port) const {
+    if (port != p2p_port_) return false;
+    return is_loopback_address(host);
+}
+
 void PeerManager::filter_self(std::vector<PeerAddress> &peers) const {
     peers.erase(
         std::remove_if(peers.begin(), peers.end(),
-            [this](const PeerAddress &/*addr*/) {
-                // Filter by UUID match or address match with our listen port
-                // We don't have our own address easily, so just filter by known identifiers
-                return false; // UUID filtering happens during merge
+            [this](const PeerAddress &addr) {
+                return is_self(addr.host, addr.port);
             }),
         peers.end()
     );
@@ -203,7 +228,8 @@ void PeerManager::start() {
     }
 }
 
-void PeerManager::connect_to(const std::string &host, uint16_t port) {
+void PeerManager::connect_to(const std::string &host_raw, uint16_t port) {
+    auto host = normalize_address(host_raw);
     auto key = peer_key(host, port);
 
     // Check limits
@@ -223,6 +249,12 @@ void PeerManager::connect_to(const std::string &host, uint16_t port) {
         return;
     }
 
+    // Never connect to ourselves
+    if (is_self(host, port)) {
+        logMessage("DEBUG", "Skipping self-connection to " + key);
+        return;
+    }
+
     logMessage("INFO", "Connecting to peer " + key);
 
     auto client = std::make_shared<PeerClient>(io_context_, ssl_context_, host, port, bc_, sync_status_);
@@ -232,16 +264,16 @@ void PeerManager::connect_to(const std::string &host, uint16_t port) {
     }
     outbound_connections_[key] = client;
     client->connect();
-
-    // Reset backoff on connection attempt
-    backoff_state_.erase(key);
 }
 
 bool PeerManager::can_accept_inbound() const {
     return inbound_count_ < config_.max_inbound;
 }
 
-void PeerManager::on_peer_disconnected(const std::string &host, uint16_t port) {
+void PeerManager::on_peer_disconnected(const std::string &host_ref, uint16_t port) {
+    // Copy and normalize host before erasing — the reference may belong to the PeerClient
+    // that outbound_connections_.erase() is about to destroy.
+    std::string host = normalize_address(host_ref);
     auto key = peer_key(host, port);
     outbound_connections_.erase(key);
 
@@ -252,15 +284,29 @@ void PeerManager::on_peer_disconnected(const std::string &host, uint16_t port) {
 
     logMessage("INFO", "Peer disconnected: " + key);
 
-    // Schedule reconnect if not banned
-    if (!is_banned(host, port)) {
+    // Check if we still have an inbound session from the same node (e.g. dedup dropped
+    // our outbound but the inbound is still alive). If so, skip reconnect.
+    bool have_inbound = false;
+    if (peer) {
+        for (auto &[ik, weak_session] : inbound_sessions_) {
+            auto session = weak_session.lock();
+            if (session && session->get_remote_uuid() == peer->node_uuid) {
+                have_inbound = true;
+                break;
+            }
+        }
+    }
+
+    // Schedule reconnect if not banned and no inbound session exists
+    if (!have_inbound && !is_banned(host, port)) {
         schedule_reconnect(host, port);
     }
 
-    // Try to replace with another known peer
+    // Try to replace with a *different* known peer
     if (config_.discovery_enabled && outbound_connections_.size() < config_.max_outbound) {
         for (const auto &p : peers_) {
             auto pk = peer_key(p.host, p.port);
+            if (pk == key) continue; // Skip the peer that just disconnected
             if (outbound_connections_.count(pk)) continue;
             if (is_banned(p.host, p.port)) continue;
             if (backoff_state_.count(pk)) continue; // Already scheduled for reconnect
@@ -270,14 +316,16 @@ void PeerManager::on_peer_disconnected(const std::string &host, uint16_t port) {
     }
 }
 
-void PeerManager::on_inbound_connected(const std::string &host, uint16_t port, std::shared_ptr<PeerServer> session) {
+void PeerManager::on_inbound_connected(const std::string &host_raw, uint16_t port, std::shared_ptr<PeerServer> session) {
+    auto host = normalize_address(host_raw);
     auto key = peer_key(host, port);
     inbound_sessions_[key] = session;
     inbound_count_++;
     logMessage("INFO", "Inbound connection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
 }
 
-void PeerManager::on_inbound_disconnected(const std::string &host, uint16_t port) {
+void PeerManager::on_inbound_disconnected(const std::string &host_raw, uint16_t port) {
+    auto host = normalize_address(host_raw);
     auto key = peer_key(host, port);
     inbound_sessions_.erase(key);
     if (inbound_count_ > 0) inbound_count_--;
@@ -287,8 +335,9 @@ void PeerManager::on_inbound_disconnected(const std::string &host, uint16_t port
 // --- Peer Exchange ---
 
 void PeerManager::on_peer_exchange_received(const std::string &sender_uuid, uint16_t sender_port,
-                                             const std::string &sender_host,
+                                             const std::string &sender_host_raw,
                                              const std::vector<PeerAddress> &received_peers) {
+    auto sender_host = normalize_address(sender_host_raw);
     auto now = static_cast<uint64_t>(std::time(nullptr));
 
     // Update sender in our peer list
@@ -309,18 +358,21 @@ void PeerManager::on_peer_exchange_received(const std::string &sender_uuid, uint
     // Merge received peers
     std::vector<PeerAddress> new_peers;
     for (const auto &addr : received_peers) {
-        // Skip self
-        if (addr.host == sender_host && addr.port == sender_port) continue;
+        auto norm_addr_host = normalize_address(addr.host);
+        // Skip sender
+        if (norm_addr_host == sender_host && addr.port == sender_port) continue;
+        // Skip our own address
+        if (is_self(norm_addr_host, addr.port)) continue;
         // Skip banned
-        if (is_banned(addr.host, addr.port)) continue;
+        if (is_banned(norm_addr_host, addr.port)) continue;
 
-        auto *existing = find_peer(addr.host, addr.port);
+        auto *existing = find_peer(norm_addr_host, addr.port);
         if (existing) {
             // Update last_seen
             existing->last_seen = now;
         } else {
             PeerEntry entry;
-            entry.host = addr.host;
+            entry.host = norm_addr_host;
             entry.port = addr.port;
             entry.last_seen = now;
             add_peer(entry);
@@ -363,30 +415,55 @@ void PeerManager::on_new_peers_discovered(const std::vector<PeerAddress> &new_pe
 // --- Duplicate Connection Detection ---
 
 void PeerManager::check_duplicate_connection(const std::string &remote_uuid,
-                                              const std::string &host, uint16_t port,
-                                              bool is_outbound) {
+                                              const std::string &host, uint16_t port) {
     if (remote_uuid.empty()) return;
 
-    // Look for existing connection with same UUID
+    // If the remote UUID is our own, it's a self-connection — drop immediately
+    if (remote_uuid == node_uuid_) {
+        logMessage("WARN", "Self-connection detected (UUID " + remote_uuid + ") — closing");
+        auto self_key = peer_key(host, port);
+        // Defer the erase so the calling PeerClient is not destroyed mid-call
+        boost::asio::post(io_context_, [this, self_key]() {
+            outbound_connections_.erase(self_key);
+        });
+        return;
+    }
+
+    // Look for an existing outbound connection with the same remote UUID
+    auto current_key = peer_key(host, port);
+    std::string dup_outbound_key;
     for (auto &[key, client] : outbound_connections_) {
         if (!client) continue;
-        // If we find another connection with the same UUID on a different key
-        auto current_key = peer_key(host, port);
-        if (key == current_key) continue;
-
-        // Check if this client has the same remote UUID
-        // The dedup rule: lower UUID keeps outbound
-        if (node_uuid_ < remote_uuid) {
-            // We keep our outbound, tell the other side to drop
-            logMessage("INFO", "Duplicate connection detected for UUID " + remote_uuid + " — keeping our outbound (lower UUID)");
-        } else {
-            // We drop our outbound
-            logMessage("INFO", "Duplicate connection detected for UUID " + remote_uuid + " — dropping our outbound (higher UUID)");
-            if (is_outbound) {
-                outbound_connections_.erase(peer_key(host, port));
-            }
+        if (client->get_remote_uuid() == remote_uuid) {
+            dup_outbound_key = key;
+            break;
         }
-        break;
+    }
+
+    // Also check if we have an inbound session from this UUID
+    bool has_inbound = false;
+    for (auto &[key, weak_session] : inbound_sessions_) {
+        auto session = weak_session.lock();
+        if (session && session->get_remote_uuid() == remote_uuid) {
+            has_inbound = true;
+            break;
+        }
+    }
+
+    // Duplicate means we have both an outbound connection and an inbound session
+    // for the same remote UUID
+    if (dup_outbound_key.empty() || !has_inbound) return;
+
+    // The dedup rule: lower UUID keeps its outbound
+    if (node_uuid_ < remote_uuid) {
+        logMessage("INFO", "Duplicate connection detected for UUID " + remote_uuid + " — keeping our outbound (lower UUID)");
+        // The remote (higher UUID) should drop its outbound to us; nothing to do here
+    } else {
+        logMessage("INFO", "Duplicate connection detected for UUID " + remote_uuid + " — dropping our outbound (higher UUID)");
+        // Drop our outbound connection; keep the inbound
+        boost::asio::post(io_context_, [this, dup_outbound_key]() {
+            outbound_connections_.erase(dup_outbound_key);
+        });
     }
 }
 
@@ -500,6 +577,10 @@ void PeerManager::schedule_reconnect(const std::string &host, uint16_t port) {
     });
 }
 
+void PeerManager::reset_backoff(const std::string &host_raw, uint16_t port) {
+    backoff_state_.erase(peer_key(normalize_address(host_raw), port));
+}
+
 // --- Exchange Timer ---
 
 void PeerManager::start_exchange_timer() {
@@ -537,7 +618,8 @@ size_t PeerManager::inbound_count() const {
     return inbound_count_;
 }
 
-void PeerManager::disconnect_and_remove(const std::string &host, uint16_t port) {
+void PeerManager::disconnect_and_remove(const std::string &host_raw, uint16_t port) {
+    auto host = normalize_address(host_raw);
     auto key = peer_key(host, port);
     outbound_connections_.erase(key);
     remove_peer(host, port);

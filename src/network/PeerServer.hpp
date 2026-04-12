@@ -24,6 +24,7 @@ class PeerServer : public SessionHandler, public std::enable_shared_from_this<Pe
     boost::asio::streambuf buffer;
     PeerManager *peer_manager = nullptr;
     BlockPropagation *block_propagation_ = nullptr;
+    std::string remote_uuid_;
 
   protected:
     std::shared_ptr<SessionHandler> shared_self() override { return shared_from_this(); }
@@ -35,6 +36,7 @@ class PeerServer : public SessionHandler, public std::enable_shared_from_this<Pe
     ssl::stream<tcp::socket> &get_socket_ref();
     void set_peer_manager(PeerManager *pm) { peer_manager = pm; }
     void set_block_propagation(BlockPropagation *bp) { block_propagation_ = bp; }
+    const std::string& get_remote_uuid() const { return remote_uuid_; }
 
     template<typename T>
     void send_packet_public(const T &obj, uint64_t packet_type) { send_packet(obj, packet_type); }
