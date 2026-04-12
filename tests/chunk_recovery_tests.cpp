@@ -12,6 +12,7 @@ namespace {
 
 std::filesystem::path create_test_dir(const std::string &name) {
     auto dir = std::filesystem::temp_directory_path() / ("chunk_recovery_test_" + name);
+    std::filesystem::remove_all(dir);
     std::filesystem::create_directories(dir);
     return dir;
 }

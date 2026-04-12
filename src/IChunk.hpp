@@ -29,7 +29,7 @@ class IChunk
     void reserve(std::size_t size) { this->blocks.reserve(size); }
     void clear() { this->blocks.clear(); }
     void emplace_back(const Block &Block) { this->blocks.emplace_back(Block); dirty_ = true; }
-    bool isBlockPresent(size_t index) { return (this->blocks.size() > 0) && (this->blocks.at(index % this->blocks.size()).index == index);};
+    bool isBlockPresent(size_t offset) { return this->blocks.size() > offset; }
     bool isDirty() const { return dirty_; }
     void markDirty() { dirty_ = true; }
     void clearDirty() { dirty_ = false; }
