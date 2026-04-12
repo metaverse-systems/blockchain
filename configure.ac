@@ -21,6 +21,15 @@ AX_BOOST_BASE([1.50],, [AC_MSG_ERROR([Could not find Boost])])
 AX_BOOST_SERIALIZATION(,[AC_MSG_ERROR([Could not find Boost.Serialization library])])
 AX_BOOST_PROGRAM_OPTIONS(,[AC_MSG_ERROR([Could not find Boost.ProgramOptions library])])
 
+# Platform-specific libraries
+PLATFORM_LIBS=""
+case "$host_os" in
+  mingw*|msys*|cygwin*)
+    PLATFORM_LIBS="-lws2_32 -lmswsock"
+    ;;
+esac
+AC_SUBST([PLATFORM_LIBS])
+
 # Checks for header files.
 
 # Checks for typedefs, structures, and compiler characteristics.

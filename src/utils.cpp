@@ -94,7 +94,11 @@ void logMessage(const std::string &level, const std::string &msg)
     auto now = std::chrono::system_clock::now();
     auto time_t_now = std::chrono::system_clock::to_time_t(now);
     std::tm tm_buf;
+#ifdef _WIN32
+    localtime_s(&tm_buf, &time_t_now);
+#else
     localtime_r(&time_t_now, &tm_buf);
+#endif
     std::cerr << "[" << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S") << "] "
               << color << "[" << level << "]\033[0m " << msg << "\n";
 }

@@ -10,6 +10,27 @@
 #include "../src/utils.hpp"
 #include <cstdlib>
 
+namespace {
+inline void env_set(const char* name, const char* value) {
+#ifdef _WIN32
+    _putenv_s(name, value);
+#else
+    setenv(name, value, 1);
+#endif
+}
+inline void env_unset(const char* name) {
+#ifdef _WIN32
+    _putenv_s(name, "");
+#else
+    unsetenv(name);
+#endif
+}
+inline bool env_is_unset(const char* name) {
+    const char* val = std::getenv(name);
+    return val == nullptr || val[0] == '\0';
+}
+} // namespace
+
 namespace ssl = boost::asio::ssl;
 using boost::asio::io_context;
 using boost::asio::ip::tcp;
@@ -65,36 +86,34 @@ TEST_CASE("Server uses SessionHandler correctly", "[Server]")
 TEST_CASE("Daemon exits with error when TLS env vars are unset", "[TLS]")
 {
     // Unset all TLS variables to ensure clean state
-    unsetenv("BLOCKCHAIN_CERT_FILE");
-    unsetenv("BLOCKCHAIN_KEY_FILE");
-    unsetenv("BLOCKCHAIN_CA_FILE");
+    env_unset("BLOCKCHAIN_CERT_FILE");
+    env_unset("BLOCKCHAIN_KEY_FILE");
+    env_unset("BLOCKCHAIN_CA_FILE");
 
     SECTION("Missing BLOCKCHAIN_CERT_FILE is detected")
     {
         // Env vars are unset — checking that cert file is missing
-        const char *cert = std::getenv("BLOCKCHAIN_CERT_FILE");
-        REQUIRE(cert == nullptr);
+        REQUIRE(env_is_unset("BLOCKCHAIN_CERT_FILE"));
     }
 
     SECTION("Missing BLOCKCHAIN_KEY_FILE is detected")
     {
         // Set cert but not key
-        setenv("BLOCKCHAIN_CERT_FILE", "/tmp/cert.pem", 1);
-        const char *key = std::getenv("BLOCKCHAIN_KEY_FILE");
-        REQUIRE(key == nullptr);
-        unsetenv("BLOCKCHAIN_CERT_FILE");
+        env_set("BLOCKCHAIN_CERT_FILE", "/tmp/cert.pem");
+        REQUIRE(env_is_unset("BLOCKCHAIN_KEY_FILE"));
+        env_unset("BLOCKCHAIN_CERT_FILE");
     }
 
     SECTION("Both set passes validation")
     {
-        setenv("BLOCKCHAIN_CERT_FILE", "/tmp/cert.pem", 1);
-        setenv("BLOCKCHAIN_KEY_FILE", "/tmp/key.pem", 1);
+        env_set("BLOCKCHAIN_CERT_FILE", "/tmp/cert.pem");
+        env_set("BLOCKCHAIN_KEY_FILE", "/tmp/key.pem");
         const char *cert = std::getenv("BLOCKCHAIN_CERT_FILE");
         const char *key = std::getenv("BLOCKCHAIN_KEY_FILE");
         REQUIRE(cert != nullptr);
         REQUIRE(key != nullptr);
-        unsetenv("BLOCKCHAIN_CERT_FILE");
-        unsetenv("BLOCKCHAIN_KEY_FILE");
+        env_unset("BLOCKCHAIN_CERT_FILE");
+        env_unset("BLOCKCHAIN_KEY_FILE");
     }
 }
 
