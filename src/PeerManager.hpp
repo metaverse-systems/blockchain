@@ -41,6 +41,7 @@ public:
     const PeerEntry* find_peer(const std::string &host, uint16_t port) const;
 
     // Self-filtering
+    bool is_self(const std::string &host, uint16_t port) const;
     void filter_self(std::vector<PeerAddress> &peers) const;
 
     // Connection management
@@ -48,6 +49,7 @@ public:
     void connect_to(const std::string &host, uint16_t port);
     bool can_accept_inbound() const;
     void on_peer_disconnected(const std::string &host, uint16_t port);
+    void reset_backoff(const std::string &host, uint16_t port);
     void on_inbound_connected(const std::string &host, uint16_t port, std::shared_ptr<PeerServer> session);
     void on_inbound_disconnected(const std::string &host, uint16_t port);
 
@@ -60,8 +62,7 @@ public:
 
     // Duplicate connection detection
     void check_duplicate_connection(const std::string &remote_uuid,
-                                     const std::string &host, uint16_t port,
-                                     bool is_outbound);
+                                     const std::string &host, uint16_t port);
 
     // Ban management
     void increment_error(const std::string &host, uint16_t port);

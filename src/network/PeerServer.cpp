@@ -242,10 +242,11 @@ void PeerServer::send_sync_response(const SyncResponse &response, size_t remaini
 
 void PeerServer::handle_peer_exchange(const PeerExchangeRequest &request)
 {
+    remote_uuid_ = request.sender_uuid;
     if (peer_manager) {
         peer_manager->on_peer_exchange_received(request.sender_uuid, request.sender_listen_port,
                                                  remote_host(), request.peers);
-        peer_manager->check_duplicate_connection(request.sender_uuid, remote_host(), remote_port(), false);
+        peer_manager->check_duplicate_connection(request.sender_uuid, remote_host(), remote_port());
     }
 
     // Send response
@@ -288,9 +289,9 @@ void PeerServer::send_packet(const T &obj, uint64_t packet_type)
     };
 
     boost::asio::async_write(this->ssl_socket, buffers,
-        [this, self, header_buf, payload_buf](const boost::system::error_code &ec, std::size_t) {
+        [this, self, header_buf, payload_buf, packet_type](const boost::system::error_code &ec, std::size_t) {
             if (!ec) {
-                logMessage("INFO", "Sent packet type " + std::to_string(header_buf->size()));
+                logMessage("INFO", "Sent packet type " + std::to_string(packet_type));
                 do_read_header();
             } else {
                 logMessage("ERROR", "Failed to send packet: " + ec.message());

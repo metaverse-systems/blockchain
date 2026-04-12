@@ -47,15 +47,15 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
 
     static nlohmann::json invalidJsonRpcMessage();
     static nlohmann::json noIdMessage();
-    static nlohmann::json invalidMethodMessage(std::string id, std::string method);
-    static nlohmann::json invalidParamsMessage(std::string id);
-    static nlohmann::json resultMessage(std::string id, std::string result);
-    static nlohmann::json resultJsonMessage(std::string id, nlohmann::json result);
-    static nlohmann::json miningTimeoutMessage(std::string id, std::string detail);
-    static nlohmann::json syncInProgressMessage(std::string id);
-    static nlohmann::json syncStartedMessage(std::string id);
-    static nlohmann::json noPeerMessage(std::string id);
-    static nlohmann::json syncAlreadyInProgressMessage(std::string id);
-    static nlohmann::json errorMessage(std::string id, int code, std::string message);
-    static nlohmann::json errorMessageWithData(std::string id, int code, std::string message, nlohmann::json data);
+    static nlohmann::json invalidMethodMessage(nlohmann::json id, std::string method);
+    static nlohmann::json invalidParamsMessage(nlohmann::json id);
+    static nlohmann::json resultMessage(nlohmann::json id, std::string result);
+    static nlohmann::json resultJsonMessage(nlohmann::json id, nlohmann::json result);
+    static nlohmann::json miningTimeoutMessage(nlohmann::json id, std::string detail);
+    static nlohmann::json syncInProgressMessage(nlohmann::json id);
+    static nlohmann::json syncStartedMessage(nlohmann::json id);
+    static nlohmann::json noPeerMessage(nlohmann::json id);
+    static nlohmann::json syncAlreadyInProgressMessage(nlohmann::json id);
+    static nlohmann::json errorMessage(nlohmann::json id, int code, std::string message);
+    static nlohmann::json errorMessageWithData(nlohmann::json id, int code, std::string message, nlohmann::json data);
 };

@@ -32,7 +32,7 @@ sudo apt-get install -y autoconf-archive pkg-config \
 
 autoreconf -fi
 ./configure
-make -j8
+make
 ```
 
 ### macOS
@@ -46,7 +46,7 @@ export CPPFLAGS="-I$(brew --prefix boost)/include $CPPFLAGS"
 
 autoreconf -fi
 ./configure
-make -j8
+make
 ```
 
 ### Windows (MSYS2 UCRT64)
@@ -64,7 +64,7 @@ cmake --install /tmp/catch2/build
 
 autoreconf -fi
 ./configure --with-boost-libdir=$MINGW_PREFIX/lib
-make -j8
+make
 ```
 
 ## Quickstart: Two-Node Network

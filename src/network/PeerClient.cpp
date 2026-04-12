@@ -30,6 +30,10 @@ void PeerClient::connect()
                         {
                             logMessage("INFO", "Connected to peer " + host + ":" + port);
                             connected = true;
+                            // Reset reconnect backoff on successful connection
+                            if (peer_manager) {
+                                peer_manager->reset_backoff(host, static_cast<uint16_t>(std::stoi(port)));
+                            }
                             // Send peer exchange immediately after handshake
                             send_peer_exchange();
                             // Then start reading responses (peer exchange response + sync)
@@ -301,18 +305,19 @@ void PeerClient::abort_sync(const std::string &reason)
 
 void PeerClient::handle_peer_exchange_response(const PeerExchangeResponse &response)
 {
+    remote_uuid_ = response.sender_uuid;
     logMessage("INFO", "Received PEER_EXCHANGE_RESPONSE from " + host + ":" + port
                + " uuid=" + response.sender_uuid + " peers=" + std::to_string(response.peers.size()));
 
     if (peer_manager) {
         peer_manager->on_peer_exchange_received(response.sender_uuid, response.sender_listen_port, host, response.peers);
-        peer_manager->check_duplicate_connection(response.sender_uuid, host, static_cast<uint16_t>(std::stoi(port)), true);
+        peer_manager->check_duplicate_connection(response.sender_uuid, host, static_cast<uint16_t>(std::stoi(port)));
     }
 }
 
 void PeerClient::handle_disconnect(const std::string &reason)
 {
-    if (!connected) return;
+    if (!connected && !socket.lowest_layer().is_open()) return;
     connected = false;
     logMessage("INFO", "Peer " + host + ":" + port + " disconnected: " + reason);
 
