@@ -101,7 +101,7 @@ As a developer, I want test coverage for critical untested behaviors so that fai
 
 ### Functional Requirements
 
-- **FR-001**: Every test case across all 26 test files in the suite MUST contain at least one assertion that checks an observable side-effect or return value of the code under test. No test may use `REQUIRE(true)` or `SUCCEED(...)` as its sole assertion. This requires a comprehensive audit of all ~150+ test cases, not only the ~19 flagged in the audit.
+- **FR-001**: Every test case across all 26 test files in the suite MUST contain at least one assertion that checks an observable side-effect or return value of the code under test. No test may use `REQUIRE(true)` or `SUCCEED(...)` as its sole assertion. (`SUCCEED(...)` preceded by at least one meaningful assertion is acceptable as a documentation marker.) This requires a comprehensive audit of all ~150+ test cases, not only the ~19 flagged in the audit.
 - **FR-002**: Every test case MUST fail when the specific behavior it claims to verify is deliberately broken.
 - **FR-003**: RPC endpoint tests MUST invoke actual handler logic by calling extracted handler methods directly with a mocked `IBlockchain` dependency. Tests MUST NOT construct expected response objects manually and assert their structure without exercising production code. Socket-based integration coverage is already provided by `rpc_integration_tests.cpp` and need not be duplicated.
 - **FR-004**: Integration tests MUST NOT depend on wall-clock sleep durations for correctness. Waiting logic MUST use deterministic event-loop advancement, condition-based polling with bounded retries, or signaling mechanisms.
@@ -139,4 +139,4 @@ As a developer, I want test coverage for critical untested behaviors so that fai
 - Production code will be modified where necessary to improve testability, including both structural changes (e.g., narrowing `IBlockchain` into reader/writer interfaces, extracting RPC handler functions) and error-reporting contract changes (e.g., making `saveAllChunks()` report partial failures to callers). Behavioral changes unrelated to testability are out of scope.
 - The shared `TestHelpers` namespace established in the prior feature (019) will be extended as needed for new helper functions.
 - Flaky test elimination targets the known timing-dependent tests identified in the audit; discovering additional flaky tests is best-effort.
-- The existing `rpc_integration_tests.cpp` approach (socket-based testing against a running server) serves as the reference pattern for rewriting `rpc_expansion_tests.cpp`.
+- The rewritten `rpc_expansion_tests.cpp` tests call extracted handler methods directly (unit-test style) via `friend class RpcHandlerTests`, using a full `MockBlockchain` (inheriting `IBlockchain`) since `RpcServer`'s constructor requires an `IBlockchain&`. Socket-based integration coverage is already provided by `rpc_integration_tests.cpp` and is not duplicated.
