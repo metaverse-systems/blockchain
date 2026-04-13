@@ -4,6 +4,7 @@
 #include <map>
 #include <set>
 #include <unordered_map>
+#include <optional>
 #include <filesystem>
 #include "Block.hpp"
 #include "StreamEntry.hpp"
@@ -42,7 +43,7 @@ class ChainPersistence
                        bool& dirty);
 
     size_t discoverChunks();
-    bool validateChunk(size_t chunkIndex, const ConsensusConfig& config);
+    std::optional<ChunkHandler> validateChunk(size_t chunkIndex, const ConsensusConfig& config);
 
     void recoverChain(std::vector<ChunkHandler>& chain,
                       std::map<std::string, std::vector<size_t>>& keyIndexMap,

@@ -89,13 +89,15 @@ int main(int argc, char *argv[])
     if (cli.p2p_port) node_config.network.p2p_port = *cli.p2p_port;
     if (cli.log_level) node_config.network.log_level = *cli.log_level;
     for (const auto &seed : cli.seed_nodes) {
-        // Parse host:port seed node strings
-        auto colon = seed.rfind(':');
-        if (colon != std::string::npos) {
+        try {
+            auto [host, port] = parsePeerKey(seed);
             PeerAddress addr;
-            addr.host = seed.substr(0, colon);
-            addr.port = static_cast<uint16_t>(std::stoi(seed.substr(colon + 1)));
+            addr.host = host;
+            addr.port = port;
             node_config.peers.seed_nodes.push_back(addr);
+        } catch (const std::invalid_argument &e) {
+            std::cerr << "Invalid seed node '" << seed << "': " << e.what() << "\n";
+            return 1;
         }
     }
 

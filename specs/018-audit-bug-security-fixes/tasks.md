@@ -66,12 +66,12 @@
 
 ### Tests for User Story 2
 
-- [ ] T010 [P] [US2] Add RPC integration test in `tests/rpc_integration_tests.cpp`: "getBlockByIndex with out-of-range index returns error" — send request with index >= chain length, assert JSON-RPC error code -32001 and message "Block not found"
-- [ ] T011 [P] [US2] Add RPC integration test in `tests/rpc_integration_tests.cpp`: "getBlockByIndex with valid index returns block" — send request with valid index, assert block data returned successfully
+- [X] T010 [P] [US2] Add RPC integration test in `tests/rpc_integration_tests.cpp`: "getBlockByIndex with out-of-range index returns error" — send request with index >= chain length, assert JSON-RPC error code -32001 and message "Block not found"
+- [X] T011 [P] [US2] Add RPC integration test in `tests/rpc_integration_tests.cpp`: "getBlockByIndex with valid index returns block" — send request with valid index, assert block data returned successfully
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Add bounds check to `getBlockByIndex` handler in `src/network/RpcServer.cpp`: before calling `bc.getBlockByIndex(index)`, check `index >= bc.getChainLength()` and return `errorMessage(object["id"], -32001, "Block not found")` if out of range, following the same pattern as the `getBlockRange` handler
+- [X] T012 [US2] Add bounds check to `getBlockByIndex` handler in `src/network/RpcServer.cpp`: before calling `bc.getBlockByIndex(index)`, check `index >= bc.getChainLength()` and return `errorMessage(object["id"], -32001, "Block not found")` if out of range, following the same pattern as the `getBlockRange` handler
 
 **Checkpoint**: RPC clients can no longer crash the node with out-of-range block queries.
 
@@ -85,11 +85,11 @@
 
 ### Tests for User Story 3
 
-- [ ] T013 [US3] Add CLI integration test in `tests/cli_tests.cpp`: "seed node with non-numeric port exits with error" — spawn the node binary with `--seed-node host:abc`, assert non-zero exit code and stderr contains a descriptive error message. Also test `--seed-node 192.168.1.1:99999` (out-of-range port) and `--seed-node just-a-hostname` (missing colon)
+- [X] T013 [US3] Add CLI integration test in `tests/cli_tests.cpp`: "seed node with non-numeric port exits with error" — spawn the node binary with `--seed-node host:abc`, assert non-zero exit code and stderr contains a descriptive error message. Also test `--seed-node 192.168.1.1:99999` (out-of-range port) and `--seed-node just-a-hostname` (missing colon)
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Refactor seed node parsing in `src/main.cpp` to use `parsePeerKey()` from `src/utils.cpp`: replace the inline `rfind(':')`/`std::stoi()` logic with a try/catch around `parsePeerKey(seed)`, catching `std::invalid_argument`. On catch, print error to stderr (e.g., "Invalid seed node 'host:abc': [exception message]") and `return 1`. Also handle the missing-colon case (when `parsePeerKey()` throws for malformed key)
+- [X] T014 [US3] Refactor seed node parsing in `src/main.cpp` to use `parsePeerKey()` from `src/utils.cpp`: replace the inline `rfind(':')`/`std::stoi()` logic with a try/catch around `parsePeerKey(seed)`, catching `std::invalid_argument`. On catch, print error to stderr (e.g., "Invalid seed node 'host:abc': [exception message]") and `return 1`. Also handle the missing-colon case (when `parsePeerKey()` throws for malformed key)
 
 **Checkpoint**: Operators get clear error messages for malformed `--seed-node` arguments.
 
@@ -103,13 +103,13 @@
 
 ### Tests for User Story 4
 
-- [ ] T015 [US4] Add recovery test in `tests/chunk_recovery_tests.cpp`: "recoverChain loads each chunk only once" — create multiple chunk files on disk, run recoverChain, verify totalBlockCount equals sum of all chunk block counts (confirming blocks were counted from the validated chunk, not a separate load)
+- [X] T015 [US4] Add recovery test in `tests/chunk_recovery_tests.cpp`: "recoverChain loads each chunk only once" — create multiple chunk files on disk, run recoverChain, verify totalBlockCount equals sum of all chunk block counts (confirming blocks were counted from the validated chunk, not a separate load)
 
 ### Implementation for User Story 4
 
-- [ ] T016 [US4] Change `validateChunk()` signature in `src/ChainPersistence.hpp` from `bool validateChunk(size_t chunkIndex, const ConsensusConfig& config)` to `std::optional<ChunkHandler> validateChunk(size_t chunkIndex, const ConsensusConfig& config)`
-- [ ] T017 [US4] Update `validateChunk()` implementation in `src/ChainPersistence.cpp` to return the loaded `ChunkHandler` on success (`std::optional<ChunkHandler>(std::move(chunk))`) and `std::nullopt` on failure, instead of `true`/`false`
-- [ ] T018 [US4] Refactor `recoverChain()` non-fast-startup loop in `src/ChainPersistence.cpp`: call `validateChunk(i, config)` and capture the returned chunk; use it directly for cross-chunk linkage check (compare `currChunk.blocks[0].prevHash` against previous chunk's last block hash); use it for block counting (`totalBlocks += currChunk.blocks.size()`); keep a `prevChunk` variable across iterations to avoid reloading chunk N-1
+- [X] T016 [US4] Change `validateChunk()` signature in `src/ChainPersistence.hpp` from `bool validateChunk(size_t chunkIndex, const ConsensusConfig& config)` to `std::optional<ChunkHandler> validateChunk(size_t chunkIndex, const ConsensusConfig& config)`
+- [X] T017 [US4] Update `validateChunk()` implementation in `src/ChainPersistence.cpp` to return the loaded `ChunkHandler` on success (`std::optional<ChunkHandler>(std::move(chunk))`) and `std::nullopt` on failure, instead of `true`/`false`
+- [X] T018 [US4] Refactor `recoverChain()` non-fast-startup loop in `src/ChainPersistence.cpp`: call `validateChunk(i, config)` and capture the returned chunk; use it directly for cross-chunk linkage check (compare `currChunk.blocks[0].prevHash` against previous chunk's last block hash); use it for block counting (`totalBlocks += currChunk.blocks.size()`); keep a `prevChunk` variable across iterations to avoid reloading chunk N-1
 
 **Checkpoint**: Chain recovery reads each chunk file exactly once.
 
@@ -135,11 +135,11 @@
 
 ### Tests for User Story 6
 
-- [ ] T019 [US6] Add unit test in `tests/block_tests.cpp`: "getBlockByIndex resize assigns correct chunk IDs" — create a blockchain with 2 chunks, request a block that would be in chunk 5, verify the intermediate chunk entries at positions 2, 3, 4 each have chunk IDs matching their position index
+- [X] T019 [US6] Add unit test in `tests/block_tests.cpp`: "getBlockByIndex resize assigns correct chunk IDs" — create a blockchain with 2 chunks, request a block that would be in chunk 5, verify the intermediate chunk entries at positions 2, 3, 4 each have chunk IDs matching their position index
 
 ### Implementation for User Story 6
 
-- [ ] T020 [US6] Fix `getBlockByIndex()` resize in `src/Blockchain.cpp`: replace `this->chain.resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, this->blockchainPath))` with a `while (this->chain.size() <= chunkIndex)` loop using `this->chain.emplace_back(ChunkHandler(this->chain.size(), this->blockchainPath))`, matching the pattern in `appendBlock()`
+- [X] T020 [US6] Fix `getBlockByIndex()` resize in `src/Blockchain.cpp`: replace `this->chain.resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, this->blockchainPath))` with a `while (this->chain.size() <= chunkIndex)` loop using `this->chain.emplace_back(ChunkHandler(this->chain.size(), this->blockchainPath))`, matching the pattern in `appendBlock()`
 
 **Checkpoint**: Chunk vector entries always have correct IDs.
 
@@ -149,10 +149,10 @@
 
 **Purpose**: Final validation and roadmap update.
 
-- [ ] T021 Build the full project with `make -j8` and verify zero compiler warnings related to changed files
-- [ ] T022 Run all test binaries individually and verify all pass: `./tests/blockchain_tests`, `./tests/rpc_integration_tests`, `./tests/chunk_recovery_tests`, `./tests/cli_tests`
-- [ ] T023 Run quickstart.md manual verification steps for §3.1 (seed node parsing) to confirm error messages are user-friendly
-- [ ] T024 Update `docs/ROADMAP.md` to move 018-audit-bug-security-fixes to Completed with a one-line summary
+- [X] T021 Build the full project with `make -j8` and verify zero compiler warnings related to changed files
+- [X] T022 Run all test binaries individually and verify all pass: `./tests/blockchain_tests`, `./tests/rpc_integration_tests`, `./tests/chunk_recovery_tests`, `./tests/cli_tests`
+- [X] T023 Run quickstart.md manual verification steps for §3.1 (seed node parsing) to confirm error messages are user-friendly
+- [X] T024 Update `docs/ROADMAP.md` to move 018-audit-bug-security-fixes to Completed with a one-line summary
 
 ---
 

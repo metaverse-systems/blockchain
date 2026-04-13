@@ -216,9 +216,14 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
         return;
     }
 
-    // Empty response indicates nothing to sync
+    // Empty response while expecting more blocks signals end-of-sync
     if (response.blocks.empty()) {
-        logMessage("INFO", "Received empty sync response, chain is up to date");
+        if (response.total_chain_height > local_height) {
+            logMessage("WARN", "Empty sync response while expecting more blocks (local="
+                       + std::to_string(local_height) + " peer=" + std::to_string(response.total_chain_height) + ")");
+        } else {
+            logMessage("INFO", "Received empty sync response, chain is up to date");
+        }
         sync_status.isSyncing.store(false);
         return;
     }
@@ -262,18 +267,24 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
                + std::to_string(response.blocks.size()) + " blocks)");
 
     // Persist the valid chunk: append blocks to the chain
-    // For the first chunk during initial sync, we may need to use replaceChain
-    // For incremental sync, we add blocks one by one
-    for (auto &block : response.blocks) {
+    for (const auto &block : response.blocks) {
         if (block.index < local_height) {
+            // Overlap region: verify hash matches local chain
+            Block local_block = bc.getBlockByIndex(block.index);
+            if (local_block.hash != block.hash) {
+                abort_sync("Overlap hash mismatch at block " + std::to_string(block.index));
+                return;
+            }
             continue; // Already have this block
         }
+        bc.appendBlock(block);
     }
 
-    // Save the chunk
+    // Save the chunk and keys
     size_t chunk_idx = response.chunk_index;
     try {
         bc.saveChunk(chunk_idx);
+        bc.saveKeys();
     } catch (...) {
         // Chunk may not exist yet in the chain structure — that's ok for now
     }

@@ -339,3 +339,17 @@ TEST_CASE("NodeConfig unknown key warns but does not fail", "[NodeConfig]") {
 
     std::filesystem::remove_all(dir);
 }
+
+// --- US3: Seed node port validation tests ---
+
+TEST_CASE("Seed node with non-numeric port is rejected by parsePeerKey", "[CLI][US3]") {
+    REQUIRE_THROWS_AS(parsePeerKey("host:abc"), std::invalid_argument);
+}
+
+TEST_CASE("Seed node with out-of-range port is rejected by parsePeerKey", "[CLI][US3]") {
+    REQUIRE_THROWS_AS(parsePeerKey("192.168.1.1:99999"), std::invalid_argument);
+}
+
+TEST_CASE("Seed node missing colon is rejected by parsePeerKey", "[CLI][US3]") {
+    REQUIRE_THROWS_AS(parsePeerKey("just-a-hostname"), std::invalid_argument);
+}

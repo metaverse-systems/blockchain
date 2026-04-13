@@ -32,118 +32,60 @@ This audit found **4 bugs**, **2 security issues**, **5 performance issues**,
 **2 duplication clusters**, **3 architecture concerns**, and **significant
 test-quality weaknesses** that reduce confidence in the test suite.
 
-| Category              | Count | Highest Severity |
-|-----------------------|------:|------------------|
-| Bugs                  |     4 | High             |
-| Security issues       |     2 | High             |
-| Performance issues    |     5 | Medium           |
-| Code duplication      |     2 | Medium           |
-| Architecture concerns |     3 | Medium           |
-| Test quality issues   |     6 | High             |
+All 4 bugs, both security issues, and 1 performance issue were resolved in
+**018-audit-bug-security-fixes**. Remaining items are tracked below.
+
+| Category              | Found | Resolved | Remaining | Highest Open Severity |
+|-----------------------|------:|---------:|----------:|----------------------:|
+| Bugs                  |     4 |        4 |         0 | —                     |
+| Security issues       |     2 |        2 |         0 | —                     |
+| Performance issues    |     5 |        1 |         4 | Medium                |
+| Code duplication      |     2 |        0 |         2 | Medium                |
+| Architecture concerns |     3 |        0 |         3 | Medium                |
+| Test quality issues   |     6 |        0 |         6 | High                  |
 
 ---
 
 ## 2. Bugs
 
-### 2.1 Sync never appends received blocks — HIGH
+### 2.1 ~~Sync never appends received blocks — HIGH~~ ✅ RESOLVED (018)
 
-[PeerClient.cpp](../src/network/PeerClient.cpp#L267-L277)
+`handle_sync_response()` now appends new blocks via `bc.appendBlock()`, checks
+overlap hash mismatches (aborting sync on fork detection), calls `bc.saveKeys()`
+after chunk saves, and warns when an empty batch arrives with height mismatch.
 
-`handle_sync_response()` validates each block in the response correctly, then
-enters a loop that *skips* every block:
+### 2.2 ~~`recoverChain()` loads each chunk up to 3 times — MEDIUM~~ ✅ RESOLVED (018)
 
-```cpp
-for (auto &block : response.blocks) {
-    if (block.index < local_height) {
-        continue; // Already have this block
-    }
-}
-```
+`validateChunk()` now returns `std::optional<ChunkHandler>` and `recoverChain()`
+uses a single-pass loop with `prevChunk` caching — each chunk is deserialized
+exactly once.
 
-The loop body only contains the `continue` guard — there is no `appendBlock()`
-or `replaceChain()` call. Validated sync blocks are discarded silently, and
-the local chain never advances. Subsequent "more chunks needed" logic then
-re-requests the same chunk endlessly because `getChainBlockCount()` never
-increases.
+### 2.3 ~~`getBlockByIndex()` passes wrong index to `ChunkHandler` resize — LOW~~ ✅ RESOLVED (018)
 
-**Fix:** After the skip guard, call `bc.appendBlock(block)` for each new
-block, following the same pattern as `BlockPropagation::appendReceivedBlock()`.
+Replaced `resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, ...))` with a
+`while (chain.size() <= chunkIndex)` / `emplace_back(chain.size(), ...)` loop,
+matching the pattern in `appendBlock()`.
 
-### 2.2 `recoverChain()` loads each chunk up to 3 times — MEDIUM
+### 2.4 ~~`parsePeerKey()` does not validate port range — LOW~~ ✅ RESOLVED (018)
 
-[ChainPersistence.cpp](../src/ChainPersistence.cpp#L208-L248)
-
-In the non-fast-startup path, `validateChunk(i)` loads chunk `i` internally.
-The cross-chunk check then loads chunks `i-1` **and** `i` again via separate
-`ChunkHandler` temporaries. Finally, the block-counting loop loads chunk `i`
-a third time. Each chunk is deserialized from disk up to 3 times.
-
-**Fix:** Have `validateChunk()` return the loaded chunk (or cache it), and
-reuse it for cross-chunk linkage and block counting.
-
-### 2.3 `getBlockByIndex()` passes wrong index to `ChunkHandler` resize — LOW
-
-[Blockchain.cpp](../src/Blockchain.cpp#L194)
-
-```cpp
-this->chain.resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, this->blockchainPath));
-```
-
-The prototype `ChunkHandler` passed to `resize()` uses `chunkIndex + 1` as
-its chunk ID. If multiple slots are created (e.g., resizing from 2 to 5), all
-intermediate entries get the same ID (`chunkIndex + 1`). In practice, these
-entries are overwritten on load, so this has no runtime effect — but it is
-incorrect.
-
-### 2.4 `parsePeerKey()` does not validate port range — LOW
-
-[utils.cpp](../src/utils.cpp#L172-L180)
-
-`parsePeerKey()` calls `std::stoi()` on the port substring. If the value is
-negative or > 65535, the cast to `uint16_t` silently truncates. Additionally,
-`std::stoi()` throws `std::out_of_range` for very large integers and
-`std::invalid_argument` for non-numeric strings — neither is caught with a
-descriptive message.
-
-**Fix:** Validate that the parsed integer is in [1, 65535] before casting.
+`parsePeerKey()` now wraps `std::stoi()` in try/catch and validates the port
+is in [1, 65535], throwing `std::invalid_argument` with descriptive messages
+for non-numeric, out-of-range, and malformed inputs.
 
 ---
 
 ## 3. Security
 
-### 3.1 Seed node port parsing crashes on invalid input — HIGH
+### 3.1 ~~Seed node port parsing crashes on invalid input — HIGH~~ ✅ RESOLVED (018)
 
-[main.cpp](../src/main.cpp#L100-L105)
+Seed node parsing in `main.cpp` now uses `parsePeerKey()` wrapped in
+try/catch. Invalid input produces a descriptive stderr message and returns
+exit code 1.
 
-```cpp
-for (const auto &seed : cli.seed_nodes) {
-    auto colon = seed.rfind(':');
-    if (colon != std::string::npos) {
-        PeerAddress addr;
-        addr.host = seed.substr(0, colon);
-        addr.port = static_cast<uint16_t>(std::stoi(seed.substr(colon + 1)));
-```
+### 3.2 ~~`getBlockByIndex` RPC has no bounds check — MEDIUM~~ ✅ RESOLVED (018)
 
-`std::stoi()` on user-supplied CLI input without a `try`/`catch`. A
-malformed `--seed-node` value like `host:abc` or `host:99999` crashes the
-node with an uncaught exception. The port is also not range-checked against
-[1, 65535].
-
-**Fix:** Wrap in `try`/`catch`, validate range, and emit a user-friendly
-error message.
-
-### 3.2 `getBlockByIndex` RPC has no bounds check — MEDIUM
-
-[RpcServer.cpp](../src/network/RpcServer.cpp#L339-L349)
-
-The `getBlockByIndex` handler passes the user-supplied index directly to
-`bc.getBlockByIndex()` without checking it against `bc.getChainLength()`.
-If the index exceeds the chain length, the method attempts to load a
-nonexistent chunk from disk, which throws an unhandled exception that crashes
-the RPC session. The `getBlockRange` handler correctly bounds-checks
-`startIndex` — this handler should do the same.
-
-**Fix:** Return a `-32001 "Block not found"` error if `index >= bc.getChainLength()`.
+The `getBlockByIndex` handler now checks `index >= bc.getChainLength()` and
+returns JSON-RPC error -32001 "Block not found" for out-of-range indices.
 
 ---
 
@@ -169,10 +111,9 @@ Every request walks up to 21 string comparisons. A
 reduce the 700-line `do_read()` callback into individually testable handler
 functions.
 
-### 4.3 `recoverChain()` loads each chunk multiple times — MEDIUM
+### 4.3 ~~`recoverChain()` loads each chunk multiple times — MEDIUM~~ ✅ RESOLVED (018)
 
-As described in §2.2, each chunk is deserialized from disk up to 3 times
-during recovery. For a node with 1000+ chunks, this triples startup time.
+Resolved together with §2.2. Single-pass recovery loads each chunk once.
 
 ### 4.4 String construction in log calls — LOW
 
@@ -308,19 +249,19 @@ advance deterministically, or condition-variable signaling.
 
 The following behaviors have no test coverage:
 
-| Untested area | Severity |
-|---------------|----------|
-| `handle_sync_response()` actually appending blocks | High |
-| `getBlockByIndex` RPC with out-of-range index | High |
-| `--seed-node` CLI with non-numeric port | High |
-| Seed node parsing with invalid port values | High |
-| Partial `saveAllChunks()` failure (one chunk fails, others continue) | High |
-| Chain sync completing end-to-end (blocks actually appended) | High |
-| Peer disconnect during propagation | Medium |
-| Rate limiter resetting after time window expires | Medium |
-| Pending pool TTL-based expiry of stale blocks | Medium |
-| Block propagation relay excludes sender correctly | Medium |
-| `recoverChain()` with corrupted index files (fallback to chunk rebuild) | Medium |
+| Untested area | Severity | Status |
+|---------------|----------|--------|
+| `handle_sync_response()` actually appending blocks | High | ✅ Covered (018) |
+| `getBlockByIndex` RPC with out-of-range index | High | ✅ Covered (018) |
+| `--seed-node` CLI with non-numeric port | High | ✅ Covered (018) |
+| Seed node parsing with invalid port values | High | ✅ Covered (018) |
+| Partial `saveAllChunks()` failure (one chunk fails, others continue) | High | Open |
+| Chain sync completing end-to-end (blocks actually appended) | High | ✅ Covered (018) |
+| Peer disconnect during propagation | Medium | Open |
+| Rate limiter resetting after time window expires | Medium | Open |
+| Pending pool TTL-based expiry of stale blocks | Medium | Open |
+| Block propagation relay excludes sender correctly | Medium | Open |
+| `recoverChain()` with corrupted index files (fallback to chunk rebuild) | Medium | Open |
 
 ### 7.6 Duplicated test setup persists in 4 files — LOW
 
@@ -338,15 +279,17 @@ Ordered by impact and effort:
 
 | # | Action | Impact | Effort |
 |---|--------|--------|--------|
-| 1 | Fix `handle_sync_response()` to actually append blocks (§2.1) | Sync is completely broken | Trivial |
-| 2 | Add bounds check to `getBlockByIndex` RPC (§3.2) | Prevents crash from RPC input | Trivial |
-| 3 | Wrap seed-node port parsing in try/catch with range check (§3.1) | Prevents crash on invalid CLI input | Trivial |
-| 4 | Validate port range in `parsePeerKey()` (§2.4) | Prevents silent truncation | Trivial |
-| 5 | Rewrite `rpc_expansion_tests.cpp` to test real RPC handlers (§7.3) | False confidence → real coverage | Medium |
-| 6 | Replace trivial assertions with meaningful ones (§7.1, §7.2) | Catches actual regressions | Medium |
-| 7 | Cache chunk during `recoverChain()` validation (§2.2, §4.3) | 3× faster startup | Low |
-| 8 | Replace O(n) peer lookups with `unordered_map` (§4.1) | O(1) peer operations | Medium |
-| 9 | Extract RPC dispatch table from `do_read()` (§4.2) | Maintainability, testability | Medium |
-| 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.1) | Reduces coupling | Medium |
-| 11 | Remove local test helpers in favor of `TestHelpers.hpp` (§7.6) | Consistency | Low |
-| 12 | Make integration tests deterministic (§7.4) | Reduces CI flakiness | Medium |
+| # | Action | Impact | Effort | Status |
+|---|--------|--------|--------|--------|
+| 1 | Fix `handle_sync_response()` to actually append blocks (§2.1) | Sync is completely broken | Trivial | ✅ Done (018) |
+| 2 | Add bounds check to `getBlockByIndex` RPC (§3.2) | Prevents crash from RPC input | Trivial | ✅ Done (018) |
+| 3 | Wrap seed-node port parsing in try/catch with range check (§3.1) | Prevents crash on invalid CLI input | Trivial | ✅ Done (018) |
+| 4 | Validate port range in `parsePeerKey()` (§2.4) | Prevents silent truncation | Trivial | ✅ Done (018) |
+| 5 | Rewrite `rpc_expansion_tests.cpp` to test real RPC handlers (§7.3) | False confidence → real coverage | Medium | Open |
+| 6 | Replace trivial assertions with meaningful ones (§7.1, §7.2) | Catches actual regressions | Medium | Open |
+| 7 | Cache chunk during `recoverChain()` validation (§2.2, §4.3) | 3× faster startup | Low | ✅ Done (018) |
+| 8 | Replace O(n) peer lookups with `unordered_map` (§4.1) | O(1) peer operations | Medium | Open |
+| 9 | Extract RPC dispatch table from `do_read()` (§4.2) | Maintainability, testability | Medium | Open |
+| 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.1) | Reduces coupling | Medium | Open |
+| 11 | Remove local test helpers in favor of `TestHelpers.hpp` (§7.6) | Consistency | Low | Open |
+| 12 | Make integration tests deterministic (§7.4) | Reduces CI flakiness | Medium | Open |

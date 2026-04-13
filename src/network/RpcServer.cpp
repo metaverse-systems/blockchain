@@ -305,6 +305,12 @@ void RpcServer::do_read()
                         return;
                     }
                     auto index = object["params"]["index"].get<size_t>();
+                    if (index >= bc.getChainLength()) {
+                        buffer.consume(buffer.size());
+                        outputStream << errorMessage(object["id"], -32001, "Block not found") << std::endl;
+                        this->do_write();
+                        return;
+                    }
                     Block b = bc.getBlockByIndex(index);
                     b.dump();
                     buffer.consume(buffer.size());

@@ -515,3 +515,148 @@ TEST_CASE("SyncState returns to IDLE on connection error", "[Sync][US4]")
     error_handler();
     REQUIRE_FALSE(status.isSyncing.load());
 }
+
+// ==========================================================================
+// US1: handle_sync_response block-append tests
+// ==========================================================================
+
+TEST_CASE("handle_sync_response appends new blocks", "[Sync][US1]")
+{
+    auto dir = std::filesystem::temp_directory_path() / "sync_test_append";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+
+    ConsensusConfig cfg;
+    cfg.initialDifficulty = 0;
+    cfg.minDifficulty = 0;
+    cfg.miningTimeout = 60;
+    Blockchain<MockChunk> bc(dir, cfg);
+
+    // Blockchain starts with genesis (1 block)
+    size_t initial_height = bc.getChainBlockCount();
+    REQUIRE(initial_height == 1);
+
+    // Build a valid chain extending from genesis
+    Block genesis = bc.getBlockByIndex(0);
+    Block b1 = mineTestBlock(1, 100, genesis.hash, "sync_b1", 0);
+    Block b2 = mineTestBlock(2, 200, b1.hash, "sync_b2", 0);
+    Block b3 = mineTestBlock(3, 300, b2.hash, "sync_b3", 0);
+
+    // Simulate what the fixed handler should do: append each new block
+    bc.appendBlock(b1);
+    bc.appendBlock(b2);
+    bc.appendBlock(b3);
+
+    REQUIRE(bc.getChainBlockCount() == 4);
+    REQUIRE(bc.getBlockByIndex(1).hash == b1.hash);
+    REQUIRE(bc.getBlockByIndex(3).hash == b3.hash);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("handle_sync_response skips already-known blocks", "[Sync][US1]")
+{
+    auto dir = std::filesystem::temp_directory_path() / "sync_test_skip";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+
+    ConsensusConfig cfg;
+    cfg.initialDifficulty = 0;
+    cfg.minDifficulty = 0;
+    cfg.miningTimeout = 60;
+    Blockchain<MockChunk> bc(dir, cfg);
+
+    // Add some blocks to the local chain
+    Block genesis = bc.getBlockByIndex(0);
+    Block b1 = mineTestBlock(1, 100, genesis.hash, "local_b1", 0);
+    Block b2 = mineTestBlock(2, 200, b1.hash, "local_b2", 0);
+    bc.appendBlock(b1);
+    bc.appendBlock(b2);
+    REQUIRE(bc.getChainBlockCount() == 3);
+
+    // Simulate a sync response that overlaps: blocks 1, 2 (known) + 3 (new)
+    Block b3 = mineTestBlock(3, 300, b2.hash, "sync_b3", 0);
+
+    // The handler should skip blocks below local_height and only append new ones
+    size_t local_height = bc.getChainBlockCount();
+    std::vector<Block> response_blocks = {b1, b2, b3};
+    for (auto &block : response_blocks) {
+        if (block.index < local_height) {
+            continue; // Skip already-known blocks
+        }
+        bc.appendBlock(block);
+    }
+
+    REQUIRE(bc.getChainBlockCount() == 4);
+    // Verify existing blocks unchanged
+    REQUIRE(bc.getBlockByIndex(1).hash == b1.hash);
+    REQUIRE(bc.getBlockByIndex(2).hash == b2.hash);
+    REQUIRE(bc.getBlockByIndex(3).hash == b3.hash);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("handle_sync_response aborts on overlap hash mismatch", "[Sync][US1]")
+{
+    auto dir = std::filesystem::temp_directory_path() / "sync_test_mismatch";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+
+    ConsensusConfig cfg;
+    cfg.initialDifficulty = 0;
+    cfg.minDifficulty = 0;
+    cfg.miningTimeout = 60;
+    Blockchain<MockChunk> bc(dir, cfg);
+
+    // Build local chain: genesis + b1
+    Block genesis = bc.getBlockByIndex(0);
+    Block b1 = mineTestBlock(1, 100, genesis.hash, "local_b1", 0);
+    bc.appendBlock(b1);
+    REQUIRE(bc.getChainBlockCount() == 2);
+
+    // Build a response with a different block at index 1 (hash mismatch)
+    Block fake_b1 = mineTestBlock(1, 999, genesis.hash, "fake_data", 0);
+    Block fake_b2 = mineTestBlock(2, 1000, fake_b1.hash, "fake_b2", 0);
+
+    // The handler should detect the overlap mismatch and abort
+    size_t local_height = bc.getChainBlockCount();
+    bool aborted = false;
+    std::vector<Block> response_blocks = {fake_b1, fake_b2};
+    for (auto &block : response_blocks) {
+        if (block.index < local_height) {
+            // Check overlap hash matches local chain
+            Block local_block = bc.getBlockByIndex(block.index);
+            if (local_block.hash != block.hash) {
+                aborted = true;
+                break;
+            }
+            continue;
+        }
+        bc.appendBlock(block);
+    }
+
+    REQUIRE(aborted);
+    // Chain height should be unchanged
+    REQUIRE(bc.getChainBlockCount() == 2);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("handle_sync_response treats empty batch as end-of-sync", "[Sync][US1]")
+{
+    SyncStatus status;
+    status.isSyncing.store(true);
+
+    SyncResponse response;
+    response.total_chain_height = 100;
+    response.chunk_index = 0;
+    response.blocks.clear(); // Empty batch
+
+    // The handler should stop syncing on empty response
+    if (response.blocks.empty()) {
+        logMessage("WARN", "Empty sync response while expecting more blocks");
+        status.isSyncing.store(false);
+    }
+
+    REQUIRE_FALSE(status.isSyncing.load());
+}

@@ -151,7 +151,7 @@ size_t ChainPersistence<ChunkHandler>::discoverChunks()
 }
 
 template<typename ChunkHandler>
-bool ChainPersistence<ChunkHandler>::validateChunk(size_t chunkIndex, const ConsensusConfig& config)
+std::optional<ChunkHandler> ChainPersistence<ChunkHandler>::validateChunk(size_t chunkIndex, const ConsensusConfig& config)
 {
     (void)config;
     std::filesystem::path chunkPath = blockchainPath_ / chunkFilename(chunkIndex);
@@ -159,7 +159,7 @@ bool ChainPersistence<ChunkHandler>::validateChunk(size_t chunkIndex, const Cons
     if (std::filesystem::file_size(chunkPath) == 0) {
         logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
                    + " at " + chunkPath.string() + " is zero bytes");
-        return false;
+        return std::nullopt;
     }
 
     try {
@@ -169,7 +169,7 @@ bool ChainPersistence<ChunkHandler>::validateChunk(size_t chunkIndex, const Cons
         if (chunk.blocks.empty()) {
             logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
                        + " at " + chunkPath.string() + " is empty after deserialization");
-            return false;
+            return std::nullopt;
         }
 
         for (size_t i = 0; i < chunk.blocks.size(); i++) {
@@ -178,7 +178,7 @@ bool ChainPersistence<ChunkHandler>::validateChunk(size_t chunkIndex, const Cons
                 logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
                            + " block " + std::to_string(block.index)
                            + " has invalid hash at " + chunkPath.string());
-                return false;
+                return std::nullopt;
             }
         }
 
@@ -187,15 +187,15 @@ bool ChainPersistence<ChunkHandler>::validateChunk(size_t chunkIndex, const Cons
                 logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
                            + " block " + std::to_string(chunk.blocks[i].index)
                            + " has broken linkage at " + chunkPath.string());
-                return false;
+                return std::nullopt;
             }
         }
 
-        return true;
+        return std::optional<ChunkHandler>(std::move(chunk));
     } catch (const std::exception &e) {
         logMessage("ERROR", "Failed to validate chunk " + std::to_string(chunkIndex)
                    + " at " + chunkPath.string() + ": " + std::string(e.what()));
-        return false;
+        return std::nullopt;
     }
 }
 
@@ -229,20 +229,17 @@ void ChainPersistence<ChunkHandler>::recoverChain(std::vector<ChunkHandler>& cha
             validChunks++;
         }
     } else {
+        std::optional<ChunkHandler> prevChunk;
         for (size_t i = 0; i < numChunks; i++) {
-            if (!validateChunk(i, config)) {
+            auto currChunk = validateChunk(i, config);
+            if (!currChunk) {
                 logMessage("WARN", "Stopping at chunk " + std::to_string(i) + " due to validation failure");
                 break;
             }
 
-            if (i > 0) {
-                ChunkHandler prevChunk(i - 1, blockchainPath_);
-                prevChunk.load();
-                ChunkHandler currChunk(i, blockchainPath_);
-                currChunk.load();
-
-                if (!currChunk.blocks.empty() && !prevChunk.blocks.empty()) {
-                    if (currChunk.blocks[0].prevHash != prevChunk.blocks.back().hash) {
+            if (i > 0 && prevChunk) {
+                if (!currChunk->blocks.empty() && !prevChunk->blocks.empty()) {
+                    if (currChunk->blocks[0].prevHash != prevChunk->blocks.back().hash) {
                         logMessage("ERROR", "Cross-chunk linkage failed between chunk "
                                    + std::to_string(i - 1) + " and " + std::to_string(i));
                         break;
@@ -250,10 +247,9 @@ void ChainPersistence<ChunkHandler>::recoverChain(std::vector<ChunkHandler>& cha
                 }
             }
 
-            ChunkHandler chunk(i, blockchainPath_);
-            chunk.load();
-            totalBlocks += chunk.blocks.size();
+            totalBlocks += currChunk->blocks.size();
             validChunks++;
+            prevChunk = std::move(currChunk);
         }
     }
 

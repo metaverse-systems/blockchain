@@ -259,9 +259,9 @@ auto Blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
 {
     size_t chunkIndex = index / this->chunkSize;
 
-    if(this->chain.size() < chunkIndex + 1)
+    while(this->chain.size() <= chunkIndex)
     {
-        this->chain.resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, this->blockchainPath));
+        this->chain.emplace_back(ChunkHandler(this->chain.size(), this->blockchainPath));
     }
 
     bool wasEmpty = this->chain.at(chunkIndex).blocks.empty();
@@ -438,7 +438,7 @@ size_t Blockchain<ChunkHandler>::discoverChunks()
 template<typename ChunkHandler>
 bool Blockchain<ChunkHandler>::validateChunk(size_t chunkIndex)
 {
-    return persistence_.validateChunk(chunkIndex, this->config);
+    return persistence_.validateChunk(chunkIndex, this->config).has_value();
 }
 
 template<typename ChunkHandler>
