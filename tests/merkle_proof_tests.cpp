@@ -85,7 +85,7 @@ TEST_CASE("MerkleProofService verifyInclusionProof valid proof", "[MerkleProofSe
         block, proof["leafHash"].get<std::string>(), proof["proof"]);
 
     REQUIRE(verification["valid"] == true);
-    REQUIRE(verification["expectedRoot"] == block.merkleRoot);
+    REQUIRE(verification["merkleRoot"] == block.merkleRoot);
 }
 
 TEST_CASE("MerkleProofService verifyInclusionProof tampered proof", "[MerkleProofService]")

@@ -55,6 +55,6 @@ nlohmann::json MerkleProofService::verifyInclusionProof(const Block& block,
 
     nlohmann::json result;
     result["valid"] = valid;
-    result["expectedRoot"] = block.merkleRoot;
+    result["merkleRoot"] = block.merkleRoot;
     return result;
 }
