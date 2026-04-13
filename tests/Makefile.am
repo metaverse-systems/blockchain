@@ -3,7 +3,8 @@ AM_CPPFLAGS = ${CATCH2_CFLAGS}
 check_PROGRAMS = blockchain_tests block_propagation_tests block_propagation_integration_tests \
     chunk_persistence_tests chunk_recovery_tests chunk_replace_tests merkle_tests \
     merkle_rpc_integration_tests cli_tests rpc_expansion_tests lifecycle_tests \
-    lifecycle_integration_tests rpc_integration_tests p2p_sync_integration_tests
+    lifecycle_integration_tests rpc_integration_tests p2p_sync_integration_tests \
+    chain_persistence_module_tests difficulty_engine_tests merkle_proof_tests
 TESTS = $(check_PROGRAMS)
 blockchain_tests_SOURCES = block_tests.cpp server_tests.cpp consensus_tests.cpp sync_tests.cpp \
     node_config_tests.cpp peer_manager_tests.cpp peer_discovery_tests.cpp \
@@ -76,3 +77,18 @@ p2p_sync_integration_tests_SOURCES = p2p_sync_integration_tests.cpp
 p2p_sync_integration_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
 p2p_sync_integration_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
 p2p_sync_integration_tests_LDFLAGS = $(BOOST_LDFLAGS)
+
+chain_persistence_module_tests_SOURCES = chain_persistence_module_tests.cpp
+chain_persistence_module_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
+chain_persistence_module_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
+chain_persistence_module_tests_LDFLAGS = $(BOOST_LDFLAGS)
+
+difficulty_engine_tests_SOURCES = difficulty_engine_tests.cpp
+difficulty_engine_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
+difficulty_engine_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
+difficulty_engine_tests_LDFLAGS = $(BOOST_LDFLAGS)
+
+merkle_proof_tests_SOURCES = merkle_proof_tests.cpp
+merkle_proof_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
+merkle_proof_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
+merkle_proof_tests_LDFLAGS = $(BOOST_LDFLAGS)

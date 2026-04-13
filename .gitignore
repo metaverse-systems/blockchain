@@ -84,6 +84,9 @@ tests/lifecycle_tests
 tests/lifecycle_integration_tests
 tests/rpc_integration_tests
 tests/p2p_sync_integration_tests
+tests/chain_persistence_module_tests
+tests/difficulty_engine_tests
+tests/merkle_proof_tests
 
 # Test artifacts
 *.trs
