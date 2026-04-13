@@ -338,3 +338,40 @@ TEST_CASE("getChainBlockCount consistent after chunk rotation", "[Blockchain][US
 
     std::filesystem::remove_all(dir);
 }
+
+TEST_CASE("getBlockByIndex resize assigns correct chunk IDs", "[Blockchain][US6]") {
+    auto dir = std::filesystem::temp_directory_path() / "test_resize_chunk_ids";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+
+    auto cfg = TestHelpers::defaultConsensusConfig();
+
+    // Build 201 blocks (chunks 0, 1, partial 2) and save to disk
+    {
+        Blockchain<Chunk> bc(dir, cfg);
+        for (int i = 0; i < 200; i++) {
+            bc.publish("test", "k" + std::to_string(i), "data", {"k"});
+        }
+        REQUIRE(bc.getChainLength() == 201);
+        REQUIRE(bc.getChunkCount() == 3);
+        bc.saveAllChunks();
+    }
+
+    // Create a fresh Blockchain (chain vector starts at size 1 with genesis).
+    // Then request block 150 (chunk 1): the chain must resize from 1 to 2.
+    // With the bug, the new chunk entry at position 1 gets index=2 (wrong).
+    // With the fix, it gets index=1 (correct), allowing proper file load.
+    {
+        Blockchain<Chunk> bc(dir, cfg);
+
+        // Request block 150 from chunk 1 — forces resize
+        Block b150 = bc.getBlockByIndex(150);
+        REQUIRE(b150.index == 150);
+
+        // Also verify block 200 from chunk 2
+        Block b200 = bc.getBlockByIndex(200);
+        REQUIRE(b200.index == 200);
+    }
+
+    std::filesystem::remove_all(dir);
+}

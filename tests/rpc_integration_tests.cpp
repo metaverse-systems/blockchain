@@ -416,3 +416,33 @@ TEST_CASE("RPC: missing id field returns error response", "[rpc][integration]") 
     auto err = get_error(resp);
     REQUIRE(err["code"].get<int>() == -32600);
 }
+
+// =========================================================================
+// US2: getBlockByIndex bounds check tests
+// =========================================================================
+TEST_CASE("RPC: getBlockByIndex with out-of-range index returns error -32001", "[rpc][integration][US2]") {
+    IntegrationTestFixture fixture;
+    auto *node = fixture.create_node({"teststream"});
+    auto client = fixture.create_rpc_client(node);
+
+    nlohmann::json params;
+    params["index"] = 999999;
+    auto resp = client->call("getBlockByIndex", params);
+    auto err = get_error(resp);
+    REQUIRE(err["code"].get<int>() == -32001);
+    REQUIRE(err["message"].get<std::string>() == "Block not found");
+}
+
+TEST_CASE("RPC: getBlockByIndex with valid index returns block", "[rpc][integration][US2]") {
+    IntegrationTestFixture fixture;
+    auto *node = fixture.create_node({"teststream"});
+    auto client = fixture.create_rpc_client(node);
+
+    // Genesis block is always at index 0
+    nlohmann::json params;
+    params["index"] = 0;
+    auto resp = client->call("getBlockByIndex", params);
+    auto result = parse_result(resp);
+    REQUIRE(result.contains("index"));
+    REQUIRE(result["index"].get<size_t>() == 0);
+}

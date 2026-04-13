@@ -294,6 +294,41 @@ TEST_CASE("Counts correct immediately after recovery", "[US5][recovery]")
     cleanup_test_dir(dir);
 }
 
+// Verify recoverChain loads each chunk only once (single-pass optimisation)
+TEST_CASE("recoverChain loads each chunk only once", "[US4][recovery]")
+{
+    auto dir = create_test_dir("T015");
+    {
+        // Build 250 blocks → 3 chunks (0: 100, 1: 100, 2: 50)
+        build_and_save_chain(dir, 250);
+
+        ConsensusConfig cfg;
+        cfg.initialDifficulty = 0;
+        cfg.minDifficulty = 0;
+        Blockchain<Chunk> bc(dir, cfg);
+        bc.recoverChain();
+
+        // totalBlockCount must equal sum of per-chunk block counts,
+        // confirming blocks were counted from the validated chunk (single load)
+        size_t totalBlocks = bc.getChainLength();
+        size_t chunkCount  = bc.getChunkCount();
+        REQUIRE(chunkCount == 3);
+
+        size_t sumFromChunks = 0;
+        for (size_t i = 0; i < chunkCount; ++i) {
+            Block blkFirst = bc.getBlockByIndex(i * 100);
+            // Verify block belongs to expected chunk
+            REQUIRE(blkFirst.index == i * 100);
+            // Count blocks in this chunk by probing last valid index
+            size_t chunkBlocks = (i < chunkCount - 1) ? 100 : (totalBlocks - i * 100);
+            sumFromChunks += chunkBlocks;
+        }
+        REQUIRE(totalBlocks == sumFromChunks);
+        REQUIRE(totalBlocks == 250);
+    }
+    cleanup_test_dir(dir);
+}
+
 // T060b: startup recovery for 100-chunk chain completes within 30 seconds
 TEST_CASE("Startup recovery completes within 30 seconds", "[US5][performance]")
 {

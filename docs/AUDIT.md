@@ -1,7 +1,7 @@
 # Code Audit Report
 
-**Date:** 2026-04-12 (updated 2026-04-13)  
-**Scope:** Full codebase — `src/` (6,179 lines) and `tests/` (6,891 lines)
+**Date:** 2026-04-13  
+**Scope:** Full codebase — `src/` (6,179 lines) and `tests/` (7,676 lines across 25 files)
 
 ---
 
@@ -9,9 +9,9 @@
 
 1. [Executive Summary](#1-executive-summary)
 2. [Bugs](#2-bugs)
-3. [Code Duplication](#3-code-duplication)
+3. [Security](#3-security)
 4. [Performance Issues](#4-performance-issues)
-5. [Thread Safety](#5-thread-safety)
+5. [Code Duplication](#5-code-duplication)
 6. [Architecture Concerns](#6-architecture-concerns)
 7. [Test Quality](#7-test-quality)
 8. [Recommendations](#8-recommendations)
@@ -20,231 +20,114 @@
 
 ## 1. Executive Summary
 
-The codebase is reasonably well-structured for its size. The templated
-`Blockchain<ChunkHandler>` design allows mock injection in tests, and the
-chunk-based persistence keeps memory usage bounded. That said, the audit
-uncovered **5 bugs**, **6 duplication clusters**, **8 performance issues**,
-**thread-safety gaps in the async networking layer**, and **test suite
-weaknesses** that could hide regressions.
+This is a fresh audit following two rounds of remediation (016-audit-remediation
+and 017-blockchain-module-split). The previous audit's 12 issues have all been
+resolved: `getChainBlockCount()` returns `totalBlockCount_` directly, the
+`dirty_` flag race is fixed, merkle root verify-then-cache constructors are in
+place, `parsePeerKey()` handles IPv6, single-threaded io_context execution is
+enforced at runtime, `chunkFilename()` is centralised, and `Blockchain.cpp`
+has been split into four focused modules.
 
-| Category              | Count | Highest Severity |
-|-----------------------|------:|------------------|
-| Bugs                  |     5 | High             |
-| Code duplication      |     6 | Medium           |
-| Performance issues    |     8 | High             |
-| Thread-safety gaps    |     4 | High             |
-| Test quality issues   |    12 | High             |
+This audit found **4 bugs**, **2 security issues**, **5 performance issues**,
+**2 duplication clusters**, **3 architecture concerns**, and **significant
+test-quality weaknesses** that reduce confidence in the test suite.
+
+All 4 bugs, both security issues, and 1 performance issue were resolved in
+**018-audit-bug-security-fixes**. Remaining items are tracked below.
+
+| Category              | Found | Resolved | Remaining | Highest Open Severity |
+|-----------------------|------:|---------:|----------:|----------------------:|
+| Bugs                  |     4 |        4 |         0 | —                     |
+| Security issues       |     2 |        2 |         0 | —                     |
+| Performance issues    |     5 |        1 |         4 | Medium                |
+| Code duplication      |     2 |        0 |         2 | Medium                |
+| Architecture concerns |     3 |        0 |         3 | Medium                |
+| Test quality issues   |     6 |        0 |         6 | High                  |
 
 ---
 
 ## 2. Bugs
 
-### 2.1 `getChainBlockCount()` ignores cached `totalBlockCount_` — HIGH
+### 2.1 ~~Sync never appends received blocks — HIGH~~ ✅ RESOLVED (018)
 
-[Blockchain.cpp](../src/Blockchain.cpp#L473-L479)
+`handle_sync_response()` now appends new blocks via `bc.appendBlock()`, checks
+overlap hash mismatches (aborting sync on fork detection), calls `bc.saveKeys()`
+after chunk saves, and warns when an empty batch arrives with height mismatch.
 
-```cpp
-size_t Blockchain<ChunkHandler>::getChainBlockCount() const {
-    size_t count = 0;
-    for (const auto &chunk : this->chain) {
-        count += chunk.blocks.size();   // O(n) every call
-    }
-    return count;
-}
-```
+### 2.2 ~~`recoverChain()` loads each chunk up to 3 times — MEDIUM~~ ✅ RESOLVED (018)
 
-`totalBlockCount_` is carefully maintained by `publish()`, `appendBlock()`,
-`recoverChain()`, and `replaceChain()`, yet `getChainBlockCount()` always
-recomputes by walking every chunk. Because older chunks are freed from memory
-(`.clear()`) after use, the walk **under-counts** — cleared chunks report
-`blocks.size() == 0`.
+`validateChunk()` now returns `std::optional<ChunkHandler>` and `recoverChain()`
+uses a single-pass loop with `prevChunk` caching — each chunk is deserialized
+exactly once.
 
-This method is called from `on_block_received()`, `calculateNewDifficulty()`,
-`getDifficultyForHeight()`, and `replaceChain()`, so the miscount propagates
-into consensus validation, difficulty adjustment, and chain-replacement
-decisions.
+### 2.3 ~~`getBlockByIndex()` passes wrong index to `ChunkHandler` resize — LOW~~ ✅ RESOLVED (018)
 
-**Fix:** Return `totalBlockCount_` directly, matching `getChainLength()` which
-already does this correctly.
+Replaced `resize(chunkIndex + 1, ChunkHandler(chunkIndex + 1, ...))` with a
+`while (chain.size() <= chunkIndex)` / `emplace_back(chain.size(), ...)` loop,
+matching the pattern in `appendBlock()`.
 
-### 2.2 Merkle root recomputed on deserialized blocks — MEDIUM
+### 2.4 ~~`parsePeerKey()` does not validate port range — LOW~~ ✅ RESOLVED (018)
 
-[Block.cpp](../src/Block.cpp#L21-L33)
-
-The parameterised `Block` constructor always recomputes `merkleRoot` from
-entries and then recalculates the hash. When blocks are loaded from disk via
-Boost.Serialization, the default constructor is used (no recomputation). But
-when blocks are constructed on receipt during sync
-(`SyncResponse` → `Block(index, time, prev, entries, nonce, diff)`), the
-merkle root and hash are recomputed even though the sending node already
-provides them. This wastes CPU proportional to the number of entries per block.
-
-### 2.3 `sender_key` parsing duplicated and fragile — MEDIUM
-
-[BlockPropagation.cpp](../src/BlockPropagation.cpp#L122-L127) and line 170
-
-The pattern `sender_key.find(':')` → `substr()` → `std::stoi()` is used twice
-in `on_block_received()` to extract host/port from a colon-delimited key
-
-```cpp
-auto colon = sender_key.find(':');
-if (colon != std::string::npos) {
-    auto host = sender_key.substr(0, colon);
-    auto port = static_cast<uint16_t>(std::stoi(sender_key.substr(colon + 1)));
-    peer_manager_->increment_error(host, port);
-}
-```
-
-If `sender_key` contains an IPv6 address with colons (e.g. `[::1]:8333`),
-`find(':')` splits at the wrong position. This is a latent bug because
-`normalize_address()` in `PeerManager` strips `::ffff:` prefixes but does not
-bracket raw IPv6 addresses.
-
-### 2.4 `getBlockByIndex()` frees chunk it just loaded — LOW
-
-[Blockchain.cpp](../src/Blockchain.cpp#L287-L298)
-
-```cpp
-bool wasEmpty = this->chain.at(chunkIndex).blocks.empty();
-if (wasEmpty || !this->chain.at(chunkIndex).isBlockPresent(index % this->chunkSize)) {
-    this->loadChunk(chunkIndex);
-}
-Block result = this->chain.at(chunkIndex).at(index % this->chunkSize);
-if (wasEmpty && chunkIndex + 1 < this->chain.size()) {
-    this->freeChunk(chunkIndex);      // Immediately frees what was just loaded
-}
-```
-
-When `getDifficultyForHeight()` calls `getBlockByIndex()` in a loop for each
-adjustment boundary, the same chunk is loaded and freed repeatedly.
-
-### 2.5 `dirty_` flag prematurely cleared — LOW
-
-[Blockchain.cpp](../src/Blockchain.cpp#L74)
-
-In `publish()`, when a chunk fills up and a new chunk is created, `dirty_` is
-set to `false` before the new block is appended. The subsequent append sets it
-back to `true`, but if a crash occurred between the two statements, the
-in-memory state would be inconsistent.
+`parsePeerKey()` now wraps `std::stoi()` in try/catch and validates the port
+is in [1, 65535], throwing `std::invalid_argument` with descriptive messages
+for non-numeric, out-of-range, and malformed inputs.
 
 ---
 
-## 3. Code Duplication
+## 3. Security
 
-### 3.1 RPC error-response helpers — 9 near-identical methods
+### 3.1 ~~Seed node port parsing crashes on invalid input — HIGH~~ ✅ RESOLVED (018)
 
-[RpcServer.cpp](../src/network/RpcServer.cpp#L770-L847) defines
-`invalidJsonRpcMessage()`, `noIdMessage()`, `invalidMethodMessage()`,
-`miningTimeoutMessage()`, `syncInProgressMessage()`, `syncStartedMessage()`,
-`noPeerMessage()`, `syncAlreadyInProgressMessage()`, `errorMessage()`, and
-`errorMessageWithData()`. All repeat `response["jsonrpc"] = "2.0"` and
-`response["id"] = id` verbatim.
+Seed node parsing in `main.cpp` now uses `parsePeerKey()` wrapped in
+try/catch. Invalid input produces a descriptive stderr message and returns
+exit code 1.
 
-A single `makeResponse(id, code, message, data = nullptr)` would replace them.
+### 3.2 ~~`getBlockByIndex` RPC has no bounds check — MEDIUM~~ ✅ RESOLVED (018)
 
-### 3.2 `broadcast_block()` / `relay_block()` — near-identical loops
-
-[PeerManager.cpp](../src/PeerManager.cpp#L636-L672)
-
-The only difference is an `if (key == exclude_key) continue;` guard in
-`relay_block()`. Extracting a shared `send_to_peers(block, exclude_key = "")`
-helper eliminates ~30 duplicated lines including identical stale-session
-cleanup.
-
-### 3.3 Packet serialization in PeerClient and PeerServer
-
-`PeerClient::send<T>()` ([PeerClient.cpp](../src/network/PeerClient.cpp#L352-L375)) and
-`PeerServer::send_packet<T>()` ([PeerServer.cpp](../src/network/PeerServer.cpp#L271-L300))
-share the same serialize → `PacketHeader` → `memcpy` → `async_write` pattern.
-This could live in a shared utility or base class.
-
-### 3.4 `getStreamEntries()` — duplicated block-lookup loop
-
-[Blockchain.cpp](../src/Blockchain.cpp#L155-L197)
-
-The with-key and without-key branches contain a 12-line block-lookup loop that
-differs only in the final filter predicate (`e.key == key` vs. always true).
-This is a prime candidate for a small lambda extraction.
-
-### 3.5 Chunk filename construction — repeated 6 times
-
-The pattern `"chunk_" + setfill('0') + setw(6) + index + ".dat"` appears in
-`publish()`, `appendBlock()`, `discoverChunks()`, `validateChunk()`,
-`archiveChainFiles()`, and `recoverChain()`. A `chunkFilename(size_t)` helper
-would centralise it.
-
-### 3.6 Test setup boilerplate
-
-Temp directory creation/cleanup, `ConsensusConfig` with `difficulty=0`,
-`mineTestBlock()`, and valid-chain building are duplicated across 7–10 test files.
-A shared `tests/TestHelpers.hpp` would reduce ~200 lines of redundancy.
+The `getBlockByIndex` handler now checks `index >= bc.getChainLength()` and
+returns JSON-RPC error -32001 "Block not found" for out-of-range indices.
 
 ---
 
 ## 4. Performance Issues
 
-### 4.1 `getChainBlockCount()` walks freed chunks — HIGH
-
-As described in §2.1, this O(n) walk returns incorrect results because cleared
-chunks report 0 blocks. Every caller that relies on this count (difficulty
-adjustment, chain replacement, block reception) gets a wrong answer.
-
-### 4.2 `getDifficultyForHeight()` — O(W × D) disk I/O — HIGH
-
-[Blockchain.cpp](../src/Blockchain.cpp#L962-L1002)
-
-For height `h` with adjustment window `w`, this method performs `h/w` iterations,
-each calling `getBlockByIndex()` twice (which loads and immediately frees
-chunks per §2.4). For a chain of 100,000 blocks with window 10, this triggers
-20,000 chunk load/free cycles.
-
-**Fix:** Cache the running difficulty per adjustment boundary, or store it in
-the block header.
-
-### 4.3 O(n) peer lookups — MEDIUM
+### 4.1 O(n) peer lookups — MEDIUM
 
 `find_peer()`, `add_peer()`, `remove_peer()`, `is_banned()`, and
 `get_non_banned_peer_addresses()` all perform linear scans over
 `std::vector<PeerEntry>` and `std::vector<BanRecord>`.
 
-With the configured maximum of 256 stored peers and frequent
-`is_banned()` calls on every operation, switching to
-`std::unordered_map<std::string, PeerEntry>` keyed by `host:port` would make
-lookups O(1).
+With a configured maximum of 256 stored peers and `is_banned()` called on
+every peer exchange, connection attempt, and block reception, switching to
+`std::unordered_map<std::string, PeerEntry>` keyed by `host:port` would drop
+lookups from O(n) to O(1).
 
-### 4.4 O(n) pending-pool eviction — MEDIUM
-
-[BlockPropagation.cpp](../src/BlockPropagation.cpp#L63-L74)
-
-When the pending pool is full, the oldest entry is found via linear scan.
-Using `std::map` ordered by insertion time, or a combined map + deque, would
-make eviction O(log n) or O(1).
-
-### 4.5 Chunk loaded 3 times during `recoverChain()` validation — MEDIUM
-
-[Blockchain.cpp](../src/Blockchain.cpp#L590-L620)
-
-In the non-fast-startup path, `validateChunk(i)` loads chunk `i`,
-then the cross-chunk check loads chunks `i-1` **and** `i` again.
-Each chunk is deserialized from disk up to 3 times.
-
-### 4.6 RPC dispatch is a 21-branch `if`/`else` chain — LOW
+### 4.2 RPC dispatch is a 21-branch `if`/`else` chain — MEDIUM
 
 [RpcServer.cpp](../src/network/RpcServer.cpp#L74-L704)
 
 Every request walks up to 21 string comparisons. A
 `std::unordered_map<std::string, Handler>` dispatch table would be O(1) and
-reduce the 630-line monolith into individually testable handler functions.
+reduce the 700-line `do_read()` callback into individually testable handler
+functions.
 
-### 4.7 String construction in log calls — LOW
+### 4.3 ~~`recoverChain()` loads each chunk multiple times — MEDIUM~~ ✅ RESOLVED (018)
+
+Resolved together with §2.2. Single-pass recovery loads each chunk once.
+
+### 4.4 String construction in log calls — LOW
 
 Throughout the codebase, `logMessage("INFO", "Block #" + std::to_string(...) + ...)`
-constructs the string even when the log level would suppress it. A log-level
-check before construction (or a lazy-evaluation macro) would eliminate this.
+constructs the string even when the log level would suppress it. The
+`logMessage()` function already filters by level, but the string allocation
+happens at the call site.
 
-### 4.8 `replaceChain()` loads entire candidate into memory — LOW
+**Fix:** A level-check macro or a lazy-evaluation wrapper would eliminate
+unnecessary allocations.
 
-[Blockchain.cpp](../src/Blockchain.cpp#L844-L876)
+### 4.5 `replaceChain()` loads entire candidate into memory — LOW
+
+[Blockchain.cpp](../src/Blockchain.cpp#L486-L536)
 
 `replaceChain()` accepts `const std::vector<Block> &candidateBlocks` — the
 full chain. For very long chains this means the entire history must fit in RAM
@@ -252,68 +135,29 @@ simultaneously. A streaming/chunked replacement would bound memory usage.
 
 ---
 
-## 5. Thread Safety
+## 5. Code Duplication
 
-The P2P layer runs on `boost::asio::io_context` with potentially multiple
-threads (via `io_context.run()` in `main()`). Several data structures are
-accessed from async callbacks without synchronization:
+### 5.1 Packet serialization in PeerClient and PeerServer — MEDIUM
 
-| Component             | Shared State                              | Risk                    |
-|-----------------------|-------------------------------------------|-------------------------|
-| `BlockPropagation`    | `dedup_set_`, `dedup_order_`, `pending_pool_`, `rate_states_`, `sync_queue_` | Concurrent block arrivals from multiple peers corrupt containers |
-| `PeerManager`         | `peers_`, `bans_`, `backoff_state_`, `inbound_sessions_`, `outbound_connections_` | Peer exchange + disconnect callbacks race |
-| `Blockchain`          | `dirty_`, `totalBlockCount_`, `chain`, `streamKeyIndex` | Periodic save timer races with `appendBlock()` |
-| `RpcServer`           | `buffer` (boost::asio streambuf)          | Concurrent RPC requests on same connection |
+`PeerClient::send<T>()` ([PeerClient.cpp](../src/network/PeerClient.cpp#L352-L375)) and
+`PeerServer::send_packet<T>()` ([PeerServer.cpp](../src/network/PeerServer.cpp#L271-L300))
+share the same serialize → `PacketHeader` → `memcpy` → `async_write` pattern.
+This could live in a shared utility or base class.
 
-**If `io_context` is run on a single thread**, these are safe due to
-implicit strand serialisation. However, nothing in the codebase enforces
-single-threaded execution, and `main.cpp` does not document this constraint.
+### 5.2 Test files still duplicate `mineTestBlock()` / `buildValidChain()` — LOW
 
-**Recommendation:** Either enforce single-threaded `io_context::run()` with a
-comment, or add `boost::asio::strand` wrappers around shared state and
-explicitly document the threading model.
+Despite `TestHelpers.hpp` existing, `sync_tests.cpp`,
+`block_propagation_tests.cpp`, `consensus_tests.cpp`, and
+`chunk_persistence_tests.cpp` still define their own local versions of
+`mineTestBlock()`, `buildValidChain()`, and temporary-directory helpers.
 
 ---
 
 ## 6. Architecture Concerns
 
-### 6.1 `RpcServer.cpp` is an 847-line monolith
+### 6.1 `IBlockchain` interface is wide
 
-All 21 RPC methods live in a single `do_read()` callback. This makes the file
-hard to navigate, difficult to unit-test individual handlers, and prone to
-merge conflicts.
-
-**Suggestion:** Extract each RPC method into a standalone handler function
-(or a `std::unordered_map<std::string, std::function<json(json)>>` dispatch
-table). This reduces `do_read()` to ~30 lines and makes each handler
-independently testable.
-
-### 6.2 `Blockchain.cpp` at 1,024 lines mixes concerns
-
-`Blockchain.cpp` handles block creation/mining, persistence (save/load chunks,
-keys, streams, stream index), chain recovery, validation, difficulty
-adjustment, chain replacement, archiving, periodic save timers, Merkle proofs,
-and stream queries.
-
-**Suggestion:** Split into focused modules:
-- `ChainPersistence` — save/load/recover/archive chunks and indexes
-- `DifficultyEngine` — difficulty calculation and adjustment
-- `MerkleProofService` — proof generation and verification  
-- `Blockchain` — core chain operations (publish, append, replace)
-
-### 6.3 No separation between domain and network layers
-
-`PeerClient`, `PeerServer`, and `BlockPropagation` directly call
-`IBlockchain` methods. If the consensus rules or block format change, the
-network layer must change too.
-
-**Suggestion:** Introduce a thin service layer (e.g. `ChainService`) that
-mediates between the network and domain layers. The network layer would submit
-blocks to the service, which validates and delegates to `Blockchain`.
-
-### 6.4 `IBlockchain` interface is wide
-
-[IBlockchain.hpp](../src/IBlockchain.hpp) exposes 30+ methods including
+[IBlockchain.hpp](../src/IBlockchain.hpp) exposes 28 methods including
 persistence (`saveChunk`, `saveKeys`), mining (`publish`), querying
 (`getStreamEntries`), and sync (`replaceChain`). Consumers that only need read
 access (e.g. `RpcServer` for query endpoints) are coupled to the full
@@ -323,7 +167,22 @@ interface.
 (mutation methods). `RpcServer` depends only on `IChainReader` plus a small
 `IChainWriter` for `publish` and `createStream`.
 
-### 6.5 Error handling is inconsistent
+### 6.2 No separation between domain and network layers
+
+`PeerClient`, `PeerServer`, and `BlockPropagation` directly call
+`IBlockchain` methods. If the consensus rules or block format change, the
+network layer must change too.
+
+**Suggestion:** Introduce a thin service layer (e.g. `ChainService`) that
+mediates between the network and domain layers. The network layer would submit
+blocks to the service, which validates and delegates to `Blockchain`.
+
+Additionally, the sync protocol currently leaks storage details: `SyncResponse`
+includes a `chunk_index` field, coupling the wire format to the internal chunk
+storage scheme. The `ChainService` should own the batching strategy so that
+the network layer exchanges blocks only, with no awareness of chunks.
+
+### 6.3 Error handling is inconsistent
 
 | Pattern                | Used by                                    |
 |------------------------|--------------------------------------------|
@@ -340,48 +199,77 @@ leaving a partially-saved state with no caller notification.
 
 ## 7. Test Quality
 
-### 7.1 Trivial / empty assertions
+### 7.1 Trivial / empty assertions — HIGH
+
+Multiple test files use `REQUIRE(true)` or `SUCCEED(...)` as the only
+assertion, testing nothing beyond "no crash":
+
+| File | Count | Examples |
+|------|------:|---------|
+| `server_tests.cpp` | 6 | "Server Construction", "SSL context configuration", "Timer armed" all assert `REQUIRE(true)` |
+| `rpc_expansion_tests.cpp` | 8 | Constructs JSON objects and asserts field existence; never calls actual RPC handlers |
+| `chunk_persistence_tests.cpp` | 2 | "Periodic timer skips save when not dirty" never verifies save was skipped |
+| `lifecycle_tests.cpp` | 3 | "saveAllChunks saves only dirty chunks" asserts no-throw, not that only dirty chunks were saved |
+
+### 7.2 Tests that pass vacuously — HIGH
+
+Tests whose pass/fail outcome is independent of the behavior under test:
 
 | File | Test | Issue |
 |------|------|-------|
-| `server_tests.cpp` | "Server Construction" | Asserts `REQUIRE(true)` — meaningless |
-| `chunk_persistence_tests.cpp` | "Periodic timer skips save when not dirty" | Never verifies save was skipped |
-| `rpc_expansion_tests.cpp` | Multiple handlers | Manually constructs JSON instead of calling actual RPC handler |
+| `block_propagation_tests.cpp` | "Rate limiter allows up to limit then rejects" | Tracks `accepted` count but never verifies blocks 11–12 were *actually dropped* by rate limiting |
+| `block_propagation_tests.cpp` | "Pending pool capacity eviction" | Asserts `SUCCEED("...without crash")` — never checks pool size or that oldest was evicted |
+| `sync_tests.cpp` | "Difficulty cache invalidated on replaceChain" | Ends with `SUCCEED(...)`, no assertion that cache was actually cleared |
+| `consensus_tests.cpp` | "Chain reorg deeper than maxReorgDepth is rejected" | Asserts blockchain still has 1 block, but would pass even if validator ignored the depth check |
+| `rpc_expansion_tests.cpp` | All "publish RPC error codes" tests | Build JSON objects and assert fields exist; never invoke actual RPC handler to test error generation |
 
-### 7.2 Tests that pass vacuously
+### 7.3 `rpc_expansion_tests.cpp` tests no actual RPC logic — HIGH
 
-`block_propagation_tests.cpp` — "Duplicate block discarded silently" never
-calls `appendBlock()`, so the relay callback is never invoked. The test passes
-because the `relay_count` variable stays at 0 regardless of whether dedup
-works.
+All tests in this file construct JSON response objects manually and assert
+their structure. Zero tests invoke `RpcServer::do_read()` or any handler
+function. Every test would pass identically if all RPC methods were deleted
+from the codebase.
 
-### 7.3 Coverage gaps
+**Recommendation:** Rewrite as integration tests that send JSON-RPC requests
+to a running `RpcServer` over a socket (as `rpc_integration_tests.cpp` does),
+or extract handler functions from `do_read()` and unit-test them directly.
 
-| Untested area | Severity |
-|---------------|----------|
-| SSL/TLS handshake rejection | High |
-| Peer timeout during sync | High |
-| `publish()` to unauthorized stream via RPC | High |
-| CLI with invalid values (`--rpc-port abc`) | High |
-| Partial `saveAllChunks()` failure | High |
-| Chain reorg from actual P2P sync | High |
-| Concurrent block propagation (multi-peer) | Medium |
-| Difficulty increase after target achievement | Medium |
-| Ban expiration by timer | Medium |
-| Merkle proof with 1000+ entries | Medium |
+### 7.4 Integration tests are timing-dependent — MEDIUM
 
-### 7.4 Duplicated test setup
+| File | Issue |
+|------|-------|
+| `p2p_sync_integration_tests.cpp` | `wait_for_chain_length()` polls for 10s with 250ms sleep; `wait_for_outbound_peers()` same |
+| `rpc_integration_tests.cpp` | Calls `client->call()` without verifying connection is ready |
+| `chunk_persistence_tests.cpp` | `io.run_for(100ms)` may not fire periodic timer on slow machines |
 
-Temp-directory helpers, `mineTestBlock()`, `ConsensusConfig{difficulty=0}`,
-and valid-chain building appear identically in 7–10 files. A shared
-`tests/TestHelpers.hpp` would eliminate ~200 lines and ensure
-consistent setup.
+These tests are flaky under CI load. Consider using `io_context::poll()` to
+advance deterministically, or condition-variable signaling.
 
-### 7.5 Integration tests are timing-dependent
+### 7.5 Coverage gaps — MEDIUM
 
-`p2p_sync_integration_tests.cpp` uses a hardcoded 10-second `wait_for_chain_length()`
-loop. Under CI load this can flake. Consider using condition variables or
-`io_context::poll()` to advance deterministically.
+The following behaviors have no test coverage:
+
+| Untested area | Severity | Status |
+|---------------|----------|--------|
+| `handle_sync_response()` actually appending blocks | High | ✅ Covered (018) |
+| `getBlockByIndex` RPC with out-of-range index | High | ✅ Covered (018) |
+| `--seed-node` CLI with non-numeric port | High | ✅ Covered (018) |
+| Seed node parsing with invalid port values | High | ✅ Covered (018) |
+| Partial `saveAllChunks()` failure (one chunk fails, others continue) | High | Open |
+| Chain sync completing end-to-end (blocks actually appended) | High | ✅ Covered (018) |
+| Peer disconnect during propagation | Medium | Open |
+| Rate limiter resetting after time window expires | Medium | Open |
+| Pending pool TTL-based expiry of stale blocks | Medium | Open |
+| Block propagation relay excludes sender correctly | Medium | Open |
+| `recoverChain()` with corrupted index files (fallback to chunk rebuild) | Medium | Open |
+
+### 7.6 Duplicated test setup persists in 4 files — LOW
+
+Despite `TestHelpers.hpp` existing, `sync_tests.cpp`,
+`block_propagation_tests.cpp`, `consensus_tests.cpp`, and
+`chunk_persistence_tests.cpp` still define local `mineTestBlock()` /
+`buildValidChain()` / temp directory helpers instead of using the shared
+utilities.
 
 ---
 
@@ -391,70 +279,17 @@ Ordered by impact and effort:
 
 | # | Action | Impact | Effort |
 |---|--------|--------|--------|
-| 1 | Fix `getChainBlockCount()` to return `totalBlockCount_` | Correctness bug (§2.1, §4.1) | Trivial |
-| 2 | Add mutex/strand or enforce single-thread contract (§5) | Prevents data corruption | Low |
-| 3 | Cache difficulty per adjustment boundary (§4.2) | Eliminates O(W×D) disk I/O | Medium |
-| 4 | Extract shared `TestHelpers.hpp` (§7.4) | Reduces 200 lines of test duplication | Low |
-| 5 | Replace RPC `if`/`else` chain with dispatch table (§4.6, §6.1) | Maintainability, testability | Medium |
-| 6 | Centralise chunk-filename and peer-key helpers (§3.5, §3.2) | Removes 6 duplication sites | Low |
-| 7 | Fix `sender_key` IPv6 parsing (§2.3) | Prevents misparse on IPv6 networks | Low |
-| 8 | Add `chunkFilename()` utility (§3.5) | Single source of truth for paths | Trivial |
-| 9 | Split `Blockchain.cpp` into focused modules (§6.2) | Maintainability at scale | High |
-| 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.4) | Reduces coupling | Medium |
-
----
-
-## 9. Remediation Status (016-audit-remediation)
-
-**Date:** 2026-04-12
-
-| # | Issue | Status | Details |
-|---|-------|--------|---------|
-| 1 | `getChainBlockCount()` ignores `totalBlockCount_` (§2.1) | **Fixed** | Returns `totalBlockCount_` directly |
-| 2 | `dirty_` flag cleared prematurely in `publish()` (§2.4) | **Fixed** | Removed premature `dirty_ = false` in chunk rotation |
-| 3 | Merkle root recomputed on deserialized blocks (§2.2) | **Fixed** | Added verify-then-cache Block constructor; used in `appendReceivedBlock()` |
-| 4 | `sender_key` IPv6 parsing fragile (§2.3) | **Fixed** | New `parsePeerKey()` utility with bracket-aware IPv6 support |
-| 5 | Single-threaded enforcement (§5) | **Fixed** | `std::atomic<int>` guard in `main.cpp` aborts if `io_context.run()` entered twice |
-| 6 | Pending pool O(n) linear scan (§4.3) | **Fixed** | Replaced with `unordered_map` + `deque` for O(1) operations |
-| 7 | Difficulty cache missing (§4.2) | **Fixed** | `difficultyCache_` + `ChunkRetainGuard` RAII; invalidated on `replaceChain()`/`recoverChain()` |
-| 8 | Chunk filename duplication (§3.5) | **Fixed** | `chunkFilename()` in `utils.hpp`; all 8 inline sites replaced |
-| 9 | RPC response boilerplate (§3.1) | **Fixed** | Shared `errorMessage()`/`resultJsonMessage()` helpers; 13 → 3 inline sites |
-| 10 | Broadcast/relay duplication (§3.3) | **Fixed** | `send_to_peers()` in `PeerManager`; `broadcast_block()`/`relay_block()` delegate |
-| 11 | Stream entry lookup duplication (§3.4) | **Fixed** | Extracted shared `collectEntries` lambda in `getStreamEntries()` |
-| 12 | Test setup duplication (§7.4) | **Fixed** | `TestHelpers.hpp` with shared utilities; 9 test files updated |
-
----
-
-## 10. Module Split Status (017-blockchain-module-split)
-
-**Date:** 2026-04-13
-
-Addresses §6.2 (`Blockchain.cpp` at 1,024 lines mixes concerns) and recommendation #9.
-
-`Blockchain.cpp` was split into four focused modules using composition — `Blockchain<ChunkHandler>` owns each module as a member and delegates through thin wrappers.
-
-| Module | File | Lines | Responsibility |
-|--------|------|------:|----------------|
-| `ChainPersistence<ChunkHandler>` | `src/ChainPersistence.cpp` | 379 | Chunk I/O, keys, streams, stream index, recovery, archiving |
-| `DifficultyEngine` | `src/DifficultyEngine.cpp` | 95 | Difficulty calculation, adjustment-window logic, boundary cache |
-| `MerkleProofService` | `src/MerkleProofService.cpp` | 60 | Inclusion proof generation and verification |
-| `Blockchain<ChunkHandler>` (core) | `src/Blockchain.cpp` | 624 | Block creation/mining, chain ops, delegation wrappers |
-
-All modules stay under the 400-line limit (SC-001). `Blockchain.cpp` is at 624 due to 18 delegation wrappers required by the `IBlockchain` interface.
-
-**New test suites:**
-
-| Test file | Cases | Assertions |
-|-----------|------:|-----------:|
-| `tests/chain_persistence_module_tests.cpp` | 8 | 17 |
-| `tests/difficulty_engine_tests.cpp` | 8 | 11 |
-| `tests/merkle_proof_tests.cpp` | 6 | 31 |
-
-All existing tests (344 assertions in 115 test cases) continue to pass with zero regressions. Incremental build verified — touching a single module recompiles only that `.o` file (SC-003).
-
-### Still Deferred
-
-| # | Issue | Reason |
-|---|-------|--------|
-| 10 | Narrow `IBlockchain` interfaces (§6.4) | Medium effort; deferred to future refactoring |
-| — | RPC dispatch table (§4.6, §6.1) | Deferred; helper extraction sufficient for now |
+| # | Action | Impact | Effort | Status |
+|---|--------|--------|--------|--------|
+| 1 | Fix `handle_sync_response()` to actually append blocks (§2.1) | Sync is completely broken | Trivial | ✅ Done (018) |
+| 2 | Add bounds check to `getBlockByIndex` RPC (§3.2) | Prevents crash from RPC input | Trivial | ✅ Done (018) |
+| 3 | Wrap seed-node port parsing in try/catch with range check (§3.1) | Prevents crash on invalid CLI input | Trivial | ✅ Done (018) |
+| 4 | Validate port range in `parsePeerKey()` (§2.4) | Prevents silent truncation | Trivial | ✅ Done (018) |
+| 5 | Rewrite `rpc_expansion_tests.cpp` to test real RPC handlers (§7.3) | False confidence → real coverage | Medium | Open |
+| 6 | Replace trivial assertions with meaningful ones (§7.1, §7.2) | Catches actual regressions | Medium | Open |
+| 7 | Cache chunk during `recoverChain()` validation (§2.2, §4.3) | 3× faster startup | Low | ✅ Done (018) |
+| 8 | Replace O(n) peer lookups with `unordered_map` (§4.1) | O(1) peer operations | Medium | Open |
+| 9 | Extract RPC dispatch table from `do_read()` (§4.2) | Maintainability, testability | Medium | Open |
+| 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.1) | Reduces coupling | Medium | Open |
+| 11 | Remove local test helpers in favor of `TestHelpers.hpp` (§7.6) | Consistency | Low | Open |
+| 12 | Make integration tests deterministic (§7.4) | Reduces CI flakiness | Medium | Open |

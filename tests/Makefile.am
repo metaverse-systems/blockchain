@@ -8,7 +8,7 @@ check_PROGRAMS = blockchain_tests block_propagation_tests block_propagation_inte
 TESTS = $(check_PROGRAMS)
 blockchain_tests_SOURCES = block_tests.cpp server_tests.cpp consensus_tests.cpp sync_tests.cpp \
     node_config_tests.cpp peer_manager_tests.cpp peer_discovery_tests.cpp \
-    stream_entry_tests.cpp stream_tests.cpp
+    stream_entry_tests.cpp stream_tests.cpp utils_tests.cpp
 blockchain_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
 blockchain_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
 blockchain_tests_LDFLAGS = $(BOOST_LDFLAGS)

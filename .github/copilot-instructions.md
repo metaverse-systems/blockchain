@@ -1,6 +1,6 @@
 # blockchain Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-12
+Auto-generated from all feature plans. Last updated: 2026-04-13
 
 ## Active Technologies
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (SHA-256 via EVP), nlohmann/json (vendored `src/json.hpp`) (002-consensus-mechanism)
@@ -49,9 +49,9 @@ C++20 (`-std=c++20`): Follow standard conventions
 - Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
 
 ## Recent Changes
+- 018-audit-bug-security-fixes: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
 - 017-blockchain-module-split: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
 - 016-audit-remediation: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
-- 015-compile-time-optimization: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization, Program Options), OpenSSL, nlohmann/json (vendored), Catch2 (test)
 
 
 <!-- MANUAL ADDITIONS START -->

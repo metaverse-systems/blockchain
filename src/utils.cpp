@@ -170,6 +170,13 @@ std::pair<std::string, uint16_t> parsePeerKey(const std::string &key) {
     std::string host = key.substr(0, last_colon);
     if (host.front() == '[' && host.back() == ']')
         host = host.substr(1, host.size() - 2);
-    uint16_t port = static_cast<uint16_t>(std::stoi(key.substr(last_colon + 1)));
-    return {host, port};
+    int port_int;
+    try {
+        port_int = std::stoi(key.substr(last_colon + 1));
+    } catch (const std::exception &) {
+        throw std::invalid_argument("non-numeric port in peer key: " + key);
+    }
+    if (port_int < 1 || port_int > 65535)
+        throw std::invalid_argument("port out of range [1, 65535] in peer key: " + key);
+    return {host, static_cast<uint16_t>(port_int)};
 }
