@@ -5,6 +5,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <memory>
 #include <vector>
+#include <unordered_map>
 #include <map>
 #include <mutex>
 #include <string>
@@ -111,8 +112,8 @@ private:
     uint16_t p2p_port_;
 
     std::string node_uuid_;
-    std::vector<PeerEntry> peers_;
-    std::vector<BanRecord> bans_;
+    std::unordered_map<std::string, PeerEntry> peers_;
+    std::unordered_map<std::string, BanRecord> bans_;
 
     // Connection tracking
     std::map<std::string, std::shared_ptr<PeerClient>> outbound_connections_; // "host:port" -> PeerClient

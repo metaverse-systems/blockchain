@@ -9,30 +9,6 @@
 #include <chrono>
 #include <cstdlib>
 
-// Helper: create a block with a valid PoW for the given difficulty
-static Block mineBlock(size_t index, uint64_t timestamp, const std::string &prevHash,
-                       const std::string &data, uint32_t difficulty)
-{
-    StreamEntry entry;
-    entry.stream = "test";
-    entry.key = "k";
-    entry.data = data;
-
-    Block b;
-    b.index = index;
-    b.timestamp = timestamp;
-    b.entries = {entry};
-    b.prevHash = prevHash;
-    b.difficulty = difficulty;
-    b.nonce = 0;
-    b.hash = b.calculateHash();
-    while (!checkLeadingZeroBits(b.hash, difficulty)) {
-        b.nonce++;
-        b.hash = b.calculateHash();
-    }
-    return b;
-}
-
 // ==========================================================================
 // checkLeadingZeroBits tests
 // ==========================================================================
@@ -85,7 +61,7 @@ TEST_CASE("isValidNewBlock accepts block with valid PoW", "[Consensus][US1]")
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
     Block genesis(0, 0, "", {}, 0, 0);
-    Block valid = mineBlock(1, now, genesis.hash, "test data", 1);
+    Block valid = TestHelpers::mineTestBlock(1, now, genesis.hash, "test data", 1);
 
     REQUIRE(IBlockchain::isValidNewBlock(valid, genesis, config));
 }
@@ -129,7 +105,7 @@ TEST_CASE("isValidNewBlock rejects block with incorrect prevHash", "[Consensus][
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
     Block genesis(0, 0, "", {}, 0, 0);
-    Block bad = mineBlock(1, now, "wrong_prev_hash", "test data", 1);
+    Block bad = TestHelpers::mineTestBlock(1, now, "wrong_prev_hash", "test data", 1);
 
     REQUIRE_FALSE(IBlockchain::isValidNewBlock(bad, genesis, config));
 }
@@ -162,7 +138,7 @@ TEST_CASE("isValidNewBlock rejects block with future timestamp", "[Consensus][US
     Block genesis(0, 0, "", {}, 0, 0);
 
     // Create block with timestamp 200s in the future (> 120s allowed)
-    Block futureBlock = mineBlock(1, now + 200, genesis.hash, "future data", 1);
+    Block futureBlock = TestHelpers::mineTestBlock(1, now + 200, genesis.hash, "future data", 1);
 
     REQUIRE_FALSE(IBlockchain::isValidNewBlock(futureBlock, genesis, config));
 }
@@ -177,7 +153,7 @@ TEST_CASE("isValidNewBlock rejects block below minDifficulty", "[Consensus][US1]
     Block genesis(0, 0, "", {}, 0, 0);
 
     // Mine a block with difficulty=1 but config requires minDifficulty=4
-    Block lowDiff = mineBlock(1, now, genesis.hash, "low diff", 1);
+    Block lowDiff = TestHelpers::mineTestBlock(1, now, genesis.hash, "low diff", 1);
 
     REQUIRE_FALSE(IBlockchain::isValidNewBlock(lowDiff, genesis, config));
 }
@@ -261,8 +237,8 @@ TEST_CASE("Longer valid chain replaces shorter chain", "[Consensus][US3]")
     Block genesis = bc.getBlockByIndex(0);
 
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block b1 = mineBlock(1, now, genesis.hash, "candidate block 1", 1);
-    Block b2 = mineBlock(2, now + 1, b1.hash, "candidate block 2", 1);
+    Block b1 = TestHelpers::mineTestBlock(1, now, genesis.hash, "candidate block 1", 1);
+    Block b2 = TestHelpers::mineTestBlock(2, now + 1, b1.hash, "candidate block 2", 1);
 
     std::vector<Block> candidate = {genesis, b1, b2};
 
@@ -288,7 +264,7 @@ TEST_CASE("Shorter chain does not replace longer chain", "[Consensus][US3]")
     // Try to replace with a shorter chain (just genesis + 1 block)
     Block genesis = bc.getBlockByIndex(0);
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block b1 = mineBlock(1, now, genesis.hash, "short chain", 1);
+    Block b1 = TestHelpers::mineTestBlock(1, now, genesis.hash, "short chain", 1);
     std::vector<Block> candidate = {genesis, b1};
 
     bc.replaceChain(candidate);
@@ -306,10 +282,10 @@ TEST_CASE("Longer chain with invalid block is rejected", "[Consensus][US3]")
 
     Block genesis = bc.getBlockByIndex(0);
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block b1 = mineBlock(1, now, genesis.hash, "valid block", 1);
+    Block b1 = TestHelpers::mineTestBlock(1, now, genesis.hash, "valid block", 1);
 
     // Create an invalid block (wrong prevHash)
-    Block b2_invalid = mineBlock(2, now + 1, "wrong_hash", "invalid block", 1);
+    Block b2_invalid = TestHelpers::mineTestBlock(2, now + 1, "wrong_hash", "invalid block", 1);
 
     std::vector<Block> candidate = {genesis, b1, b2_invalid};
     bc.replaceChain(candidate);
@@ -332,7 +308,7 @@ TEST_CASE("Chain reorg deeper than maxReorgDepth is rejected", "[Consensus][US3]
     std::vector<Block> candidate = {genesis};
     for (int i = 1; i <= 5; i++) {
         Block prev = candidate.back();
-        candidate.push_back(mineBlock(i, now + i, prev.hash, "deep_" + std::to_string(i), 1));
+        candidate.push_back(TestHelpers::mineTestBlock(i, now + i, prev.hash, "deep_" + std::to_string(i), 1));
     }
 
     bc.replaceChain(candidate);
@@ -354,8 +330,8 @@ TEST_CASE("keyIndexMap is rebuilt after chain replacement", "[Consensus][US3]")
     // Build longer candidate chain
     Block genesis = bc.getBlockByIndex(0);
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    Block b1 = mineBlock(1, now, genesis.hash, "new data 1", 1);
-    Block b2 = mineBlock(2, now + 1, b1.hash, "new data 2", 1);
+    Block b1 = TestHelpers::mineTestBlock(1, now, genesis.hash, "new data 1", 1);
+    Block b2 = TestHelpers::mineTestBlock(2, now + 1, b1.hash, "new data 2", 1);
     std::vector<Block> candidate = {genesis, b1, b2};
 
     bc.replaceChain(candidate);
@@ -388,7 +364,7 @@ TEST_CASE("Difficulty increases when blocks mined faster than target", "[Consens
     for (int i = 1; i <= 6; i++) {
         Block prev = fastChain.back();
         // 1 second apart (much faster than 10s target)
-        fastChain.push_back(mineBlock(i, now + i, prev.hash, "fast_" + std::to_string(i), 1));
+        fastChain.push_back(TestHelpers::mineTestBlock(i, now + i, prev.hash, "fast_" + std::to_string(i), 1));
     }
 
     bc.replaceChain(fastChain);
@@ -415,7 +391,7 @@ TEST_CASE("Difficulty decreases when blocks mined slower than target", "[Consens
     for (int i = 1; i <= 6; i++) {
         Block prev = slowChain.back();
         // 100 seconds apart in the past (much slower than 10s target)
-        slowChain.push_back(mineBlock(i, now - 700 + i * 100, prev.hash, "slow_" + std::to_string(i), 4));
+        slowChain.push_back(TestHelpers::mineTestBlock(i, now - 700 + i * 100, prev.hash, "slow_" + std::to_string(i), 4));
     }
 
     bc.replaceChain(slowChain);
@@ -442,7 +418,7 @@ TEST_CASE("Difficulty does not change by more than maxAdjustmentFactor", "[Conse
     for (int i = 1; i <= 6; i++) {
         Block prev = extremeChain.back();
         // Extremely fast: all same timestamp in the past
-        extremeChain.push_back(mineBlock(i, now - 10, prev.hash, "extreme_" + std::to_string(i), 4));
+        extremeChain.push_back(TestHelpers::mineTestBlock(i, now - 10, prev.hash, "extreme_" + std::to_string(i), 4));
     }
 
     bc.replaceChain(extremeChain);
@@ -470,7 +446,7 @@ TEST_CASE("Difficulty clamped to min/max range", "[Consensus][US4]")
     std::vector<Block> chain = {genesis};
     for (int i = 1; i <= 6; i++) {
         Block prev = chain.back();
-        chain.push_back(mineBlock(i, now + i, prev.hash, "clamped_" + std::to_string(i), 1));
+        chain.push_back(TestHelpers::mineTestBlock(i, now + i, prev.hash, "clamped_" + std::to_string(i), 1));
     }
 
     bc.replaceChain(chain);
@@ -497,7 +473,7 @@ TEST_CASE("Difficulty stays at minimum when slow and already at minimum", "[Cons
     std::vector<Block> slowChain = {genesis};
     for (int i = 1; i <= 6; i++) {
         Block prev = slowChain.back();
-        slowChain.push_back(mineBlock(i, now - 700 + i * 100, prev.hash, "min_" + std::to_string(i), 1));
+        slowChain.push_back(TestHelpers::mineTestBlock(i, now - 700 + i * 100, prev.hash, "min_" + std::to_string(i), 1));
     }
 
     bc.replaceChain(slowChain);
@@ -526,7 +502,7 @@ TEST_CASE("getDifficultyForHeight returns cached result on second call", "[Conse
     // Build a chain with >5 blocks for at least one adjustment boundary
     for (int i = 1; i <= 10; i++) {
         Block prev = bc.getBlockByIndex(bc.getChainBlockCount() - 1);
-        Block b = mineBlock(i, now + i * 10, prev.hash, "cache_" + std::to_string(i), 1);
+        Block b = TestHelpers::mineTestBlock(i, now + i * 10, prev.hash, "cache_" + std::to_string(i), 1);
         bc.appendBlock(b);
     }
 
@@ -559,7 +535,7 @@ TEST_CASE("Difficulty cache invalidated on replaceChain", "[Consensus][US3]") {
     // Build initial chain
     for (int i = 1; i <= 6; i++) {
         Block prev = bc.getBlockByIndex(bc.getChainBlockCount() - 1);
-        Block b = mineBlock(i, now + i * 10, prev.hash, "orig_" + std::to_string(i), 1);
+        Block b = TestHelpers::mineTestBlock(i, now + i * 10, prev.hash, "orig_" + std::to_string(i), 1);
         bc.appendBlock(b);
     }
 
@@ -571,7 +547,7 @@ TEST_CASE("Difficulty cache invalidated on replaceChain", "[Consensus][US3]") {
     std::vector<Block> candidate = {genesis};
     for (int i = 1; i <= 8; i++) {
         Block prev = candidate.back();
-        candidate.push_back(mineBlock(i, now + i * 5, prev.hash, "new_" + std::to_string(i), 1));
+        candidate.push_back(TestHelpers::mineTestBlock(i, now + i * 5, prev.hash, "new_" + std::to_string(i), 1));
     }
 
     bc.replaceChain(candidate);

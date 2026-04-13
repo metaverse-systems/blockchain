@@ -24,6 +24,7 @@ Last updated: 2026-04-13
 | 016  | Code Audit Remediation | Fixed 5 bugs (block count, dirty flag, merkle root, IPv6 parsing, pending pool), cached difficulty per boundary with ChunkRetainGuard, extracted shared utilities (chunkFilename, parsePeerKey, RPC helpers, send_to_peers), added TestHelpers.hpp, single-threaded io_context enforcement |
 | 017  | Blockchain Module Split | Split monolithic Blockchain.cpp (1,019 lines) into four focused modules: ChainPersistence (379 lines), DifficultyEngine (95 lines), MerkleProofService (60 lines), and slimmed Blockchain core (624 lines); composition-based ownership; zero API changes; 3 new focused test suites |
 | 018  | Audit Bug & Security Fixes | Fixed 4 bugs (sync response block append, RPC getBlockByIndex bounds check, getBlockByIndex resize chunk IDs, recovery triple-load) and 2 security issues (port range validation in parsePeerKey, seed node input validation in main); single-pass recovery optimization |
+| 019  | Performance & Deduplication Cleanup | O(1) peer lookups via `unordered_map`, RPC dispatch table replacing 21-branch `if`/`else`, shared `serialize_packet<T>()` template, consolidated `TestHelpers`, lazy `LOG_*` macros |
 
 ## Suggested Specs
 

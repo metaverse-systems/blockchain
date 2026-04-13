@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <functional>
+#include <unordered_map>
 #include "../IBlockchain.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
@@ -21,12 +23,16 @@ class PeerManager;
 
 class RpcServer : public SessionHandler, public std::enable_shared_from_this<RpcServer>
 {
+  public:
+    using RpcHandler = std::function<nlohmann::json(const nlohmann::json &)>;
+
   private:
     boost::asio::streambuf buffer;
     SyncStatus *sync_status = nullptr;
     PeerClient *peer_client = nullptr;
     PeerManager *peer_manager = nullptr;
     std::vector<std::string> allowed_streams;
+    std::unordered_map<std::string, RpcHandler> dispatch_;
 
   protected:
     std::shared_ptr<SessionHandler> shared_self() override { return shared_from_this(); }
@@ -44,6 +50,28 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
   private:
     void do_read();
     void do_write();
+    void init_dispatch();
+
+    nlohmann::json handle_publish(const nlohmann::json &request);
+    nlohmann::json handle_createStream(const nlohmann::json &request);
+    nlohmann::json handle_listStreams(const nlohmann::json &request);
+    nlohmann::json handle_getStreamEntries(const nlohmann::json &request);
+    nlohmann::json handle_getStreamEntry(const nlohmann::json &request);
+    nlohmann::json handle_requestSync(const nlohmann::json &request);
+    nlohmann::json handle_getBlockByIndex(const nlohmann::json &request);
+    nlohmann::json handle_getBlocksByKeys(const nlohmann::json &request);
+    nlohmann::json handle_addPeer(const nlohmann::json &request);
+    nlohmann::json handle_removePeer(const nlohmann::json &request);
+    nlohmann::json handle_listPeers(const nlohmann::json &request);
+    nlohmann::json handle_banPeer(const nlohmann::json &request);
+    nlohmann::json handle_unbanPeer(const nlohmann::json &request);
+    nlohmann::json handle_getInclusionProof(const nlohmann::json &request);
+    nlohmann::json handle_verifyInclusionProof(const nlohmann::json &request);
+    nlohmann::json handle_getBlockHeader(const nlohmann::json &request);
+    nlohmann::json handle_getNodeStatus(const nlohmann::json &request);
+    nlohmann::json handle_getBlockRange(const nlohmann::json &request);
+    nlohmann::json handle_getChainLength(const nlohmann::json &request);
+    nlohmann::json handle_getChunkCount(const nlohmann::json &request);
 
     static nlohmann::json invalidJsonRpcMessage();
     static nlohmann::json noIdMessage();

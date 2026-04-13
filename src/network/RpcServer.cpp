@@ -11,7 +11,7 @@
 #include <regex>
 
 RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
-        : SessionHandler(std::move(*socket_ptr), bc) {}
+        : SessionHandler(std::move(*socket_ptr), bc) { init_dispatch(); }
 
 std::shared_ptr<RpcServer> RpcServer::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {
@@ -71,646 +71,488 @@ void RpcServer::do_read()
                     return;
                 }
 
-                if(object["method"] == "publish")
-                {
-                    // Gate publish during sync
-                    if (sync_status && sync_status->isSyncing.load()) {
-                        buffer.consume(buffer.size());
-                        outputStream << syncInProgressMessage(object["id"]) << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    // Validate stream param
-                    if (!object["params"].contains("stream") || !object["params"]["stream"].is_string()
-                        || object["params"]["stream"].get<std::string>().empty()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream is required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto stream = object["params"]["stream"].get<std::string>();
-
-                    // Validate stream name format
-                    if (!isValidStreamName(stream)) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream name invalid") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    // Validate key param
-                    if (!object["params"].contains("key") || !object["params"]["key"].is_string()
-                        || object["params"]["key"].get<std::string>().empty()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: key is required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto key = object["params"]["key"].get<std::string>();
-
-                    // Get data (optional, defaults to empty)
-                    std::string data;
-                    if (object["params"].contains("data") && object["params"]["data"].is_string()) {
-                        data = object["params"]["data"].get<std::string>();
-                    }
-
-                    // Validate data size
-                    static constexpr size_t kMaxDataSize = 128ULL * 1024 * 1024;
-                    if (data.size() > kMaxDataSize) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: data exceeds 128 MB limit") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    // Per-node stream permissions
-                    if (!allowed_streams.empty()) {
-                        if (std::find(allowed_streams.begin(), allowed_streams.end(), stream) == allowed_streams.end()) {
-                            buffer.consume(buffer.size());
-                            outputStream << errorMessage(object["id"], -32003, "Stream not permitted on this node") << std::endl;
-                            this->do_write();
-                            return;
-                        }
-                    }
-
-                    // Get optional keys for index
-                    std::vector<std::string> keys;
-                    if (object["params"].contains("keys") && object["params"]["keys"].is_array()) {
-                        keys = object["params"]["keys"].get<std::vector<std::string>>();
-                    }
-
-                    try {
-                        Block b = bc.publish(stream, key, data, keys);
-                        b.dump();
-                        bc.saveChunk(b.index / bc.chunkSize);
-                        bc.saveKeys();
-
-                        // Broadcast the new block to all connected peers
-                        if (peer_manager) {
-                            peer_manager->broadcast_block(b);
-                        }
-
-                        buffer.consume(buffer.size());
-                        outputStream << resultMessage(object["id"], b.toJson().dump()) << std::endl;
-                    } catch (const std::runtime_error &e) {
-                        buffer.consume(buffer.size());
-                        outputStream << miningTimeoutMessage(object["id"], e.what()) << std::endl;
-                    }
-                    this->do_write();
-                    return;
+                std::string method = object["method"].get<std::string>();
+                auto it = dispatch_.find(method);
+                nlohmann::json response;
+                if (it != dispatch_.end()) {
+                    response = it->second(object);
+                } else {
+                    response = invalidMethodMessage(object["id"], method);
                 }
-
-                if(object["method"] == "createStream")
-                {
-                    if (object["params"] == nullptr || !object["params"].contains("name")
-                        || !object["params"]["name"].is_string()
-                        || object["params"]["name"].get<std::string>().empty()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: name is required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto name = object["params"]["name"].get<std::string>();
-                    if (!isValidStreamName(name)) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream name invalid") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    try {
-                        bc.createStream(name);
-                        buffer.consume(buffer.size());
-                        outputStream << resultMessage(object["id"], "Stream '" + name + "' created") << std::endl;
-                    } catch (const std::runtime_error &) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32004, "Stream already exists") << std::endl;
-                    }
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "listStreams")
-                {
-                    auto streams = bc.listStreams();
-                    nlohmann::json arr = nlohmann::json::array();
-                    for (const auto &s : streams) {
-                        arr.push_back(s);
-                    }
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], arr.dump()) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getStreamEntries")
-                {
-                    if (object["params"] == nullptr || !object["params"].contains("stream")
-                        || !object["params"]["stream"].is_string()
-                        || object["params"]["stream"].get<std::string>().empty()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream is required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto stream = object["params"]["stream"].get<std::string>();
-                    std::string key;
-                    if (object["params"].contains("key") && object["params"]["key"].is_string()) {
-                        key = object["params"]["key"].get<std::string>();
-                    }
-                    auto entries = bc.getStreamEntries(stream, key);
-                    nlohmann::json arr = nlohmann::json::array();
-                    for (const auto &[blockIdx, entry] : entries) {
-                        nlohmann::json ej;
-                        ej["block_index"] = blockIdx;
-                        ej["stream"] = entry.stream;
-                        ej["key"] = entry.key;
-                        ej["data"] = entry.data;
-                        arr.push_back(ej);
-                    }
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], arr.dump()) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getStreamEntry")
-                {
-                    if (object["params"] == nullptr
-                        || !object["params"].contains("stream") || !object["params"]["stream"].is_string()
-                        || object["params"]["stream"].get<std::string>().empty()
-                        || !object["params"].contains("key") || !object["params"]["key"].is_string()
-                        || object["params"]["key"].get<std::string>().empty()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: stream and key are required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto stream = object["params"]["stream"].get<std::string>();
-                    auto key = object["params"]["key"].get<std::string>();
-                    try {
-                        auto [blockIdx, entry] = bc.getStreamEntry(stream, key);
-                        nlohmann::json ej;
-                        ej["block_index"] = blockIdx;
-                        ej["stream"] = entry.stream;
-                        ej["key"] = entry.key;
-                        ej["data"] = entry.data;
-                        buffer.consume(buffer.size());
-                        outputStream << resultMessage(object["id"], ej.dump()) << std::endl;
-                    } catch (const std::runtime_error &) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32601, "Entry not found") << std::endl;
-                    }
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "requestSync")
-                {
-                    if (sync_status && sync_status->isSyncing.load()) {
-                        buffer.consume(buffer.size());
-                        outputStream << syncAlreadyInProgressMessage(object["id"]) << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    if (!peer_client || !peer_client->is_connected()) {
-                        buffer.consume(buffer.size());
-                        outputStream << noPeerMessage(object["id"]) << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    peer_client->start_sync();
-                    buffer.consume(buffer.size());
-                    outputStream << syncStartedMessage(object["id"]) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getBlockByIndex")
-                {
-                    if(object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object || object["params"]["index"] == nullptr)
-                    {
-                        buffer.consume(buffer.size());
-                        outputStream << invalidParamsMessage(object["id"]) << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto index = object["params"]["index"].get<size_t>();
-                    if (index >= bc.getChainLength()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32001, "Block not found") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    Block b = bc.getBlockByIndex(index);
-                    b.dump();
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], b.toJson().dump()) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getBlocksByKeys")
-                {
-                    if(object["params"] == nullptr || object["params"]["keys"] == nullptr)
-                    {
-                        buffer.consume(buffer.size());
-                        outputStream << invalidParamsMessage(object["id"]) << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto keys = object["params"]["keys"].get<std::vector<std::string>>();
-                    std::vector<Block> blocks = bc.getBlocksByKeys(keys);
-                    nlohmann::json response;
-
-                    for(auto &b : blocks)
-                    {
-                        response.push_back(b.toJson());
-                    }
-                    
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], response.dump()) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "addPeer")
-                {
-                    if (!peer_manager) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto host = object["params"]["host"].get<std::string>();
-                    auto port = object["params"]["port"].get<uint16_t>();
-
-                    if (peer_manager->is_banned(host, port)) {
-                        auto bans = peer_manager->get_bans();
-                        for (const auto &ban : bans) {
-                            if (ban.host == host && ban.port == port) {
-                                buffer.consume(buffer.size());
-                                outputStream << errorMessageWithData(object["id"], -32004, "Peer is currently banned", {{"expires", ban.expires}}) << std::endl;
-                                this->do_write();
-                                return;
-                            }
-                        }
-                    }
-
-                    if (peer_manager->outbound_count() >= peer_manager->get_config().max_outbound) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32003, "Outbound connection limit reached") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    peer_manager->connect_to(host, port);
-                    PeerEntry entry;
-                    entry.host = host;
-                    entry.port = port;
-                    entry.last_seen = static_cast<uint64_t>(std::time(nullptr));
-                    peer_manager->add_peer(entry);
-                    peer_manager->save_peers();
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], "peer_added") << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "removePeer")
-                {
-                    if (!peer_manager) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto host = object["params"]["host"].get<std::string>();
-                    auto port = object["params"]["port"].get<uint16_t>();
-
-                    if (!peer_manager->find_peer(host, port)) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32005, "Peer not found") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    peer_manager->disconnect_and_remove(host, port);
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], "peer_removed") << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "listPeers")
-                {
-                    if (!peer_manager) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    nlohmann::json result;
-                    result["node_uuid"] = peer_manager->get_node_uuid();
-                    result["discovery_enabled"] = peer_manager->is_discovery_enabled();
-                    result["outbound_count"] = peer_manager->outbound_count();
-                    result["inbound_count"] = peer_manager->inbound_count();
-                    result["max_outbound"] = peer_manager->get_config().max_outbound;
-                    result["max_inbound"] = peer_manager->get_config().max_inbound;
-
-                    nlohmann::json peers_json = nlohmann::json::array();
-                    for (const auto &p : peer_manager->get_peers()) {
-                        nlohmann::json pj;
-                        pj["host"] = p.host;
-                        pj["port"] = p.port;
-                        pj["node_uuid"] = p.node_uuid;
-                        pj["last_seen"] = p.last_seen;
-                        pj["error_count"] = p.error_count;
-                        peers_json.push_back(pj);
-                    }
-                    result["peers"] = peers_json;
-
-                    nlohmann::json bans_json = nlohmann::json::array();
-                    for (const auto &b : peer_manager->get_bans()) {
-                        nlohmann::json bj;
-                        bj["host"] = b.host;
-                        bj["port"] = b.port;
-                        bj["reason"] = b.reason;
-                        bj["expires"] = b.expires;
-                        bans_json.push_back(bj);
-                    }
-                    result["bans"] = bans_json;
-
-                    buffer.consume(buffer.size());
-                    outputStream << resultJsonMessage(object["id"], result) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "banPeer")
-                {
-                    if (!peer_manager) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto host = object["params"]["host"].get<std::string>();
-                    auto port = object["params"]["port"].get<uint16_t>();
-                    uint64_t duration = peer_manager->get_config().ban_duration_seconds;
-                    if (object["params"].contains("duration_seconds")) {
-                        duration = object["params"]["duration_seconds"].get<uint64_t>();
-                    }
-
-                    peer_manager->ban_peer(host, port, "manual", duration);
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], "peer_banned") << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "unbanPeer")
-                {
-                    if (!peer_manager) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32603, "Peer manager not available") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    if (object["params"] == nullptr || !object["params"].contains("host") || !object["params"].contains("port")) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params: host and port are required") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto host = object["params"]["host"].get<std::string>();
-                    auto port = object["params"]["port"].get<uint16_t>();
-
-                    if (!peer_manager->is_banned(host, port)) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32006, "Peer is not banned") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    peer_manager->unban_peer(host, port);
-                    peer_manager->save_peers();
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], "peer_unbanned") << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getInclusionProof")
-                {
-                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
-                        || !object["params"].contains("blockIndex") || !object["params"]["blockIndex"].is_number_integer()
-                        || !object["params"].contains("entryIndex") || !object["params"]["entryIndex"].is_number_integer()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto blockIndex = object["params"]["blockIndex"].get<size_t>();
-                    auto entryIndex = object["params"]["entryIndex"].get<size_t>();
-                    try {
-                        auto result = bc.getInclusionProof(blockIndex, entryIndex);
-                        buffer.consume(buffer.size());
-                        outputStream << resultJsonMessage(object["id"], result) << std::endl;
-                    } catch (const std::out_of_range &e) {
-                        std::string msg = e.what();
-                        int code = -32001;
-                        if (msg.find("Entry") != std::string::npos) {
-                            code = -32002;
-                            msg = "Entry not found";
-                        } else {
-                            msg = "Block not found";
-                        }
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], code, msg) << std::endl;
-                    }
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "verifyInclusionProof")
-                {
-                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
-                        || !object["params"].contains("blockIndex") || !object["params"]["blockIndex"].is_number_integer()
-                        || !object["params"].contains("leafHash") || !object["params"]["leafHash"].is_string()
-                        || !object["params"].contains("proof") || !object["params"]["proof"].is_array()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    // Validate proof array elements
-                    for (const auto &elem : object["params"]["proof"]) {
-                        if (!elem.contains("hash") || !elem["hash"].is_string()
-                            || !elem.contains("isLeft") || !elem["isLeft"].is_boolean()) {
-                            buffer.consume(buffer.size());
-                            outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
-                            this->do_write();
-                            return;
-                        }
-                    }
-                    auto blockIndex = object["params"]["blockIndex"].get<size_t>();
-                    auto leafHash = object["params"]["leafHash"].get<std::string>();
-                    auto proofArray = object["params"]["proof"];
-                    try {
-                        auto result = bc.verifyInclusionProof(blockIndex, leafHash, proofArray);
-                        buffer.consume(buffer.size());
-                        outputStream << resultJsonMessage(object["id"], result) << std::endl;
-                    } catch (const std::out_of_range &) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32001, "Block not found") << std::endl;
-                    }
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getBlockHeader")
-                {
-                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
-                        || !object["params"].contains("blockIndex") || !object["params"]["blockIndex"].is_number_integer()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto blockIndex = object["params"]["blockIndex"].get<size_t>();
-                    try {
-                        Block b = bc.getBlockByIndex(blockIndex);
-                        buffer.consume(buffer.size());
-                        outputStream << resultJsonMessage(object["id"], b.toHeaderJson()) << std::endl;
-                    } catch (const std::out_of_range &) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32001, "Block not found") << std::endl;
-                    }
-                    this->do_write();
-                    return;
-                }
-                
-                if(object["method"] == "getNodeStatus")
-                {
-                    nlohmann::json result;
-                    result["chainLength"] = bc.getChainLength();
-                    result["chunkCount"] = bc.getChunkCount();
-                    result["syncState"] = (sync_status && sync_status->isSyncing.load()) ? "syncing" : "idle";
-                    result["currentDifficulty"] = bc.getCurrentDifficulty();
-                    result["inboundPeers"] = peer_manager ? peer_manager->inbound_count() : static_cast<size_t>(0);
-                    result["outboundPeers"] = peer_manager ? peer_manager->outbound_count() : static_cast<size_t>(0);
-                    result["nodeUuid"] = peer_manager ? peer_manager->get_node_uuid() : "";
-                    buffer.consume(buffer.size());
-                    outputStream << resultJsonMessage(object["id"], result) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getBlockRange")
-                {
-                    if (object["params"] == nullptr || object["params"].type() != nlohmann::json::value_t::object
-                        || !object["params"].contains("startIndex") || !object["params"]["startIndex"].is_number_integer()
-                        || !object["params"].contains("endIndex") || !object["params"]["endIndex"].is_number_integer()) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid params") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-                    auto startIndex = object["params"]["startIndex"].get<size_t>();
-                    auto endIndex = object["params"]["endIndex"].get<size_t>();
-                    bool headersOnly = false;
-                    if (object["params"].contains("headersOnly") && object["params"]["headersOnly"].is_boolean()) {
-                        headersOnly = object["params"]["headersOnly"].get<bool>();
-                    }
-
-                    if (startIndex > endIndex) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Invalid range: startIndex exceeds endIndex") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    static constexpr size_t kMaxBlockRange = 1000;
-                    if (endIndex - startIndex + 1 > kMaxBlockRange) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32602, "Range too large: maximum 1000 blocks per request") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    size_t chainLength = bc.getChainLength();
-                    if (startIndex >= chainLength) {
-                        buffer.consume(buffer.size());
-                        outputStream << errorMessage(object["id"], -32001, "Start index out of range") << std::endl;
-                        this->do_write();
-                        return;
-                    }
-
-                    if (endIndex >= chainLength) {
-                        endIndex = chainLength - 1;
-                    }
-
-                    nlohmann::json blocks = nlohmann::json::array();
-                    for (size_t i = startIndex; i <= endIndex; i++) {
-                        Block b = bc.getBlockByIndex(i);
-                        blocks.push_back(headersOnly ? b.toHeaderJson() : b.toJson());
-                    }
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], blocks.dump()) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getChainLength")
-                {
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], std::to_string(bc.getChainLength())) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
-                if(object["method"] == "getChunkCount")
-                {
-                    buffer.consume(buffer.size());
-                    outputStream << resultMessage(object["id"], std::to_string(bc.getChunkCount())) << std::endl;
-                    this->do_write();
-                    return;
-                }
-
                 buffer.consume(buffer.size());
-                outputStream << invalidMethodMessage(object["id"], object["method"]) << std::endl;
+                outputStream << response << std::endl;
                 this->do_write();
             }
         });
+}
+
+void RpcServer::init_dispatch()
+{
+    dispatch_["publish"] = [this](const nlohmann::json &req) { return handle_publish(req); };
+    dispatch_["createStream"] = [this](const nlohmann::json &req) { return handle_createStream(req); };
+    dispatch_["listStreams"] = [this](const nlohmann::json &req) { return handle_listStreams(req); };
+    dispatch_["getStreamEntries"] = [this](const nlohmann::json &req) { return handle_getStreamEntries(req); };
+    dispatch_["getStreamEntry"] = [this](const nlohmann::json &req) { return handle_getStreamEntry(req); };
+    dispatch_["requestSync"] = [this](const nlohmann::json &req) { return handle_requestSync(req); };
+    dispatch_["getBlockByIndex"] = [this](const nlohmann::json &req) { return handle_getBlockByIndex(req); };
+    dispatch_["getBlocksByKeys"] = [this](const nlohmann::json &req) { return handle_getBlocksByKeys(req); };
+    dispatch_["addPeer"] = [this](const nlohmann::json &req) { return handle_addPeer(req); };
+    dispatch_["removePeer"] = [this](const nlohmann::json &req) { return handle_removePeer(req); };
+    dispatch_["listPeers"] = [this](const nlohmann::json &req) { return handle_listPeers(req); };
+    dispatch_["banPeer"] = [this](const nlohmann::json &req) { return handle_banPeer(req); };
+    dispatch_["unbanPeer"] = [this](const nlohmann::json &req) { return handle_unbanPeer(req); };
+    dispatch_["getInclusionProof"] = [this](const nlohmann::json &req) { return handle_getInclusionProof(req); };
+    dispatch_["verifyInclusionProof"] = [this](const nlohmann::json &req) { return handle_verifyInclusionProof(req); };
+    dispatch_["getBlockHeader"] = [this](const nlohmann::json &req) { return handle_getBlockHeader(req); };
+    dispatch_["getNodeStatus"] = [this](const nlohmann::json &req) { return handle_getNodeStatus(req); };
+    dispatch_["getBlockRange"] = [this](const nlohmann::json &req) { return handle_getBlockRange(req); };
+    dispatch_["getChainLength"] = [this](const nlohmann::json &req) { return handle_getChainLength(req); };
+    dispatch_["getChunkCount"] = [this](const nlohmann::json &req) { return handle_getChunkCount(req); };
+}
+
+nlohmann::json RpcServer::handle_publish(const nlohmann::json &request)
+{
+    if (sync_status && sync_status->isSyncing.load()) {
+        return syncInProgressMessage(request["id"]);
+    }
+
+    if (request["params"] == nullptr || request["params"].type() != nlohmann::json::value_t::object) {
+        return errorMessage(request["id"], -32602, "Invalid params");
+    }
+
+    if (!request["params"].contains("stream") || !request["params"]["stream"].is_string()
+        || request["params"]["stream"].get<std::string>().empty()) {
+        return errorMessage(request["id"], -32602, "Invalid params: stream is required");
+    }
+    auto stream_name = request["params"]["stream"].get<std::string>();
+
+    if (!isValidStreamName(stream_name)) {
+        return errorMessage(request["id"], -32602, "Invalid params: stream name invalid");
+    }
+
+    if (!request["params"].contains("key") || !request["params"]["key"].is_string()
+        || request["params"]["key"].get<std::string>().empty()) {
+        return errorMessage(request["id"], -32602, "Invalid params: key is required");
+    }
+    auto key = request["params"]["key"].get<std::string>();
+
+    std::string data;
+    if (request["params"].contains("data") && request["params"]["data"].is_string()) {
+        data = request["params"]["data"].get<std::string>();
+    }
+
+    static constexpr size_t kMaxDataSize = 128ULL * 1024 * 1024;
+    if (data.size() > kMaxDataSize) {
+        return errorMessage(request["id"], -32602, "Invalid params: data exceeds 128 MB limit");
+    }
+
+    if (!allowed_streams.empty()) {
+        if (std::find(allowed_streams.begin(), allowed_streams.end(), stream_name) == allowed_streams.end()) {
+            return errorMessage(request["id"], -32003, "Stream not permitted on this node");
+        }
+    }
+
+    std::vector<std::string> keys;
+    if (request["params"].contains("keys") && request["params"]["keys"].is_array()) {
+        keys = request["params"]["keys"].get<std::vector<std::string>>();
+    }
+
+    try {
+        Block b = bc.publish(stream_name, key, data, keys);
+        b.dump();
+        bc.saveChunk(b.index / bc.chunkSize);
+        bc.saveKeys();
+
+        if (peer_manager) {
+            peer_manager->broadcast_block(b);
+        }
+
+        return resultMessage(request["id"], b.toJson().dump());
+    } catch (const std::runtime_error &e) {
+        return miningTimeoutMessage(request["id"], e.what());
+    }
+}
+
+nlohmann::json RpcServer::handle_createStream(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || !request["params"].contains("name")
+        || !request["params"]["name"].is_string()
+        || request["params"]["name"].get<std::string>().empty()) {
+        return errorMessage(request["id"], -32602, "Invalid params: name is required");
+    }
+    auto name = request["params"]["name"].get<std::string>();
+    if (!isValidStreamName(name)) {
+        return errorMessage(request["id"], -32602, "Invalid params: stream name invalid");
+    }
+    try {
+        bc.createStream(name);
+        return resultMessage(request["id"], "Stream '" + name + "' created");
+    } catch (const std::runtime_error &) {
+        return errorMessage(request["id"], -32004, "Stream already exists");
+    }
+}
+
+nlohmann::json RpcServer::handle_listStreams(const nlohmann::json &request)
+{
+    auto streams = bc.listStreams();
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto &s : streams) {
+        arr.push_back(s);
+    }
+    return resultMessage(request["id"], arr.dump());
+}
+
+nlohmann::json RpcServer::handle_getStreamEntries(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || !request["params"].contains("stream")
+        || !request["params"]["stream"].is_string()
+        || request["params"]["stream"].get<std::string>().empty()) {
+        return errorMessage(request["id"], -32602, "Invalid params: stream is required");
+    }
+    auto stream_name = request["params"]["stream"].get<std::string>();
+    std::string key;
+    if (request["params"].contains("key") && request["params"]["key"].is_string()) {
+        key = request["params"]["key"].get<std::string>();
+    }
+    auto entries = bc.getStreamEntries(stream_name, key);
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto &[blockIdx, entry] : entries) {
+        nlohmann::json ej;
+        ej["block_index"] = blockIdx;
+        ej["stream"] = entry.stream;
+        ej["key"] = entry.key;
+        ej["data"] = entry.data;
+        arr.push_back(ej);
+    }
+    return resultMessage(request["id"], arr.dump());
+}
+
+nlohmann::json RpcServer::handle_getStreamEntry(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr
+        || !request["params"].contains("stream") || !request["params"]["stream"].is_string()
+        || request["params"]["stream"].get<std::string>().empty()
+        || !request["params"].contains("key") || !request["params"]["key"].is_string()
+        || request["params"]["key"].get<std::string>().empty()) {
+        return errorMessage(request["id"], -32602, "Invalid params: stream and key are required");
+    }
+    auto stream_name = request["params"]["stream"].get<std::string>();
+    auto key = request["params"]["key"].get<std::string>();
+    try {
+        auto [blockIdx, entry] = bc.getStreamEntry(stream_name, key);
+        nlohmann::json ej;
+        ej["block_index"] = blockIdx;
+        ej["stream"] = entry.stream;
+        ej["key"] = entry.key;
+        ej["data"] = entry.data;
+        return resultMessage(request["id"], ej.dump());
+    } catch (const std::runtime_error &) {
+        return errorMessage(request["id"], -32601, "Entry not found");
+    }
+}
+
+nlohmann::json RpcServer::handle_requestSync(const nlohmann::json &request)
+{
+    if (sync_status && sync_status->isSyncing.load()) {
+        return syncAlreadyInProgressMessage(request["id"]);
+    }
+
+    if (!peer_client || !peer_client->is_connected()) {
+        return noPeerMessage(request["id"]);
+    }
+
+    peer_client->start_sync();
+    return syncStartedMessage(request["id"]);
+}
+
+nlohmann::json RpcServer::handle_getBlockByIndex(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || request["params"].type() != nlohmann::json::value_t::object || request["params"]["index"] == nullptr) {
+        return invalidParamsMessage(request["id"]);
+    }
+    auto index = request["params"]["index"].get<size_t>();
+    if (index >= bc.getChainLength()) {
+        return errorMessage(request["id"], -32001, "Block not found");
+    }
+    Block b = bc.getBlockByIndex(index);
+    b.dump();
+    return resultMessage(request["id"], b.toJson().dump());
+}
+
+nlohmann::json RpcServer::handle_getBlocksByKeys(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || request["params"]["keys"] == nullptr) {
+        return invalidParamsMessage(request["id"]);
+    }
+    auto keys = request["params"]["keys"].get<std::vector<std::string>>();
+    std::vector<Block> blocks = bc.getBlocksByKeys(keys);
+    nlohmann::json result;
+
+    for (auto &b : blocks) {
+        result.push_back(b.toJson());
+    }
+
+    return resultMessage(request["id"], result.dump());
+}
+
+nlohmann::json RpcServer::handle_addPeer(const nlohmann::json &request)
+{
+    if (!peer_manager) {
+        return errorMessage(request["id"], -32603, "Peer manager not available");
+    }
+    if (request["params"] == nullptr || !request["params"].contains("host") || !request["params"].contains("port")) {
+        return errorMessage(request["id"], -32602, "Invalid params: host and port are required");
+    }
+    auto host = request["params"]["host"].get<std::string>();
+    auto port = request["params"]["port"].get<uint16_t>();
+
+    if (peer_manager->is_banned(host, port)) {
+        auto bans = peer_manager->get_bans();
+        for (const auto &ban : bans) {
+            if (ban.host == host && ban.port == port) {
+                return errorMessageWithData(request["id"], -32004, "Peer is currently banned", {{"expires", ban.expires}});
+            }
+        }
+    }
+
+    if (peer_manager->outbound_count() >= peer_manager->get_config().max_outbound) {
+        return errorMessage(request["id"], -32003, "Outbound connection limit reached");
+    }
+
+    peer_manager->connect_to(host, port);
+    PeerEntry entry;
+    entry.host = host;
+    entry.port = port;
+    entry.last_seen = static_cast<uint64_t>(std::time(nullptr));
+    peer_manager->add_peer(entry);
+    peer_manager->save_peers();
+    return resultMessage(request["id"], "peer_added");
+}
+
+nlohmann::json RpcServer::handle_removePeer(const nlohmann::json &request)
+{
+    if (!peer_manager) {
+        return errorMessage(request["id"], -32603, "Peer manager not available");
+    }
+    if (request["params"] == nullptr || !request["params"].contains("host") || !request["params"].contains("port")) {
+        return errorMessage(request["id"], -32602, "Invalid params: host and port are required");
+    }
+    auto host = request["params"]["host"].get<std::string>();
+    auto port = request["params"]["port"].get<uint16_t>();
+
+    if (!peer_manager->find_peer(host, port)) {
+        return errorMessage(request["id"], -32005, "Peer not found");
+    }
+
+    peer_manager->disconnect_and_remove(host, port);
+    return resultMessage(request["id"], "peer_removed");
+}
+
+nlohmann::json RpcServer::handle_listPeers(const nlohmann::json &request)
+{
+    if (!peer_manager) {
+        return errorMessage(request["id"], -32603, "Peer manager not available");
+    }
+
+    nlohmann::json result;
+    result["node_uuid"] = peer_manager->get_node_uuid();
+    result["discovery_enabled"] = peer_manager->is_discovery_enabled();
+    result["outbound_count"] = peer_manager->outbound_count();
+    result["inbound_count"] = peer_manager->inbound_count();
+    result["max_outbound"] = peer_manager->get_config().max_outbound;
+    result["max_inbound"] = peer_manager->get_config().max_inbound;
+
+    nlohmann::json peers_json = nlohmann::json::array();
+    for (const auto &p : peer_manager->get_peers()) {
+        nlohmann::json pj;
+        pj["host"] = p.host;
+        pj["port"] = p.port;
+        pj["node_uuid"] = p.node_uuid;
+        pj["last_seen"] = p.last_seen;
+        pj["error_count"] = p.error_count;
+        peers_json.push_back(pj);
+    }
+    result["peers"] = peers_json;
+
+    nlohmann::json bans_json = nlohmann::json::array();
+    for (const auto &b : peer_manager->get_bans()) {
+        nlohmann::json bj;
+        bj["host"] = b.host;
+        bj["port"] = b.port;
+        bj["reason"] = b.reason;
+        bj["expires"] = b.expires;
+        bans_json.push_back(bj);
+    }
+    result["bans"] = bans_json;
+
+    return resultJsonMessage(request["id"], result);
+}
+
+nlohmann::json RpcServer::handle_banPeer(const nlohmann::json &request)
+{
+    if (!peer_manager) {
+        return errorMessage(request["id"], -32603, "Peer manager not available");
+    }
+    if (request["params"] == nullptr || !request["params"].contains("host") || !request["params"].contains("port")) {
+        return errorMessage(request["id"], -32602, "Invalid params: host and port are required");
+    }
+    auto host = request["params"]["host"].get<std::string>();
+    auto port = request["params"]["port"].get<uint16_t>();
+    uint64_t duration = peer_manager->get_config().ban_duration_seconds;
+    if (request["params"].contains("duration_seconds")) {
+        duration = request["params"]["duration_seconds"].get<uint64_t>();
+    }
+
+    peer_manager->ban_peer(host, port, "manual", duration);
+    return resultMessage(request["id"], "peer_banned");
+}
+
+nlohmann::json RpcServer::handle_unbanPeer(const nlohmann::json &request)
+{
+    if (!peer_manager) {
+        return errorMessage(request["id"], -32603, "Peer manager not available");
+    }
+    if (request["params"] == nullptr || !request["params"].contains("host") || !request["params"].contains("port")) {
+        return errorMessage(request["id"], -32602, "Invalid params: host and port are required");
+    }
+    auto host = request["params"]["host"].get<std::string>();
+    auto port = request["params"]["port"].get<uint16_t>();
+
+    if (!peer_manager->is_banned(host, port)) {
+        return errorMessage(request["id"], -32006, "Peer is not banned");
+    }
+
+    peer_manager->unban_peer(host, port);
+    peer_manager->save_peers();
+    return resultMessage(request["id"], "peer_unbanned");
+}
+
+nlohmann::json RpcServer::handle_getInclusionProof(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || request["params"].type() != nlohmann::json::value_t::object
+        || !request["params"].contains("blockIndex") || !request["params"]["blockIndex"].is_number_integer()
+        || !request["params"].contains("entryIndex") || !request["params"]["entryIndex"].is_number_integer()) {
+        return errorMessage(request["id"], -32602, "Invalid params");
+    }
+    auto blockIndex = request["params"]["blockIndex"].get<size_t>();
+    auto entryIndex = request["params"]["entryIndex"].get<size_t>();
+    try {
+        auto result = bc.getInclusionProof(blockIndex, entryIndex);
+        return resultJsonMessage(request["id"], result);
+    } catch (const std::out_of_range &e) {
+        std::string msg = e.what();
+        int code = -32001;
+        if (msg.find("Entry") != std::string::npos) {
+            code = -32002;
+            msg = "Entry not found";
+        } else {
+            msg = "Block not found";
+        }
+        return errorMessage(request["id"], code, msg);
+    }
+}
+
+nlohmann::json RpcServer::handle_verifyInclusionProof(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || request["params"].type() != nlohmann::json::value_t::object
+        || !request["params"].contains("blockIndex") || !request["params"]["blockIndex"].is_number_integer()
+        || !request["params"].contains("leafHash") || !request["params"]["leafHash"].is_string()
+        || !request["params"].contains("proof") || !request["params"]["proof"].is_array()) {
+        return errorMessage(request["id"], -32602, "Invalid params");
+    }
+    for (const auto &elem : request["params"]["proof"]) {
+        if (!elem.contains("hash") || !elem["hash"].is_string()
+            || !elem.contains("isLeft") || !elem["isLeft"].is_boolean()) {
+            return errorMessage(request["id"], -32602, "Invalid params");
+        }
+    }
+    auto blockIndex = request["params"]["blockIndex"].get<size_t>();
+    auto leafHash = request["params"]["leafHash"].get<std::string>();
+    auto proofArray = request["params"]["proof"];
+    try {
+        auto result = bc.verifyInclusionProof(blockIndex, leafHash, proofArray);
+        return resultJsonMessage(request["id"], result);
+    } catch (const std::out_of_range &) {
+        return errorMessage(request["id"], -32001, "Block not found");
+    }
+}
+
+nlohmann::json RpcServer::handle_getBlockHeader(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || request["params"].type() != nlohmann::json::value_t::object
+        || !request["params"].contains("blockIndex") || !request["params"]["blockIndex"].is_number_integer()) {
+        return errorMessage(request["id"], -32602, "Invalid params");
+    }
+    auto blockIndex = request["params"]["blockIndex"].get<size_t>();
+    try {
+        Block b = bc.getBlockByIndex(blockIndex);
+        return resultJsonMessage(request["id"], b.toHeaderJson());
+    } catch (const std::out_of_range &) {
+        return errorMessage(request["id"], -32001, "Block not found");
+    }
+}
+
+nlohmann::json RpcServer::handle_getNodeStatus(const nlohmann::json &request)
+{
+    nlohmann::json result;
+    result["chainLength"] = bc.getChainLength();
+    result["chunkCount"] = bc.getChunkCount();
+    result["syncState"] = (sync_status && sync_status->isSyncing.load()) ? "syncing" : "idle";
+    result["currentDifficulty"] = bc.getCurrentDifficulty();
+    result["inboundPeers"] = peer_manager ? peer_manager->inbound_count() : static_cast<size_t>(0);
+    result["outboundPeers"] = peer_manager ? peer_manager->outbound_count() : static_cast<size_t>(0);
+    result["nodeUuid"] = peer_manager ? peer_manager->get_node_uuid() : "";
+    return resultJsonMessage(request["id"], result);
+}
+
+nlohmann::json RpcServer::handle_getBlockRange(const nlohmann::json &request)
+{
+    if (request["params"] == nullptr || request["params"].type() != nlohmann::json::value_t::object
+        || !request["params"].contains("startIndex") || !request["params"]["startIndex"].is_number_integer()
+        || !request["params"].contains("endIndex") || !request["params"]["endIndex"].is_number_integer()) {
+        return errorMessage(request["id"], -32602, "Invalid params");
+    }
+    auto startIndex = request["params"]["startIndex"].get<size_t>();
+    auto endIndex = request["params"]["endIndex"].get<size_t>();
+    bool headersOnly = false;
+    if (request["params"].contains("headersOnly") && request["params"]["headersOnly"].is_boolean()) {
+        headersOnly = request["params"]["headersOnly"].get<bool>();
+    }
+
+    if (startIndex > endIndex) {
+        return errorMessage(request["id"], -32602, "Invalid range: startIndex exceeds endIndex");
+    }
+
+    static constexpr size_t kMaxBlockRange = 1000;
+    if (endIndex - startIndex + 1 > kMaxBlockRange) {
+        return errorMessage(request["id"], -32602, "Range too large: maximum 1000 blocks per request");
+    }
+
+    size_t chainLength = bc.getChainLength();
+    if (startIndex >= chainLength) {
+        return errorMessage(request["id"], -32001, "Start index out of range");
+    }
+
+    if (endIndex >= chainLength) {
+        endIndex = chainLength - 1;
+    }
+
+    nlohmann::json blocks = nlohmann::json::array();
+    for (size_t i = startIndex; i <= endIndex; i++) {
+        Block b = bc.getBlockByIndex(i);
+        blocks.push_back(headersOnly ? b.toHeaderJson() : b.toJson());
+    }
+    return resultMessage(request["id"], blocks.dump());
+}
+
+nlohmann::json RpcServer::handle_getChainLength(const nlohmann::json &request)
+{
+    return resultMessage(request["id"], std::to_string(bc.getChainLength()));
+}
+
+nlohmann::json RpcServer::handle_getChunkCount(const nlohmann::json &request)
+{
+    return resultMessage(request["id"], std::to_string(bc.getChunkCount()));
 }
 
 void RpcServer::do_write()
