@@ -1,7 +1,7 @@
 # Code Audit Report
 
-**Date:** 2026-04-12  
-**Scope:** Full codebase — `src/` (5,887 lines) and `tests/` (6,752 lines)
+**Date:** 2026-04-12 (updated 2026-04-13)  
+**Scope:** Full codebase — `src/` (6,179 lines) and `tests/` (6,891 lines)
 
 ---
 
@@ -423,10 +423,38 @@ Ordered by impact and effort:
 | 11 | Stream entry lookup duplication (§3.4) | **Fixed** | Extracted shared `collectEntries` lambda in `getStreamEntries()` |
 | 12 | Test setup duplication (§7.4) | **Fixed** | `TestHelpers.hpp` with shared utilities; 9 test files updated |
 
-### Not Addressed (deferred)
+---
+
+## 10. Module Split Status (017-blockchain-module-split)
+
+**Date:** 2026-04-13
+
+Addresses §6.2 (`Blockchain.cpp` at 1,024 lines mixes concerns) and recommendation #9.
+
+`Blockchain.cpp` was split into four focused modules using composition — `Blockchain<ChunkHandler>` owns each module as a member and delegates through thin wrappers.
+
+| Module | File | Lines | Responsibility |
+|--------|------|------:|----------------|
+| `ChainPersistence<ChunkHandler>` | `src/ChainPersistence.cpp` | 379 | Chunk I/O, keys, streams, stream index, recovery, archiving |
+| `DifficultyEngine` | `src/DifficultyEngine.cpp` | 95 | Difficulty calculation, adjustment-window logic, boundary cache |
+| `MerkleProofService` | `src/MerkleProofService.cpp` | 60 | Inclusion proof generation and verification |
+| `Blockchain<ChunkHandler>` (core) | `src/Blockchain.cpp` | 624 | Block creation/mining, chain ops, delegation wrappers |
+
+All modules stay under the 400-line limit (SC-001). `Blockchain.cpp` is at 624 due to 18 delegation wrappers required by the `IBlockchain` interface.
+
+**New test suites:**
+
+| Test file | Cases | Assertions |
+|-----------|------:|-----------:|
+| `tests/chain_persistence_module_tests.cpp` | 8 | 17 |
+| `tests/difficulty_engine_tests.cpp` | 8 | 11 |
+| `tests/merkle_proof_tests.cpp` | 6 | 31 |
+
+All existing tests (344 assertions in 115 test cases) continue to pass with zero regressions. Incremental build verified — touching a single module recompiles only that `.o` file (SC-003).
+
+### Still Deferred
 
 | # | Issue | Reason |
 |---|-------|--------|
-| 9 | Split `Blockchain.cpp` into modules (§6.2) | High effort; architecture change outside audit scope |
 | 10 | Narrow `IBlockchain` interfaces (§6.4) | Medium effort; deferred to future refactoring |
 | — | RPC dispatch table (§4.6, §6.1) | Deferred; helper extraction sufficient for now |

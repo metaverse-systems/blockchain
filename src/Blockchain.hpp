@@ -9,6 +9,9 @@
 #include "IChunk.hpp"
 #include "IBlockchain.hpp"
 #include "ConsensusConfig.hpp"
+#include "ChainPersistence.hpp"
+#include "DifficultyEngine.hpp"
+#include "MerkleProofService.hpp"
 #include <filesystem>
 #include <boost/asio.hpp>
 
@@ -31,10 +34,14 @@ class Blockchain : public IBlockchain
     uint32_t save_interval_seconds_ = 0;
     std::unordered_map<size_t, uint32_t> difficultyCache_;
     std::set<size_t> retainedChunks_;
+    ChainPersistence<ChunkHandler> persistence_;
+    DifficultyEngine difficultyEngine_;
+    MerkleProofService proofService_;
   public:
     
     Blockchain(std::filesystem::path path, ConsensusConfig cfg = ConsensusConfig())
-        : blockchainPath(path), config(cfg), currentDifficulty(cfg.initialDifficulty)
+        : blockchainPath(path), config(cfg), currentDifficulty(cfg.initialDifficulty),
+          persistence_(path, IBlockchain::chunkSize)
     {
         this->generateGenesisBlock();
     };

@@ -326,80 +326,55 @@ std::vector<Block> Blockchain<ChunkHandler>::getBlocksByKeys(const std::vector<s
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::saveChunk(size_t chunkIndex)
 {
-    this->chain.at(chunkIndex).save();
+    persistence_.saveChunk(this->chain, chunkIndex);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::freeChunk(size_t chunkIndex)
 {
-    if (retainedChunks_.count(chunkIndex)) return;
-    this->chain.at(chunkIndex).clear();
+    persistence_.freeChunk(this->chain, chunkIndex, retainedChunks_);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::loadChunk(size_t chunkIndex)
 {
-    this->chain.at(chunkIndex).load();
+    persistence_.loadChunk(this->chain, chunkIndex);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::saveKeys()
 {
-    std::ofstream ofs(this->blockchainPath / "keys.dat", std::ios::binary);
-    boost::archive::binary_oarchive oa(ofs);
-    oa << this->keyIndexMap;
+    persistence_.saveKeys(this->keyIndexMap);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::loadKeys()
 {
-    auto keysPath = this->blockchainPath / "keys.dat";
-    if (!std::filesystem::exists(keysPath)) {
-        return;
-    }
-    std::ifstream ifs(keysPath, std::ios::binary);
-    boost::archive::binary_iarchive ia(ifs);
-    ia >> this->keyIndexMap;
+    persistence_.loadKeys(this->keyIndexMap);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::saveStreams()
 {
-    std::ofstream ofs(this->blockchainPath / "streams.dat", std::ios::binary);
-    boost::archive::binary_oarchive oa(ofs);
-    oa << this->streamRegistry;
+    persistence_.saveStreams(this->streamRegistry);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::loadStreams()
 {
-    auto path = this->blockchainPath / "streams.dat";
-    if (!std::filesystem::exists(path)) {
-        return;
-    }
-    std::ifstream ifs(path, std::ios::binary);
-    boost::archive::binary_iarchive ia(ifs);
-    ia >> this->streamRegistry;
+    persistence_.loadStreams(this->streamRegistry);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::saveStreamIndex()
 {
-    std::ofstream ofs(this->blockchainPath / "stream_index.dat", std::ios::binary);
-    boost::archive::binary_oarchive oa(ofs);
-    oa << this->streamKeyIndex;
+    persistence_.saveStreamIndex(this->streamKeyIndex);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::loadStreamIndex()
 {
-    auto path = this->blockchainPath / "stream_index.dat";
-    if (!std::filesystem::exists(path)) {
-        return;
-    }
-    std::ifstream ifs(path, std::ios::binary);
-    boost::archive::binary_iarchive ia(ifs);
-    ia >> this->streamKeyIndex;
+    persistence_.loadStreamIndex(this->streamKeyIndex);
 }
 
 template<typename ChunkHandler>
@@ -450,282 +425,36 @@ size_t Blockchain<ChunkHandler>::getChunkCount() const
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::saveAllChunks()
 {
-    // Save all dirty, non-empty chunks
-    for (size_t i = 0; i < this->chain.size(); i++) {
-        if (this->chain[i].isDirty() && this->chain[i].size() > 0) {
-            try {
-                this->chain[i].save();
-            } catch (const std::exception &e) {
-                logMessage("ERROR", "Failed to save chunk " + std::to_string(i) + ": " + std::string(e.what()));
-            }
-        }
-    }
-
-    // Save all index files
-    try {
-        this->saveKeys();
-    } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to save keys: " + std::string(e.what()));
-    }
-    try {
-        this->saveStreams();
-    } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to save streams: " + std::string(e.what()));
-    }
-    try {
-        this->saveStreamIndex();
-    } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to save stream index: " + std::string(e.what()));
-    }
-
-    this->dirty_ = false;
+    persistence_.saveAllChunks(this->chain, this->keyIndexMap,
+                               this->streamRegistry, this->streamKeyIndex, this->dirty_);
 }
 
 template<typename ChunkHandler>
 size_t Blockchain<ChunkHandler>::discoverChunks()
 {
-    size_t count = 0;
-    while (true) {
-        if (!std::filesystem::exists(this->blockchainPath / chunkFilename(count))) {
-            break;
-        }
-        count++;
-    }
-    return count;
+    return persistence_.discoverChunks();
 }
 
 template<typename ChunkHandler>
 bool Blockchain<ChunkHandler>::validateChunk(size_t chunkIndex)
 {
-    std::filesystem::path chunkPath = this->blockchainPath / chunkFilename(chunkIndex);
-
-    // Zero-byte file detection
-    if (std::filesystem::file_size(chunkPath) == 0) {
-        logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
-                   + " at " + chunkPath.string() + " is zero bytes");
-        return false;
-    }
-
-    try {
-        ChunkHandler chunk(chunkIndex, this->blockchainPath);
-        chunk.load();
-
-        if (chunk.blocks.empty()) {
-            logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
-                       + " at " + chunkPath.string() + " is empty after deserialization");
-            return false;
-        }
-
-        // Verify block hashes
-        for (size_t i = 0; i < chunk.blocks.size(); i++) {
-            auto &block = chunk.blocks[i];
-            if (block.calculateHash() != block.hash) {
-                logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
-                           + " block " + std::to_string(block.index)
-                           + " has invalid hash at " + chunkPath.string());
-                return false;
-            }
-        }
-
-        // Verify internal block linkage
-        for (size_t i = 1; i < chunk.blocks.size(); i++) {
-            if (chunk.blocks[i].prevHash != chunk.blocks[i - 1].hash) {
-                logMessage("ERROR", "Chunk " + std::to_string(chunkIndex)
-                           + " block " + std::to_string(chunk.blocks[i].index)
-                           + " has broken linkage at " + chunkPath.string());
-                return false;
-            }
-        }
-
-        return true;
-    } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to validate chunk " + std::to_string(chunkIndex)
-                   + " at " + chunkPath.string() + ": " + std::string(e.what()));
-        return false;
-    }
+    return persistence_.validateChunk(chunkIndex, this->config);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::recoverChain(bool fast_startup)
 {
-    size_t numChunks = this->discoverChunks();
-
-    if (numChunks == 0) {
-        // No chunks on disk — fresh start with genesis already created by constructor
-        logMessage("INFO", "No chunk files found, starting fresh");
-        return;
-    }
-
-    // Validate contiguous prefix
-    size_t validChunks = 0;
-    size_t totalBlocks = 0;
-
-    if (fast_startup) {
-        // Skip validation — trust all discovered chunks
-        for (size_t i = 0; i < numChunks; i++) {
-            ChunkHandler chunk(i, this->blockchainPath);
-            chunk.load();
-            totalBlocks += chunk.blocks.size();
-            validChunks++;
-        }
-    } else {
-        for (size_t i = 0; i < numChunks; i++) {
-            if (!this->validateChunk(i)) {
-                logMessage("WARN", "Stopping at chunk " + std::to_string(i) + " due to validation failure");
-                break;
-            }
-
-            // Cross-chunk linkage validation
-            if (i > 0) {
-                ChunkHandler prevChunk(i - 1, this->blockchainPath);
-                prevChunk.load();
-                ChunkHandler currChunk(i, this->blockchainPath);
-                currChunk.load();
-
-                if (!currChunk.blocks.empty() && !prevChunk.blocks.empty()) {
-                    if (currChunk.blocks[0].prevHash != prevChunk.blocks.back().hash) {
-                        logMessage("ERROR", "Cross-chunk linkage failed between chunk "
-                                   + std::to_string(i - 1) + " and " + std::to_string(i));
-                        break;
-                    }
-                }
-            }
-
-            // Count blocks in this chunk
-            ChunkHandler chunk(i, this->blockchainPath);
-            chunk.load();
-            totalBlocks += chunk.blocks.size();
-            validChunks++;
-        }
-    }
-
-    if (validChunks == 0) {
-        logMessage("WARN", "No valid chunks found, starting fresh");
-        return;
-    }
-
-    // Clear the constructor-created genesis chain
-    this->chain.clear();
-    this->keyIndexMap.clear();
-    this->streamRegistry.clear();
-    this->streamKeyIndex.clear();
-
-    // Create placeholders for all chunks
-    for (size_t i = 0; i < validChunks; i++) {
-        this->chain.emplace_back(ChunkHandler(i, this->blockchainPath));
-    }
-
-    // Load only the active (last) chunk into memory
-    this->chain.back().load();
-
-    // Check if index files exist on disk
-    bool keysExist = std::filesystem::exists(this->blockchainPath / "keys.dat");
-    bool streamsExist = std::filesystem::exists(this->blockchainPath / "streams.dat");
-    bool streamIndexExist = std::filesystem::exists(this->blockchainPath / "stream_index.dat");
-
-    if (keysExist && streamsExist && streamIndexExist) {
-        // All index files present — attempt to load them
-        try {
-            this->loadKeys();
-        } catch (...) {
-            keysExist = false;
-        }
-        try {
-            this->loadStreams();
-        } catch (...) {
-            streamsExist = false;
-        }
-        try {
-            this->loadStreamIndex();
-        } catch (...) {
-            streamIndexExist = false;
-        }
-    }
-
-    // If any index is missing or failed to load, rebuild from chunks
-    if (!keysExist || !streamsExist || !streamIndexExist) {
-        logMessage("INFO", "Rebuilding missing indexes from chunk files");
-        this->keyIndexMap.clear();
-        this->streamRegistry.clear();
-        this->streamKeyIndex.clear();
-
-        for (size_t i = 0; i < validChunks; i++) {
-            ChunkHandler chunk(i, this->blockchainPath);
-            chunk.load();
-            for (const auto &block : chunk.blocks) {
-                for (const auto &entry : block.entries) {
-                    this->streamRegistry.insert(entry.stream);
-                    this->streamKeyIndex[entry.stream][entry.key].push_back(block.index);
-                }
-            }
-        }
-    }
-
-    this->totalBlockCount_ = totalBlocks;
-    this->chunkCount_ = validChunks;
-    this->dirty_ = false;
-    this->difficultyCache_.clear();
-
-    // Free all chunks except the active one
-    for (size_t i = 0; i + 1 < this->chain.size(); i++) {
-        this->chain[i].clear();
-    }
-
-    logMessage("INFO", "Recovered " + std::to_string(totalBlocks) + " blocks across "
-               + std::to_string(validChunks) + " chunks");
+    persistence_.recoverChain(this->chain, this->keyIndexMap,
+                               this->streamRegistry, this->streamKeyIndex,
+                               this->totalBlockCount_, this->chunkCount_,
+                               this->dirty_, this->difficultyCache_,
+                               this->config, fast_startup);
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::archiveChainFiles()
 {
-    auto backupsDir = this->blockchainPath / "backups";
-
-    // Generate timestamp for backup directory
-    auto now = std::chrono::system_clock::now();
-    auto time_t_now = std::chrono::system_clock::to_time_t(now);
-    std::tm tm_buf;
-#ifdef _WIN32
-    gmtime_s(&tm_buf, &time_t_now);
-#else
-    gmtime_r(&time_t_now, &tm_buf);
-#endif
-
-    std::ostringstream ts;
-    ts << std::put_time(&tm_buf, "%Y-%m-%dT%H%M%SZ");
-    auto archiveDir = backupsDir / ts.str();
-
-    try {
-        std::filesystem::create_directories(archiveDir);
-    } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to create backup directory: " + std::string(e.what()));
-        return;
-    }
-
-    // Move all chunk files
-    for (size_t i = 0; ; i++) {
-        auto fname = chunkFilename(i);
-        auto src = this->blockchainPath / fname;
-        if (!std::filesystem::exists(src)) break;
-        try {
-            std::filesystem::rename(src, archiveDir / fname);
-        } catch (const std::exception &e) {
-            logMessage("ERROR", "Failed to archive " + src.string() + ": " + std::string(e.what()));
-        }
-    }
-
-    // Move index files
-    for (const auto &name : {"keys.dat", "streams.dat", "stream_index.dat"}) {
-        auto src = this->blockchainPath / name;
-        if (std::filesystem::exists(src)) {
-            try {
-                std::filesystem::rename(src, archiveDir / name);
-            } catch (const std::exception &e) {
-                logMessage("ERROR", "Failed to archive " + src.string() + ": " + std::string(e.what()));
-            }
-        }
-    }
-
-    logMessage("INFO", "Archived chain files to " + archiveDir.string());
+    persistence_.archiveChainFiles(this->chunkCount_);
 }
 
 template<typename ChunkHandler>
@@ -860,138 +589,28 @@ void Blockchain<ChunkHandler>::replaceChain(const std::vector<Block> &candidateB
 template<typename ChunkHandler>
 uint32_t Blockchain<ChunkHandler>::calculateNewDifficulty()
 {
-    size_t totalBlocks = this->getChainBlockCount();
-    if (totalBlocks < this->config.adjustmentWindow + 1) {
-        return this->currentDifficulty;
-    }
-
-    // Get the first and last block in the current window
-    size_t windowEnd = totalBlocks - 1;
-    size_t windowStart = windowEnd - this->config.adjustmentWindow;
-
-    Block firstBlock = this->getBlockByIndex(windowStart);
-    Block lastBlock = this->getBlockByIndex(windowEnd);
-
-    double expectedTime = static_cast<double>(this->config.targetBlockInterval) * this->config.adjustmentWindow;
-    double actualTime = static_cast<double>(lastBlock.timestamp - firstBlock.timestamp);
-
-    if (actualTime <= 0) actualTime = 1.0;
-
-    double ratio = expectedTime / actualTime;
-
-    // Clamp ratio
-    double maxFactor = this->config.maxAdjustmentFactor;
-    if (ratio > maxFactor) ratio = maxFactor;
-    if (ratio < 1.0 / maxFactor) ratio = 1.0 / maxFactor;
-
-    int32_t adjustment = static_cast<int32_t>(std::round(std::log2(ratio)));
-    int32_t newDiff = static_cast<int32_t>(this->currentDifficulty) + adjustment;
-
-    // Clamp to [minDifficulty, maxDifficulty]
-    if (newDiff < static_cast<int32_t>(this->config.minDifficulty))
-        newDiff = static_cast<int32_t>(this->config.minDifficulty);
-    if (newDiff > static_cast<int32_t>(this->config.maxDifficulty))
-        newDiff = static_cast<int32_t>(this->config.maxDifficulty);
-
-    this->currentDifficulty = static_cast<uint32_t>(newDiff);
+    auto getBlock = [this](size_t idx) -> Block { return this->getBlockByIndex(idx); };
+    this->currentDifficulty = difficultyEngine_.calculateNewDifficulty(
+        this->config, this->getChainBlockCount(), this->currentDifficulty, getBlock);
     return this->currentDifficulty;
 }
 
 template<typename ChunkHandler>
 uint32_t Blockchain<ChunkHandler>::getDifficultyForHeight(size_t height)
 {
-    if (height == 0) return 0;
-
-    // Walk through adjustment boundaries to compute what difficulty should be at this height
-    uint32_t difficulty = this->config.initialDifficulty;
-
     ChunkRetainGuard guard(*this);
-
-    for (size_t boundaryHeight = this->config.adjustmentWindow;
-         boundaryHeight <= height;
-         boundaryHeight += this->config.adjustmentWindow)
-    {
-        // Check difficulty cache for this boundary
-        auto cacheIt = difficultyCache_.find(boundaryHeight);
-        if (cacheIt != difficultyCache_.end()) {
-            difficulty = cacheIt->second;
-            continue;
-        }
-
-        size_t windowStart = boundaryHeight - this->config.adjustmentWindow;
-        size_t windowEnd = boundaryHeight;
-
-        // Ensure blocks exist for this window
-        size_t totalBlocks = this->getChainBlockCount();
-        if (windowEnd >= totalBlocks) break;
-
-        // Retain chunks for multi-access
-        this->retainChunk(windowStart / this->chunkSize);
-        this->retainChunk(windowEnd / this->chunkSize);
-
-        Block firstBlock = this->getBlockByIndex(windowStart);
-        Block lastBlock = this->getBlockByIndex(windowEnd);
-
-        double expectedTime = static_cast<double>(this->config.targetBlockInterval) * this->config.adjustmentWindow;
-        double actualTime = static_cast<double>(lastBlock.timestamp - firstBlock.timestamp);
-        if (actualTime <= 0) actualTime = 1.0;
-
-        double ratio = expectedTime / actualTime;
-        double maxFactor = this->config.maxAdjustmentFactor;
-        if (ratio > maxFactor) ratio = maxFactor;
-        if (ratio < 1.0 / maxFactor) ratio = 1.0 / maxFactor;
-
-        int32_t adjustment = static_cast<int32_t>(std::round(std::log2(ratio)));
-        int32_t newDiff = static_cast<int32_t>(difficulty) + adjustment;
-
-        if (newDiff < static_cast<int32_t>(this->config.minDifficulty))
-            newDiff = static_cast<int32_t>(this->config.minDifficulty);
-        if (newDiff > static_cast<int32_t>(this->config.maxDifficulty))
-            newDiff = static_cast<int32_t>(this->config.maxDifficulty);
-
-        difficulty = static_cast<uint32_t>(newDiff);
-        difficultyCache_[boundaryHeight] = difficulty;
-    }
-
-    return difficulty;
+    auto getBlock = [this](size_t idx) -> Block { return this->getBlockByIndex(idx); };
+    auto retainChunk = [this](size_t idx) { this->retainChunk(idx / this->chunkSize); };
+    return difficultyEngine_.getDifficultyForHeight(
+        height, this->config, this->getChainBlockCount(),
+        this->difficultyCache_, getBlock, retainChunk);
 }
 
 template<typename ChunkHandler>
 nlohmann::json Blockchain<ChunkHandler>::getInclusionProof(size_t blockIndex, size_t entryIndex)
 {
     Block block = this->getBlockByIndex(blockIndex);
-
-    if (entryIndex >= block.entries.size()) {
-        throw std::out_of_range("Entry index out of range: " + std::to_string(entryIndex));
-    }
-
-    // Compute leaf hashes for all entries
-    std::vector<std::string> leafHashes;
-    for (const auto &entry : block.entries) {
-        std::ostringstream oss;
-        boost::archive::binary_oarchive oa(oss);
-        oa << entry;
-        leafHashes.push_back(MerkleTree::computeLeafHash(oss.str()));
-    }
-
-    auto proof = MerkleTree::generateProof(leafHashes, entryIndex);
-
-    nlohmann::json result;
-    result["blockIndex"] = blockIndex;
-    result["entryIndex"] = entryIndex;
-    result["merkleRoot"] = block.merkleRoot;
-    result["leafHash"] = leafHashes[entryIndex];
-
-    nlohmann::json proofArray = nlohmann::json::array();
-    for (const auto &elem : proof) {
-        nlohmann::json pj;
-        pj["hash"] = elem.hash;
-        pj["isLeft"] = elem.isLeft;
-        proofArray.push_back(pj);
-    }
-    result["proof"] = proofArray;
-
-    return result;
+    return proofService_.getInclusionProof(block, entryIndex);
 }
 
 template<typename ChunkHandler>
@@ -999,21 +618,7 @@ nlohmann::json Blockchain<ChunkHandler>::verifyInclusionProof(size_t blockIndex,
                                                                const nlohmann::json &proofArray)
 {
     Block block = this->getBlockByIndex(blockIndex);
-
-    std::vector<MerkleProofElement> proof;
-    for (const auto &elem : proofArray) {
-        MerkleProofElement pe;
-        pe.hash = elem["hash"].get<std::string>();
-        pe.isLeft = elem["isLeft"].get<bool>();
-        proof.push_back(pe);
-    }
-
-    bool valid = MerkleTree::verifyProof(block.merkleRoot, leafHash, proof);
-
-    nlohmann::json result;
-    result["valid"] = valid;
-    result["merkleRoot"] = block.merkleRoot;
-    return result;
+    return proofService_.verifyInclusionProof(block, leafHash, proofArray);
 }
 
 template class Blockchain<Chunk>;

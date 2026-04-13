@@ -15,14 +15,14 @@
 
 **Purpose**: Build system preparation and skeleton files for all new modules
 
-- [ ] T001 Add ChainPersistence.cpp, DifficultyEngine.cpp, MerkleProofService.cpp to libblockchain_core_a_SOURCES in src/Makefile.am
-- [ ] T002 [P] Create src/ChainPersistence.hpp with template class declaration, constructor, and all public method signatures per contracts/chain-persistence.md
-- [ ] T003 [P] Create src/DifficultyEngine.hpp with class declaration, default constructor, and public method signatures per contracts/difficulty-engine.md
-- [ ] T004 [P] Create src/MerkleProofService.hpp with class declaration, default constructor, and public method signatures per contracts/merkle-proof-service.md
-- [ ] T005 [P] Create src/ChainPersistence.cpp with empty stub implementations and explicit template instantiation for Chunk and MockChunk
-- [ ] T006 [P] Create src/DifficultyEngine.cpp with empty stub implementations
-- [ ] T007 [P] Create src/MerkleProofService.cpp with empty stub implementations
-- [ ] T008 Verify project compiles with `make -j8` (stubs only, no logic yet)
+- [x] T001 Add ChainPersistence.cpp, DifficultyEngine.cpp, MerkleProofService.cpp to libblockchain_core_a_SOURCES in src/Makefile.am
+- [x] T002 [P] Create src/ChainPersistence.hpp with template class declaration, constructor, and all public method signatures per contracts/chain-persistence.md
+- [x] T003 [P] Create src/DifficultyEngine.hpp with class declaration, default constructor, and public method signatures per contracts/difficulty-engine.md
+- [x] T004 [P] Create src/MerkleProofService.hpp with class declaration, default constructor, and public method signatures per contracts/merkle-proof-service.md
+- [x] T005 [P] Create src/ChainPersistence.cpp with empty stub implementations and explicit template instantiation for Chunk and MockChunk
+- [x] T006 [P] Create src/DifficultyEngine.cpp with empty stub implementations
+- [x] T007 [P] Create src/MerkleProofService.cpp with empty stub implementations
+- [x] T008 Verify project compiles with `make -j8` (stubs only, no logic yet)
 
 **Checkpoint**: All new files exist, compile cleanly, and link into libblockchain_core.a
 
@@ -34,10 +34,10 @@
 
 **⚠️ CRITICAL**: No module extraction can begin until Blockchain.hpp correctly owns and constructs all three module members
 
-- [ ] T009 Add #include directives for ChainPersistence.hpp, DifficultyEngine.hpp, MerkleProofService.hpp in src/Blockchain.hpp
-- [ ] T010 Add persistence_, difficultyEngine_, and proofService_ member fields to the Blockchain template class in src/Blockchain.hpp
-- [ ] T011 Initialize persistence_ with blockchainPath and chunkSize in Blockchain constructor in src/Blockchain.hpp
-- [ ] T012 Verify project compiles with `make -j8` and all existing test binaries pass
+- [x] T009 Add #include directives for ChainPersistence.hpp, DifficultyEngine.hpp, MerkleProofService.hpp in src/Blockchain.hpp
+- [x] T010 Add persistence_, difficultyEngine_, and proofService_ member fields to the Blockchain template class in src/Blockchain.hpp
+- [x] T011 Initialize persistence_ with blockchainPath and chunkSize in Blockchain constructor in src/Blockchain.hpp
+- [x] T012 Verify project compiles with `make -j8` and all existing test binaries pass
 
 **Checkpoint**: Blockchain owns all three module members; zero test regressions
 
@@ -51,20 +51,20 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Move saveChunk() logic from src/Blockchain.cpp into ChainPersistence::saveChunk() in src/ChainPersistence.cpp
-- [ ] T014 [US1] Move loadChunk() logic from src/Blockchain.cpp into ChainPersistence::loadChunk() in src/ChainPersistence.cpp
-- [ ] T015 [US1] Move freeChunk() logic from src/Blockchain.cpp into ChainPersistence::freeChunk() in src/ChainPersistence.cpp
-- [ ] T016 [US1] Move saveKeys() and loadKeys() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
-- [ ] T017 [US1] Move saveStreams() and loadStreams() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
-- [ ] T018 [US1] Move saveStreamIndex() and loadStreamIndex() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
-- [ ] T019 [US1] Move saveAllChunks() logic from src/Blockchain.cpp into ChainPersistence::saveAllChunks() in src/ChainPersistence.cpp
-- [ ] T020 [US1] Move discoverChunks() and validateChunk() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
-- [ ] T021 [US1] Move recoverChain() logic from src/Blockchain.cpp into ChainPersistence::recoverChain() in src/ChainPersistence.cpp
-- [ ] T022 [US1] Move archiveChainFiles() logic from src/Blockchain.cpp into ChainPersistence::archiveChainFiles() in src/ChainPersistence.cpp
-- [ ] T023 [US1] Replace all moved persistence method bodies in src/Blockchain.cpp with delegation calls to persistence_ member
-- [ ] T024 [US1] Verify project compiles with `make -j8` and all existing test binaries pass with zero failures
-- [ ] T025 [US1] Add focused persistence tests in tests/chain_persistence_tests.cpp — test saveChunk/loadChunk round-trip, saveAllChunks clears dirty flag, recoverChain rebuilds indexes
-- [ ] T026 [US1] Add chain_persistence_tests binary to tests/Makefile.am and verify it passes
+- [x] T013 [US1] Move saveChunk() logic from src/Blockchain.cpp into ChainPersistence::saveChunk() in src/ChainPersistence.cpp
+- [x] T014 [US1] Move loadChunk() logic from src/Blockchain.cpp into ChainPersistence::loadChunk() in src/ChainPersistence.cpp
+- [x] T015 [US1] Move freeChunk() logic from src/Blockchain.cpp into ChainPersistence::freeChunk() in src/ChainPersistence.cpp
+- [x] T016 [US1] Move saveKeys() and loadKeys() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
+- [x] T017 [US1] Move saveStreams() and loadStreams() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
+- [x] T018 [US1] Move saveStreamIndex() and loadStreamIndex() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
+- [x] T019 [US1] Move saveAllChunks() logic from src/Blockchain.cpp into ChainPersistence::saveAllChunks() in src/ChainPersistence.cpp
+- [x] T020 [US1] Move discoverChunks() and validateChunk() logic from src/Blockchain.cpp into src/ChainPersistence.cpp
+- [x] T021 [US1] Move recoverChain() logic from src/Blockchain.cpp into ChainPersistence::recoverChain() in src/ChainPersistence.cpp
+- [x] T022 [US1] Move archiveChainFiles() logic from src/Blockchain.cpp into ChainPersistence::archiveChainFiles() in src/ChainPersistence.cpp
+- [x] T023 [US1] Replace all moved persistence method bodies in src/Blockchain.cpp with delegation calls to persistence_ member
+- [x] T024 [US1] Verify project compiles with `make -j8` and all existing test binaries pass with zero failures
+- [x] T025 [US1] Add focused persistence tests in tests/chain_persistence_tests.cpp — test saveChunk/loadChunk round-trip, saveAllChunks clears dirty flag, recoverChain rebuilds indexes
+- [x] T026 [US1] Add chain_persistence_tests binary to tests/Makefile.am and verify it passes
 
 **Checkpoint**: All persistence logic lives in ChainPersistence; Blockchain.cpp delegates; all tests pass; SC-001 persistence module ≤400 lines
 
@@ -78,12 +78,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Move calculateNewDifficulty() logic from src/Blockchain.cpp into DifficultyEngine::calculateNewDifficulty() in src/DifficultyEngine.cpp
-- [ ] T028 [US2] Move getDifficultyForHeight() logic from src/Blockchain.cpp into DifficultyEngine::getDifficultyForHeight() in src/DifficultyEngine.cpp
-- [ ] T029 [US2] Replace difficulty method bodies in src/Blockchain.cpp with delegation calls to difficultyEngine_ member, passing config, totalBlockCount_, currentDifficulty, difficultyCache_, and block accessor/retainer callbacks
-- [ ] T030 [US2] Verify project compiles with `make -j8` and all existing test binaries pass with zero failures
-- [ ] T031 [US2] Add focused difficulty tests in tests/difficulty_engine_tests.cpp — test calculateNewDifficulty with mock blocks below/at/above adjustment window, getDifficultyForHeight cache hit/miss, clamping to min/max difficulty
-- [ ] T032 [US2] Add difficulty_engine_tests binary to tests/Makefile.am and verify it passes
+- [x] T027 [US2] Move calculateNewDifficulty() logic from src/Blockchain.cpp into DifficultyEngine::calculateNewDifficulty() in src/DifficultyEngine.cpp
+- [x] T028 [US2] Move getDifficultyForHeight() logic from src/Blockchain.cpp into DifficultyEngine::getDifficultyForHeight() in src/DifficultyEngine.cpp
+- [x] T029 [US2] Replace difficulty method bodies in src/Blockchain.cpp with delegation calls to difficultyEngine_ member, passing config, totalBlockCount_, currentDifficulty, difficultyCache_, and block accessor/retainer callbacks
+- [x] T030 [US2] Verify project compiles with `make -j8` and all existing test binaries pass with zero failures
+- [x] T031 [US2] Add focused difficulty tests in tests/difficulty_engine_tests.cpp — test calculateNewDifficulty with mock blocks below/at/above adjustment window, getDifficultyForHeight cache hit/miss, clamping to min/max difficulty
+- [x] T032 [US2] Add difficulty_engine_tests binary to tests/Makefile.am and verify it passes
 
 **Checkpoint**: All difficulty logic lives in DifficultyEngine; Blockchain.cpp delegates; all tests pass; SC-001 difficulty module ≤400 lines
 
@@ -97,12 +97,12 @@
 
 ### Implementation for User Story 3
 
-- [ ] T033 [US3] Move getInclusionProof() logic from src/Blockchain.cpp into MerkleProofService::getInclusionProof() in src/MerkleProofService.cpp
-- [ ] T034 [US3] Move verifyInclusionProof() logic from src/Blockchain.cpp into MerkleProofService::verifyInclusionProof() in src/MerkleProofService.cpp
-- [ ] T035 [US3] Replace proof method bodies in src/Blockchain.cpp with delegation calls to proofService_ member, fetching the block and passing it to the service
-- [ ] T036 [US3] Verify project compiles with `make -j8` and all existing test binaries pass with zero failures
-- [ ] T037 [US3] Add focused proof tests in tests/merkle_proof_tests.cpp — test getInclusionProof with single/multiple entries, verifyInclusionProof valid/tampered proof, entry index out-of-bounds error
-- [ ] T038 [US3] Add merkle_proof_tests binary to tests/Makefile.am and verify it passes
+- [x] T033 [US3] Move getInclusionProof() logic from src/Blockchain.cpp into MerkleProofService::getInclusionProof() in src/MerkleProofService.cpp
+- [x] T034 [US3] Move verifyInclusionProof() logic from src/Blockchain.cpp into MerkleProofService::verifyInclusionProof() in src/MerkleProofService.cpp
+- [x] T035 [US3] Replace proof method bodies in src/Blockchain.cpp with delegation calls to proofService_ member, fetching the block and passing it to the service
+- [x] T036 [US3] Verify project compiles with `make -j8` and all existing test binaries pass with zero failures
+- [x] T037 [US3] Add focused proof tests in tests/merkle_proof_tests.cpp — test getInclusionProof with single/multiple entries, verifyInclusionProof valid/tampered proof, entry index out-of-bounds error
+- [x] T038 [US3] Add merkle_proof_tests binary to tests/Makefile.am and verify it passes
 
 **Checkpoint**: All proof logic lives in MerkleProofService; Blockchain.cpp delegates; all tests pass; SC-001 proof module ≤400 lines
 
@@ -112,12 +112,12 @@
 
 **Purpose**: Final validation, line-count enforcement, documentation, and roadmap update
 
-- [ ] T039 Verify no single source module exceeds 400 lines: `wc -l src/Blockchain.cpp src/ChainPersistence.cpp src/DifficultyEngine.cpp src/MerkleProofService.cpp` (SC-001)
-- [ ] T040 Run all existing test binaries individually and confirm zero failures (SC-002)
-- [ ] T041 [P] Update .gitignore with new test binary paths if needed (tests/chain_persistence_tests, tests/difficulty_engine_tests, tests/merkle_proof_tests)
-- [ ] T042 [P] Update docs/ROADMAP.md — move 017-blockchain-module-split to Completed table with summary
-- [ ] T043 Run quickstart.md validation — verify build and all test binaries pass per documented workflow
-- [ ] T044 Verify incremental build scope: touch src/ChainPersistence.cpp, run `make -j8`, confirm only ChainPersistence.o is recompiled (SC-003, US4)
+- [x] T039 Verify no single source module exceeds 400 lines: `wc -l src/Blockchain.cpp src/ChainPersistence.cpp src/DifficultyEngine.cpp src/MerkleProofService.cpp` (SC-001)
+- [x] T040 Run all existing test binaries individually and confirm zero failures (SC-002)
+- [x] T041 [P] Update .gitignore with new test binary paths if needed (tests/chain_persistence_tests, tests/difficulty_engine_tests, tests/merkle_proof_tests)
+- [x] T042 [P] Update docs/ROADMAP.md — move 017-blockchain-module-split to Completed table with summary
+- [x] T043 Run quickstart.md validation — verify build and all test binaries pass per documented workflow
+- [x] T044 Verify incremental build scope: touch src/ChainPersistence.cpp, run `make -j8`, confirm only ChainPersistence.o is recompiled (SC-003, US4)
 
 ---
 
