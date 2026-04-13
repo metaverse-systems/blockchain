@@ -28,7 +28,7 @@ As a node operator running a blockchain node with many connected peers, I need p
 
 As a developer or application integrating with the node via JSON-RPC, I need RPC requests to be dispatched efficiently and the handler code to be organized into individually testable units, so that adding new RPC methods does not require modifying a single monolithic function.
 
-**Why this priority**: The RPC interface is the primary integration surface. The current 21-branch if/else chain in a 700-line callback makes it hard to maintain, test, and extend. Extracting a dispatch table improves both runtime efficiency and developer maintainability.
+**Why this priority**: The RPC interface is the primary integration surface. The current 20-method if/else chain in a 700-line callback makes it hard to maintain, test, and extend. Extracting a dispatch table improves both runtime efficiency and developer maintainability.
 
 **Independent Test**: Can be tested by sending JSON-RPC requests for each method and verifying correct responses. Handler functions can be unit-tested in isolation.
 
@@ -100,8 +100,8 @@ As a node operator running a production node, I need log calls to avoid construc
 
 ### Functional Requirements
 
-- **FR-001**: System MUST perform peer lookup, addition, removal, and ban-check operations in constant time regardless of total peer count.
-- **FR-002**: System MUST perform ban-status checks in constant time regardless of the number of ban records.
+- **FR-001**: System MUST perform peer lookup, addition, and removal operations in amortized constant time regardless of total peer count (cap-triggered eviction may scan all entries).
+- **FR-002**: System MUST store ban records in a dedicated constant-time container, separate from peers, so that ban-status checks complete in constant time regardless of the number of ban records.
 - **FR-003**: System MUST dispatch RPC requests via a table-based lookup that maps method names to handler functions, replacing the current sequential comparison chain.
 - **FR-004**: System MUST return a standard JSON-RPC "method not found" error (-32601) for unsupported method names.
 - **FR-010**: Each extracted RPC handler MUST return a complete JSON response (success or error); the dispatcher MUST NOT wrap handlers in a catch-all exception handler.
@@ -135,7 +135,7 @@ As a node operator running a production node, I need log calls to avoid construc
 - The existing P2P wire format is stable and will not change as part of this feature; the shared serialization utility preserves byte-level compatibility.
 - `TestHelpers.hpp` already provides suitable signatures for the helpers being consolidated; minor signature adjustments may be needed to cover all four test files' usage patterns.
 - The current logging utility (`logMessage()`) can be extended with a level-check macro or wrapper without changing its public API for existing callers.
-- No new RPC methods are being added in this feature; the dispatch table refactor covers exactly the 21 methods that exist today.
+- No new RPC methods are being added in this feature; the dispatch table refactor covers exactly the 20 methods that exist today.
 
 ## Clarifications
 

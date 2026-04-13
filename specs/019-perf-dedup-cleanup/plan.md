@@ -61,6 +61,7 @@ specs/019-perf-dedup-cleanup/
 src/
 ├── PeerManager.hpp          # Modified: vector→unordered_map for peers_; vector→unordered_map for bans_
 ├── PeerManager.cpp          # Modified: all peer/ban operations updated for map API
+├── BlockPropagation.cpp     # Modified: logMessage() calls → LOG_* macros
 ├── utils.hpp                # Modified: add LOG_MSG macro
 ├── network/
 │   ├── PacketHeader.hpp     # Unchanged
@@ -76,6 +77,10 @@ tests/
 ├── consensus_tests.cpp          # Modified: remove local mineBlock, use TestHelpers
 ├── block_propagation_tests.cpp  # Modified: remove local helpers, use TestHelpers
 └── chunk_persistence_tests.cpp  # Modified: remove local make_block, use TestHelpers
+
+docs/
+├── AUDIT.md                     # Modified: mark resolved audit items
+└── ROADMAP.md                   # Modified: move feature to Completed (Constitution §XIII)
 ```
 
 **Structure Decision**: No new directories or binaries. One new header-only file (`PacketSerializer.hpp`) in existing `src/network/`. All other changes are modifications to existing files.
