@@ -8,50 +8,12 @@
 #include "../src/network/SyncMessages.hpp"
 #include "../src/network/PacketHeader.hpp"
 #include "../src/utils.hpp"
+#include "TestHelpers.hpp"
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <sstream>
-
-// Helper: create a block with valid PoW for the given difficulty
-static Block mineTestBlock(size_t index, uint64_t timestamp, const std::string &prevHash,
-                           const std::string &data, uint32_t difficulty)
-{
-    StreamEntry entry;
-    entry.stream = "test";
-    entry.key = "k";
-    entry.data = data;
-
-    Block b;
-    b.index = index;
-    b.timestamp = timestamp;
-    b.entries = {entry};
-    b.prevHash = prevHash;
-    b.difficulty = difficulty;
-    b.nonce = 0;
-    b.hash = b.calculateHash();
-    while (difficulty > 0 && !checkLeadingZeroBits(b.hash, difficulty)) {
-        b.nonce++;
-        b.hash = b.calculateHash();
-    }
-    return b;
-}
-
-// Helper: build a valid chain of N blocks
-static std::vector<Block> buildValidChain(size_t numBlocks, uint32_t difficulty = 1)
-{
-    std::vector<Block> chain;
-    Block genesis(0, 0, "", {}, 0, 0);
-    chain.push_back(genesis);
-
-    for (size_t i = 1; i < numBlocks; i++) {
-        Block b = mineTestBlock(i, static_cast<uint64_t>(i * 10), chain.back().hash,
-                                "block " + std::to_string(i), difficulty);
-        chain.push_back(b);
-    }
-    return chain;
-}
 
 // ==========================================================================
 // SyncMessages serialization tests
@@ -81,7 +43,7 @@ TEST_CASE("SyncResponse serialization round-trip", "[Sync][Setup]")
     SyncResponse response;
     response.total_chain_height = 200;
     response.chunk_index = 1;
-    response.blocks = buildValidChain(3);
+    response.blocks = TestHelpers::buildValidChain(3, 1);
 
     std::stringstream ss;
     {
@@ -236,7 +198,7 @@ TEST_CASE("PeerClient receives BLOCKCHAIN_RESPONSE and validates blocks", "[Sync
     config.minDifficulty = 1;
 
     // Build a chain of 5 blocks to simulate what a peer would send
-    auto chain = buildValidChain(5, 1);
+    auto chain = TestHelpers::buildValidChain(5, 1);
 
     SyncResponse response;
     response.total_chain_height = 5;
@@ -312,7 +274,7 @@ TEST_CASE("PeerClient sends BLOCKCHAIN_QUERY with height > 1 for incremental syn
     response.chunk_index = 0;
 
     // Peer sends only the blocks the client is missing
-    auto full_chain = buildValidChain(10, 1);
+    auto full_chain = TestHelpers::buildValidChain(10, 1);
     for (size_t i = query.local_chain_height; i < full_chain.size(); i++) {
         response.blocks.push_back(full_chain[i]);
     }
@@ -349,7 +311,7 @@ TEST_CASE("PeerClient rejects chunk with invalid hash", "[Sync][US3]")
     config.initialDifficulty = 1;
     config.minDifficulty = 1;
 
-    auto chain = buildValidChain(5, 1);
+    auto chain = TestHelpers::buildValidChain(5, 1);
 
     // Tamper with block 3's hash
     chain[3].hash = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -374,7 +336,7 @@ TEST_CASE("PeerClient rejects chunk with insufficient PoW difficulty", "[Sync][U
     ConsensusConfig config;
     config.minDifficulty = 4;
 
-    auto chain = buildValidChain(3, 1); // mined at difficulty 1
+    auto chain = TestHelpers::buildValidChain(3, 1); // mined at difficulty 1
 
     // Block at difficulty 1 should fail when config requires minDifficulty=4
     bool valid = true;
@@ -401,7 +363,7 @@ TEST_CASE("PeerClient accepts valid longer chain", "[Sync][US3]")
     REQUIRE(bc.getChainBlockCount() == 1);
 
     // Build a valid longer chain
-    auto longer_chain = buildValidChain(5, 1);
+    auto longer_chain = TestHelpers::buildValidChain(5, 1);
     bc.replaceChain(longer_chain);
 
     REQUIRE(bc.getChainBlockCount() == 5);
@@ -421,7 +383,7 @@ TEST_CASE("PeerClient keeps local chain when peer chain is same length", "[Sync]
     REQUIRE(bc.getChainBlockCount() == 3);
 
     // Build candidate chain of same length
-    auto same_length_chain = buildValidChain(3, 1);
+    auto same_length_chain = TestHelpers::buildValidChain(3, 1);
 
     // replaceChain should reject since not longer
     bc.replaceChain(same_length_chain);
@@ -463,7 +425,7 @@ TEST_CASE("Already-persisted chunks preserved when connection drops", "[Sync][US
     Blockchain<MockChunk> bc(".", config);
 
     // Simulate having received and persisted one chunk of blocks
-    auto chain = buildValidChain(5, 1);
+    auto chain = TestHelpers::buildValidChain(5, 1);
     bc.replaceChain(chain);
 
     REQUIRE(bc.getChainBlockCount() == 5);
@@ -538,9 +500,9 @@ TEST_CASE("handle_sync_response appends new blocks", "[Sync][US1]")
 
     // Build a valid chain extending from genesis
     Block genesis = bc.getBlockByIndex(0);
-    Block b1 = mineTestBlock(1, 100, genesis.hash, "sync_b1", 0);
-    Block b2 = mineTestBlock(2, 200, b1.hash, "sync_b2", 0);
-    Block b3 = mineTestBlock(3, 300, b2.hash, "sync_b3", 0);
+    Block b1 = TestHelpers::mineTestBlock(1, 100, genesis.hash, "sync_b1", 0);
+    Block b2 = TestHelpers::mineTestBlock(2, 200, b1.hash, "sync_b2", 0);
+    Block b3 = TestHelpers::mineTestBlock(3, 300, b2.hash, "sync_b3", 0);
 
     // Simulate what the fixed handler should do: append each new block
     bc.appendBlock(b1);
@@ -568,14 +530,14 @@ TEST_CASE("handle_sync_response skips already-known blocks", "[Sync][US1]")
 
     // Add some blocks to the local chain
     Block genesis = bc.getBlockByIndex(0);
-    Block b1 = mineTestBlock(1, 100, genesis.hash, "local_b1", 0);
-    Block b2 = mineTestBlock(2, 200, b1.hash, "local_b2", 0);
+    Block b1 = TestHelpers::mineTestBlock(1, 100, genesis.hash, "local_b1", 0);
+    Block b2 = TestHelpers::mineTestBlock(2, 200, b1.hash, "local_b2", 0);
     bc.appendBlock(b1);
     bc.appendBlock(b2);
     REQUIRE(bc.getChainBlockCount() == 3);
 
     // Simulate a sync response that overlaps: blocks 1, 2 (known) + 3 (new)
-    Block b3 = mineTestBlock(3, 300, b2.hash, "sync_b3", 0);
+    Block b3 = TestHelpers::mineTestBlock(3, 300, b2.hash, "sync_b3", 0);
 
     // The handler should skip blocks below local_height and only append new ones
     size_t local_height = bc.getChainBlockCount();
@@ -610,13 +572,13 @@ TEST_CASE("handle_sync_response aborts on overlap hash mismatch", "[Sync][US1]")
 
     // Build local chain: genesis + b1
     Block genesis = bc.getBlockByIndex(0);
-    Block b1 = mineTestBlock(1, 100, genesis.hash, "local_b1", 0);
+    Block b1 = TestHelpers::mineTestBlock(1, 100, genesis.hash, "local_b1", 0);
     bc.appendBlock(b1);
     REQUIRE(bc.getChainBlockCount() == 2);
 
     // Build a response with a different block at index 1 (hash mismatch)
-    Block fake_b1 = mineTestBlock(1, 999, genesis.hash, "fake_data", 0);
-    Block fake_b2 = mineTestBlock(2, 1000, fake_b1.hash, "fake_b2", 0);
+    Block fake_b1 = TestHelpers::mineTestBlock(1, 999, genesis.hash, "fake_data", 0);
+    Block fake_b2 = TestHelpers::mineTestBlock(2, 1000, fake_b1.hash, "fake_b2", 0);
 
     // The handler should detect the overlap mismatch and abort
     size_t local_height = bc.getChainBlockCount();

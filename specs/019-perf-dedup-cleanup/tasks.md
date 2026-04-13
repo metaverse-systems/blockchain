@@ -148,10 +148,10 @@ _(No tasks)_
 
 **Purpose**: Documentation updates, audit tracking, and validation.
 
-- [ ] T047 [P] Update `docs/AUDIT.md` — mark §4.1 (O(n) peer lookups), §4.2 (RPC dispatch), §4.4 (log allocations), §5.1 (packet serialization), and §5.2 (test helpers) as ✅ RESOLVED with references to this feature (019)
-- [ ] T048 [P] Update `docs/ROADMAP.md` — move 019-perf-dedup-cleanup from "Suggested Specs" or "In Progress" to "Completed" with one-line summary
-- [ ] T049 Run quickstart.md verification checklist: confirm all 5 items pass
-- [ ] T050 Final full build (`make -j8`) and run all test binaries individually to confirm zero regressions
+- [X] T047 [P] Update `docs/AUDIT.md` — mark §4.1 (O(n) peer lookups), §4.2 (RPC dispatch), §4.4 (log allocations), §5.1 (packet serialization), and §5.2 (test helpers) as ✅ RESOLVED with references to this feature (019)
+- [X] T048 [P] Update `docs/ROADMAP.md` — move 019-perf-dedup-cleanup from "Suggested Specs" or "In Progress" to "Completed" with one-line summary
+- [X] T049 Run quickstart.md verification checklist: confirm all 5 items pass
+- [X] T050 Final full build (`make -j8`) and run all test binaries individually to confirm zero regressions
 
 ---
 

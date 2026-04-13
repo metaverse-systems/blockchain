@@ -81,7 +81,7 @@ void BlockPropagation::defer_block(const Block &block, const std::string &sender
         pending_order_.push_back(key);
     }
 
-    logMessage("INFO", "Deferred block #" + std::to_string(block.index) + " waiting for predecessor");
+    LOG_INFO("Deferred block #" + std::to_string(block.index) + " waiting for predecessor");
 }
 
 void BlockPropagation::resolve_pending(const std::string &new_block_hash)
@@ -95,7 +95,7 @@ void BlockPropagation::resolve_pending(const std::string &new_block_hash)
         if (order_it != pending_order_.end()) {
             pending_order_.erase(order_it);
         }
-        logMessage("INFO", "Resolving pending block #" + std::to_string(pb.block.index));
+        LOG_INFO("Resolving pending block #" + std::to_string(pb.block.index));
         on_block_received(pb.block, pb.sender_key);
     }
 }
@@ -112,7 +112,7 @@ void BlockPropagation::evict_expired()
             continue;
         }
         if (now - it->second.inserted_at > kPendingTTL) {
-            logMessage("INFO", "Evicting expired pending block #" + std::to_string(it->second.block.index));
+            LOG_INFO("Evicting expired pending block #" + std::to_string(it->second.block.index));
             pending_map_.erase(it);
             pending_order_.pop_front();
         } else {
@@ -132,7 +132,7 @@ void BlockPropagation::appendReceivedBlock(const Block &block)
                        block.merkleRoot, block.hash);
         bc_.appendBlock(verified);
     } catch (const std::invalid_argument &e) {
-        logMessage("WARN", "Block #" + std::to_string(block.index)
+        LOG_WARN("Block #" + std::to_string(block.index)
                    + " rejected: " + std::string(e.what()));
         return;
     }
@@ -146,7 +146,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
 {
     // Rate limit check
     if (!check_rate_limit(sender_key)) {
-        logMessage("WARN", "Rate limit exceeded for peer " + sender_key + ", dropping block #" + std::to_string(block.index));
+        LOG_WARN("Rate limit exceeded for peer " + sender_key + ", dropping block #" + std::to_string(block.index));
         if (peer_manager_) {
             try {
                 auto [host, port] = parsePeerKey(sender_key);
@@ -172,7 +172,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
             sync_queue_.pop_front();
         }
         sync_queue_.emplace_back(block, sender_key);
-        logMessage("INFO", "Queued block #" + std::to_string(block.index) + " during sync");
+        LOG_INFO("Queued block #" + std::to_string(block.index) + " during sync");
         return;
     }
 
@@ -190,7 +190,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
         // Validate against consensus
         const auto &config = bc_.getConfig();
         if (!IBlockchain::isValidNewBlock(block, tip, config)) {
-            logMessage("WARN", "Invalid block #" + std::to_string(block.index) + " from " + sender_key);
+            LOG_WARN("Invalid block #" + std::to_string(block.index) + " from " + sender_key);
             if (peer_manager_) {
                 try {
                     auto [host, port] = parsePeerKey(sender_key);
@@ -203,7 +203,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
 
     // Append valid block
     appendReceivedBlock(block);
-    logMessage("INFO", "Block #" + std::to_string(block.index) + " validated and appended");
+    LOG_INFO("Block #" + std::to_string(block.index) + " validated and appended");
 
     // Add to dedup cache
     cache_insert(block.hash);
@@ -221,7 +221,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
 
 void BlockPropagation::process_sync_queue()
 {
-    logMessage("INFO", "Processing sync queue (" + std::to_string(sync_queue_.size()) + " blocks)");
+    LOG_INFO("Processing sync queue (" + std::to_string(sync_queue_.size()) + " blocks)");
 
     auto queue = std::move(sync_queue_);
     sync_queue_.clear();

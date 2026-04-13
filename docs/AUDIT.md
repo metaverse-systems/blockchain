@@ -33,16 +33,18 @@ This audit found **4 bugs**, **2 security issues**, **5 performance issues**,
 test-quality weaknesses** that reduce confidence in the test suite.
 
 All 4 bugs, both security issues, and 1 performance issue were resolved in
-**018-audit-bug-security-fixes**. Remaining items are tracked below.
+**018-audit-bug-security-fixes**. Three more performance issues, both
+duplication clusters, and 1 test-quality issue were resolved in
+**019-perf-dedup-cleanup**. Remaining items are tracked below.
 
 | Category              | Found | Resolved | Remaining | Highest Open Severity |
 |-----------------------|------:|---------:|----------:|----------------------:|
 | Bugs                  |     4 |        4 |         0 | —                     |
 | Security issues       |     2 |        2 |         0 | —                     |
-| Performance issues    |     5 |        1 |         4 | Medium                |
-| Code duplication      |     2 |        0 |         2 | Medium                |
+| Performance issues    |     5 |        4 |         1 | Low                   |
+| Code duplication      |     2 |        2 |         0 | —                     |
 | Architecture concerns |     3 |        0 |         3 | Medium                |
-| Test quality issues   |     6 |        0 |         6 | High                  |
+| Test quality issues   |     6 |        1 |         5 | High                  |
 
 ---
 
@@ -91,39 +93,29 @@ returns JSON-RPC error -32001 "Block not found" for out-of-range indices.
 
 ## 4. Performance Issues
 
-### 4.1 O(n) peer lookups — MEDIUM
+### 4.1 ~~O(n) peer lookups — MEDIUM~~ ✅ RESOLVED (019)
 
-`find_peer()`, `add_peer()`, `remove_peer()`, `is_banned()`, and
-`get_non_banned_peer_addresses()` all perform linear scans over
-`std::vector<PeerEntry>` and `std::vector<BanRecord>`.
+`peers_` and `bans_` are now `std::unordered_map<std::string, PeerEntry/BanRecord>`
+keyed by `host:port`, giving O(1) lookups in `find_peer()`, `add_peer()`,
+`remove_peer()`, `is_banned()`, `ban_peer()`, `unban_peer()`, and
+`get_non_banned_peer_addresses()`.
 
-With a configured maximum of 256 stored peers and `is_banned()` called on
-every peer exchange, connection attempt, and block reception, switching to
-`std::unordered_map<std::string, PeerEntry>` keyed by `host:port` would drop
-lookups from O(n) to O(1).
+### 4.2 ~~RPC dispatch is a 21-branch `if`/`else` chain — MEDIUM~~ ✅ RESOLVED (019)
 
-### 4.2 RPC dispatch is a 21-branch `if`/`else` chain — MEDIUM
-
-[RpcServer.cpp](../src/network/RpcServer.cpp#L74-L704)
-
-Every request walks up to 21 string comparisons. A
-`std::unordered_map<std::string, Handler>` dispatch table would be O(1) and
-reduce the 700-line `do_read()` callback into individually testable handler
-functions.
+`do_read()` now performs a single `dispatch_.find(method)` lookup into an
+`std::unordered_map<std::string, RpcHandler>` initialized in `init_dispatch()`.
+All 20 handlers are private methods returning `nlohmann::json`.
 
 ### 4.3 ~~`recoverChain()` loads each chunk multiple times — MEDIUM~~ ✅ RESOLVED (018)
 
 Resolved together with §2.2. Single-pass recovery loads each chunk once.
 
-### 4.4 String construction in log calls — LOW
+### 4.4 ~~String construction in log calls — LOW~~ ✅ RESOLVED (019)
 
-Throughout the codebase, `logMessage("INFO", "Block #" + std::to_string(...) + ...)`
-constructs the string even when the log level would suppress it. The
-`logMessage()` function already filters by level, but the string allocation
-happens at the call site.
-
-**Fix:** A level-check macro or a lazy-evaluation wrapper would eliminate
-unnecessary allocations.
+Hot-path `logMessage()` calls in `PeerManager.cpp`, `BlockPropagation.cpp`,
+`PeerClient.cpp`, and `PeerServer.cpp` have been replaced with lazy
+`LOG_INFO`/`LOG_WARN`/`LOG_ERROR`/`LOG_DEBUG` macros that check `getLogLevel()`
+before evaluating the message expression.
 
 ### 4.5 `replaceChain()` loads entire candidate into memory — LOW
 
@@ -137,19 +129,18 @@ simultaneously. A streaming/chunked replacement would bound memory usage.
 
 ## 5. Code Duplication
 
-### 5.1 Packet serialization in PeerClient and PeerServer — MEDIUM
+### 5.1 ~~Packet serialization in PeerClient and PeerServer — MEDIUM~~ ✅ RESOLVED (019)
 
-`PeerClient::send<T>()` ([PeerClient.cpp](../src/network/PeerClient.cpp#L352-L375)) and
-`PeerServer::send_packet<T>()` ([PeerServer.cpp](../src/network/PeerServer.cpp#L271-L300))
-share the same serialize → `PacketHeader` → `memcpy` → `async_write` pattern.
-This could live in a shared utility or base class.
+Both `PeerClient::send<T>()` and `PeerServer::send_packet<T>()` now call the
+shared `serialize_packet<T>()` template from `PacketSerializer.hpp`, which
+returns header bytes + serialized payload. Each caller retains its own
+`async_write` logic.
 
-### 5.2 Test files still duplicate `mineTestBlock()` / `buildValidChain()` — LOW
+### 5.2 ~~Test files still duplicate `mineTestBlock()` / `buildValidChain()` — LOW~~ ✅ RESOLVED (019)
 
-Despite `TestHelpers.hpp` existing, `sync_tests.cpp`,
-`block_propagation_tests.cpp`, `consensus_tests.cpp`, and
-`chunk_persistence_tests.cpp` still define their own local versions of
-`mineTestBlock()`, `buildValidChain()`, and temporary-directory helpers.
+Local helper definitions in `sync_tests.cpp`, `consensus_tests.cpp`, and
+`chunk_persistence_tests.cpp` have been removed. All test files now use the
+shared `TestHelpers::` namespace.
 
 ---
 
@@ -263,13 +254,12 @@ The following behaviors have no test coverage:
 | Block propagation relay excludes sender correctly | Medium | Open |
 | `recoverChain()` with corrupted index files (fallback to chunk rebuild) | Medium | Open |
 
-### 7.6 Duplicated test setup persists in 4 files — LOW
+### 7.6 ~~Duplicated test setup persists in 4 files — LOW~~ ✅ RESOLVED (019)
 
-Despite `TestHelpers.hpp` existing, `sync_tests.cpp`,
-`block_propagation_tests.cpp`, `consensus_tests.cpp`, and
-`chunk_persistence_tests.cpp` still define local `mineTestBlock()` /
-`buildValidChain()` / temp directory helpers instead of using the shared
-utilities.
+All local test helper definitions have been removed. Test files now use
+`TestHelpers::mineTestBlock()`, `TestHelpers::buildValidChain()`,
+`TestHelpers::createTestDir()`, `TestHelpers::cleanupTestDir()`, and
+`TestHelpers::make_block()` exclusively.
 
 ---
 
@@ -288,8 +278,8 @@ Ordered by impact and effort:
 | 5 | Rewrite `rpc_expansion_tests.cpp` to test real RPC handlers (§7.3) | False confidence → real coverage | Medium | Open |
 | 6 | Replace trivial assertions with meaningful ones (§7.1, §7.2) | Catches actual regressions | Medium | Open |
 | 7 | Cache chunk during `recoverChain()` validation (§2.2, §4.3) | 3× faster startup | Low | ✅ Done (018) |
-| 8 | Replace O(n) peer lookups with `unordered_map` (§4.1) | O(1) peer operations | Medium | Open |
-| 9 | Extract RPC dispatch table from `do_read()` (§4.2) | Maintainability, testability | Medium | Open |
+| 8 | Replace O(n) peer lookups with `unordered_map` (§4.1) | O(1) peer operations | Medium | ✅ Done (019) |
+| 9 | Extract RPC dispatch table from `do_read()` (§4.2) | Maintainability, testability | Medium | ✅ Done (019) |
 | 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.1) | Reduces coupling | Medium | Open |
-| 11 | Remove local test helpers in favor of `TestHelpers.hpp` (§7.6) | Consistency | Low | Open |
+| 11 | Remove local test helpers in favor of `TestHelpers.hpp` (§7.6) | Consistency | Low | ✅ Done (019) |
 | 12 | Make integration tests deterministic (§7.4) | Reduces CI flakiness | Medium | Open |

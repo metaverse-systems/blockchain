@@ -9,44 +9,10 @@
 #include <fstream>
 #include <chrono>
 
-namespace {
-
-// Helper: create a temp directory for test data
-std::filesystem::path create_test_dir(const std::string &name) {
-    auto dir = std::filesystem::temp_directory_path() / ("chunk_persist_test_" + name);
-    std::filesystem::create_directories(dir);
-    return dir;
-}
-
-// Helper: clean up test directory
-void cleanup_test_dir(const std::filesystem::path &dir) {
-    std::filesystem::remove_all(dir);
-}
-
-// Helper: build a valid block for a given index (difficulty 0 for speed)
-Block make_block(size_t index, const std::string &prevHash) {
-    StreamEntry e;
-    e.stream = "test";
-    e.key = "k" + std::to_string(index);
-    e.data = "data";
-
-    Block b;
-    b.index = index;
-    b.timestamp = static_cast<uint64_t>(std::time(nullptr));
-    b.entries = {e};
-    b.prevHash = prevHash;
-    b.difficulty = 0;
-    b.nonce = 0;
-    b.hash = b.calculateHash();
-    return b;
-}
-
-} // anonymous namespace
-
 // T011: chunk auto-saved when it reaches capacity (100 blocks)
 TEST_CASE("Chunk auto-saved when it reaches capacity", "[US1][persistence]")
 {
-    auto dir = create_test_dir("T011");
+    auto dir = TestHelpers::createTestDir("T011");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -62,13 +28,13 @@ TEST_CASE("Chunk auto-saved when it reaches capacity", "[US1][persistence]")
         // chunk_000000.dat should now exist on disk
         REQUIRE(std::filesystem::exists(dir / "chunk_000000.dat"));
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T012: filled chunk freed from memory after auto-save
 TEST_CASE("Filled chunk freed from memory after auto-save", "[US1][persistence]")
 {
-    auto dir = create_test_dir("T012");
+    auto dir = TestHelpers::createTestDir("T012");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -87,13 +53,13 @@ TEST_CASE("Filled chunk freed from memory after auto-save", "[US1][persistence]"
         Block b = bc.getBlockByIndex(100);
         REQUIRE(b.index == 100);
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T013: all in-memory chunks saved on shutdown call
 TEST_CASE("All in-memory chunks saved on shutdown call", "[US1][persistence]")
 {
-    auto dir = create_test_dir("T013");
+    auto dir = TestHelpers::createTestDir("T013");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -112,13 +78,13 @@ TEST_CASE("All in-memory chunks saved on shutdown call", "[US1][persistence]")
         REQUIRE(std::filesystem::exists(dir / "streams.dat"));
         REQUIRE(std::filesystem::exists(dir / "stream_index.dat"));
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T014: save failure logs error and continues operation
 TEST_CASE("Save failure logs error and continues operation", "[US1][persistence]")
 {
-    auto dir = create_test_dir("T014");
+    auto dir = TestHelpers::createTestDir("T014");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -136,13 +102,13 @@ TEST_CASE("Save failure logs error and continues operation", "[US1][persistence]
         Block b = bc.getBlockByIndex(6);
         REQUIRE(b.index == 6);
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T031: periodic timer fires and saves dirty active chunk
 TEST_CASE("Periodic timer fires and saves dirty active chunk", "[US3][persistence]")
 {
-    auto dir = create_test_dir("T031");
+    auto dir = TestHelpers::createTestDir("T031");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -158,13 +124,13 @@ TEST_CASE("Periodic timer fires and saves dirty active chunk", "[US3][persistenc
 
         bc.stopPeriodicSave();
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T032: periodic timer skips save when dirty_ == false
 TEST_CASE("Periodic timer skips save when not dirty", "[US3][persistence]")
 {
-    auto dir = create_test_dir("T032");
+    auto dir = TestHelpers::createTestDir("T032");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -179,13 +145,13 @@ TEST_CASE("Periodic timer skips save when not dirty", "[US3][persistence]")
         io.run_for(std::chrono::milliseconds(100));
         bc.stopPeriodicSave();
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T033: periodic save disabled when save_interval_seconds == 0
 TEST_CASE("Periodic save disabled when interval is 0", "[US3][persistence]")
 {
-    auto dir = create_test_dir("T033");
+    auto dir = TestHelpers::createTestDir("T033");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -196,13 +162,13 @@ TEST_CASE("Periodic save disabled when interval is 0", "[US3][persistence]")
         io.run_for(std::chrono::milliseconds(100));
         bc.stopPeriodicSave();
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T034: periodic save also saves index files
 TEST_CASE("Periodic save also saves index files", "[US3][persistence]")
 {
-    auto dir = create_test_dir("T034");
+    auto dir = TestHelpers::createTestDir("T034");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -216,13 +182,13 @@ TEST_CASE("Periodic save also saves index files", "[US3][persistence]")
         REQUIRE(std::filesystem::exists(dir / "streams.dat"));
         REQUIRE(std::filesystem::exists(dir / "stream_index.dat"));
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T046: getChainLength returns correct total across multiple chunks
 TEST_CASE("getChainLength returns correct total across multiple chunks", "[US5][persistence]")
 {
-    auto dir = create_test_dir("T046");
+    auto dir = TestHelpers::createTestDir("T046");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -237,13 +203,13 @@ TEST_CASE("getChainLength returns correct total across multiple chunks", "[US5][
 
         REQUIRE(bc.getChainLength() == 101);
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T047: getChunkCount returns correct count
 TEST_CASE("getChunkCount returns correct count", "[US5][persistence]")
 {
-    auto dir = create_test_dir("T047");
+    auto dir = TestHelpers::createTestDir("T047");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -262,13 +228,13 @@ TEST_CASE("getChunkCount returns correct count", "[US5][persistence]")
         bc.publish("test", "k100", "data", {"k100"});
         REQUIRE(bc.getChunkCount() == 2);
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T049: counts update correctly as blocks are added
 TEST_CASE("Counts update correctly as blocks are added", "[US5][persistence]")
 {
-    auto dir = create_test_dir("T049");
+    auto dir = TestHelpers::createTestDir("T049");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -283,13 +249,13 @@ TEST_CASE("Counts update correctly as blocks are added", "[US5][persistence]")
         bc.publish("test", "k2", "data", {"k2"});
         REQUIRE(bc.getChainLength() == 3);
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // T060a: chunk auto-save completes within 2 seconds on a 100-block chunk
 TEST_CASE("Chunk auto-save completes within 2 seconds", "[US5][performance]")
 {
-    auto dir = create_test_dir("T060a");
+    auto dir = TestHelpers::createTestDir("T060a");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<Chunk> bc(dir, cfg);
@@ -307,13 +273,13 @@ TEST_CASE("Chunk auto-save completes within 2 seconds", "[US5][performance]")
         REQUIRE(elapsed < std::chrono::seconds(2));
         REQUIRE(std::filesystem::exists(dir / "chunk_000000.dat"));
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 // --- T015: Chunk retention during multi-access operations ---
 
 TEST_CASE("ChunkRetainGuard prevents freeChunk from clearing retained chunks", "[US3][persistence]") {
-    auto dir = create_test_dir("T015_retain");
+    auto dir = TestHelpers::createTestDir("T015_retain");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<MockChunk> bc(dir, cfg);
@@ -339,11 +305,11 @@ TEST_CASE("ChunkRetainGuard prevents freeChunk from clearing retained chunks", "
         // releaseChunks frees retained chunks
         bc.releaseChunks();
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }
 
 TEST_CASE("ChunkRetainGuard RAII releases chunks on scope exit", "[US3][persistence]") {
-    auto dir = create_test_dir("T015_raii");
+    auto dir = TestHelpers::createTestDir("T015_raii");
     {
         auto cfg = TestHelpers::defaultConsensusConfig();
         Blockchain<MockChunk> bc(dir, cfg);
@@ -365,5 +331,5 @@ TEST_CASE("ChunkRetainGuard RAII releases chunks on scope exit", "[US3][persiste
         // Guard released — chunks freed
         SUCCEED("ChunkRetainGuard RAII cleanup completed");
     }
-    cleanup_test_dir(dir);
+    TestHelpers::cleanupTestDir(dir);
 }

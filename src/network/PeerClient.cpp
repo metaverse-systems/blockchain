@@ -1,5 +1,6 @@
 #include "PeerClient.hpp"
 #include "PacketHeader.hpp"
+#include "PacketSerializer.hpp"
 #include "SyncMessages.hpp"
 #include "PeerMessages.hpp"
 #include "../PeerManager.hpp"
@@ -28,7 +29,7 @@ void PeerClient::connect()
                     {
                         if (!ec)
                         {
-                            logMessage("INFO", "Connected to peer " + host + ":" + port);
+                            LOG_INFO("Connected to peer " + host + ":" + port);
                             connected = true;
                             // Reset reconnect backoff on successful connection
                             if (peer_manager) {
@@ -41,14 +42,14 @@ void PeerClient::connect()
                         }
                         else
                         {
-                            logMessage("ERROR", "TLS handshake failed: " + ec.message());
+                            LOG_ERROR("TLS handshake failed: " + ec.message());
                             handle_disconnect("TLS handshake failed");
                         }
                     });
             }
             else
             {
-                logMessage("ERROR", "Connection to peer failed: " + ec.message());
+                LOG_ERROR("Connection to peer failed: " + ec.message());
                 handle_disconnect("Connection failed");
             }
         });
@@ -63,19 +64,19 @@ void PeerClient::send_peer_exchange()
     req.sender_listen_port = peer_manager->get_listen_port();
     req.peers = peer_manager->get_non_banned_peer_addresses();
 
-    logMessage("INFO", "Sending PEER_EXCHANGE to " + host + ":" + port + " with " + std::to_string(req.peers.size()) + " peers");
+    LOG_INFO("Sending PEER_EXCHANGE to " + host + ":" + port + " with " + std::to_string(req.peers.size()) + " peers");
     send(req, PacketType::PEER_EXCHANGE);
 }
 
 void PeerClient::start_sync()
 {
     if (sync_status.isSyncing.load()) {
-        logMessage("WARN", "Sync already in progress, skipping");
+        LOG_WARN("Sync already in progress, skipping");
         return;
     }
 
     sync_status.isSyncing.store(true);
-    logMessage("INFO", "Starting chain sync with peer");
+    LOG_INFO("Starting chain sync with peer");
     send_sync_query();
 }
 
@@ -83,7 +84,7 @@ void PeerClient::send_sync_query()
 {
     SyncQuery query;
     query.local_chain_height = bc.getChainBlockCount();
-    logMessage("INFO", "Sending BLOCKCHAIN_QUERY with local_chain_height=" + std::to_string(query.local_chain_height));
+    LOG_INFO("Sending BLOCKCHAIN_QUERY with local_chain_height=" + std::to_string(query.local_chain_height));
 
     send(query, PacketType::BLOCKCHAIN_QUERY);
 
@@ -138,13 +139,13 @@ void PeerClient::do_read_body(const PacketHeader &header)
                             boost::archive::binary_iarchive ia(iss);
                             Block b;
                             ia >> b;
-                            logMessage("INFO", "Received block #" + std::to_string(b.index));
+                            LOG_INFO("Received block #" + std::to_string(b.index));
                             if (block_propagation_) {
                                 auto sender_key = host + ":" + port;
                                 block_propagation_->on_block_received(b, sender_key);
                             }
                         } catch (const std::exception &e) {
-                            logMessage("ERROR", "Failed to deserialize BLOCK: " + std::string(e.what()));
+                            LOG_ERROR("Failed to deserialize BLOCK: " + std::string(e.what()));
                             if (peer_manager) {
                                 peer_manager->increment_error(host, static_cast<uint16_t>(std::stoi(port)));
                             }
@@ -160,7 +161,7 @@ void PeerClient::do_read_body(const PacketHeader &header)
                             ia >> response;
                             handle_peer_exchange_response(response);
                         } catch (const std::exception &e) {
-                            logMessage("ERROR", "Failed to deserialize PEER_EXCHANGE_RESPONSE: " + std::string(e.what()));
+                            LOG_ERROR("Failed to deserialize PEER_EXCHANGE_RESPONSE: " + std::string(e.what()));
                             if (peer_manager) {
                                 peer_manager->increment_error(host, static_cast<uint16_t>(std::stoi(port)));
                             }
@@ -180,7 +181,7 @@ void PeerClient::do_read_body(const PacketHeader &header)
                                 peer_manager->on_peer_exchange_received(req.sender_uuid, req.sender_listen_port, host, req.peers);
                             }
                         } catch (const std::exception &e) {
-                            logMessage("ERROR", "Failed to deserialize PEER_EXCHANGE: " + std::string(e.what()));
+                            LOG_ERROR("Failed to deserialize PEER_EXCHANGE: " + std::string(e.what()));
                             if (peer_manager) {
                                 peer_manager->increment_error(host, static_cast<uint16_t>(std::stoi(port)));
                             }
@@ -189,7 +190,7 @@ void PeerClient::do_read_body(const PacketHeader &header)
                         return;
                     }
                     default:
-                        logMessage("WARN", "Received unknown packet type: " + std::to_string(header.type));
+                        LOG_WARN("Received unknown packet type: " + std::to_string(header.type));
                         break;
                 }
             } else {
@@ -202,7 +203,7 @@ void PeerClient::do_read_body(const PacketHeader &header)
 
 void PeerClient::handle_sync_response(const SyncResponse &response)
 {
-    logMessage("INFO", "Received BLOCKCHAIN_RESPONSE: chunk=" + std::to_string(response.chunk_index)
+    LOG_INFO("Received BLOCKCHAIN_RESPONSE: chunk=" + std::to_string(response.chunk_index)
                + " blocks=" + std::to_string(response.blocks.size())
                + " total_chain_height=" + std::to_string(response.total_chain_height));
 
@@ -210,7 +211,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
 
     // Longest-chain guard: skip sync if peer is not strictly longer
     if (response.total_chain_height <= local_height) {
-        logMessage("INFO", "Peer chain height (" + std::to_string(response.total_chain_height)
+        LOG_INFO("Peer chain height (" + std::to_string(response.total_chain_height)
                    + ") is not longer than local (" + std::to_string(local_height) + "), sync not needed");
         sync_status.isSyncing.store(false);
         return;
@@ -219,10 +220,10 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
     // Empty response while expecting more blocks signals end-of-sync
     if (response.blocks.empty()) {
         if (response.total_chain_height > local_height) {
-            logMessage("WARN", "Empty sync response while expecting more blocks (local="
+            LOG_WARN("Empty sync response while expecting more blocks (local="
                        + std::to_string(local_height) + " peer=" + std::to_string(response.total_chain_height) + ")");
         } else {
-            logMessage("INFO", "Received empty sync response, chain is up to date");
+            LOG_INFO("Received empty sync response, chain is up to date");
         }
         sync_status.isSyncing.store(false);
         return;
@@ -245,7 +246,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
             if (block.index > 0 && block.index - 1 < local_height) {
                 prev_block = bc.getBlockByIndex(block.index - 1);
             } else {
-                logMessage("ERROR", "Cannot validate block " + std::to_string(block.index)
+                LOG_ERROR("Cannot validate block " + std::to_string(block.index)
                            + ": no previous block available");
                 abort_sync("Missing previous block for validation at index " + std::to_string(block.index));
                 return;
@@ -255,7 +256,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
         }
 
         if (!IBlockchain::isValidNewBlock(block, prev_block, config)) {
-            logMessage("ERROR", "Block " + std::to_string(block.index)
+            LOG_ERROR("Block " + std::to_string(block.index)
                        + " failed validation in chunk " + std::to_string(response.chunk_index)
                        + " from peer " + host + ":" + port);
             abort_sync("Invalid block at index " + std::to_string(block.index));
@@ -263,7 +264,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
         }
     }
 
-    logMessage("INFO", "Chunk " + std::to_string(response.chunk_index) + " validated successfully ("
+    LOG_INFO("Chunk " + std::to_string(response.chunk_index) + " validated successfully ("
                + std::to_string(response.blocks.size()) + " blocks)");
 
     // Persist the valid chunk: append blocks to the chain
@@ -290,7 +291,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
     }
 
     size_t new_local_height = bc.getChainBlockCount();
-    logMessage("INFO", "Synced " + std::to_string(response.blocks.size())
+    LOG_INFO("Synced " + std::to_string(response.blocks.size())
                + " blocks, local height now " + std::to_string(new_local_height));
 
     // Check if we need more chunks
@@ -299,7 +300,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
         arm_chunk_timer();
         do_read_header();
     } else {
-        logMessage("INFO", "Chain sync complete, local height=" + std::to_string(new_local_height));
+        LOG_INFO("Chain sync complete, local height=" + std::to_string(new_local_height));
         sync_status.isSyncing.store(false);
         if (block_propagation_) {
             block_propagation_->process_sync_queue();
@@ -309,7 +310,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
 
 void PeerClient::abort_sync(const std::string &reason)
 {
-    logMessage("ERROR", "Sync aborted: " + reason);
+    LOG_ERROR("Sync aborted: " + reason);
     cancel_chunk_timer();
     sync_status.isSyncing.store(false);
 }
@@ -317,7 +318,7 @@ void PeerClient::abort_sync(const std::string &reason)
 void PeerClient::handle_peer_exchange_response(const PeerExchangeResponse &response)
 {
     remote_uuid_ = response.sender_uuid;
-    logMessage("INFO", "Received PEER_EXCHANGE_RESPONSE from " + host + ":" + port
+    LOG_INFO("Received PEER_EXCHANGE_RESPONSE from " + host + ":" + port
                + " uuid=" + response.sender_uuid + " peers=" + std::to_string(response.peers.size()));
 
     if (peer_manager) {
@@ -330,7 +331,7 @@ void PeerClient::handle_disconnect(const std::string &reason)
 {
     if (!connected && !socket.lowest_layer().is_open()) return;
     connected = false;
-    logMessage("INFO", "Peer " + host + ":" + port + " disconnected: " + reason);
+    LOG_INFO("Peer " + host + ":" + port + " disconnected: " + reason);
 
     boost::system::error_code ec;
     socket.lowest_layer().close(ec);
@@ -361,14 +362,7 @@ void PeerClient::cancel_chunk_timer()
 template<typename T>
 void PeerClient::send(const T &obj, uint64_t packet_type)
 {
-    std::stringstream ss;
-    boost::archive::binary_oarchive oa(ss);
-    oa << obj;
-    std::string serialized_str = ss.str();
-
-    PacketHeader header(serialized_str.size(), packet_type);
-    std::vector<char> header_data(sizeof(header));
-    std::memcpy(header_data.data(), &header, sizeof(header));
+    auto [header_data, serialized_str] = serialize_packet(obj, packet_type);
 
     std::ostream stream(&this->write_buffer);
     stream.write(header_data.data(), header_data.size());
@@ -377,9 +371,9 @@ void PeerClient::send(const T &obj, uint64_t packet_type)
     boost::asio::async_write(this->socket, this->write_buffer,
         [this](const boost::system::error_code &ec, std::size_t) {
             if (!ec) {
-                logMessage("INFO", "Packet sent successfully");
+                LOG_INFO("Packet sent successfully");
             } else {
-                logMessage("ERROR", "Error sending packet: " + ec.message());
+                LOG_ERROR("Error sending packet: " + ec.message());
             }
         });
 }

@@ -38,7 +38,7 @@ void PeerManager::load_peers() {
     auto peers_path = data_dir_ / "peers.json";
     if (!std::filesystem::exists(peers_path)) {
         node_uuid_ = generate_uuid_v4();
-        logMessage("INFO", "Generated new node UUID: " + node_uuid_);
+        LOG_INFO("Generated new node UUID: " + node_uuid_);
         save_peers();
         return;
     }
@@ -46,7 +46,7 @@ void PeerManager::load_peers() {
     std::ifstream ifs(peers_path);
     if (!ifs.is_open()) {
         node_uuid_ = generate_uuid_v4();
-        logMessage("WARN", "Cannot open peers.json, starting fresh with UUID: " + node_uuid_);
+        LOG_WARN("Cannot open peers.json, starting fresh with UUID: " + node_uuid_);
         save_peers();
         return;
     }
@@ -55,7 +55,7 @@ void PeerManager::load_peers() {
     try {
         j = nlohmann::json::parse(ifs);
     } catch (const nlohmann::json::parse_error &e) {
-        logMessage("WARN", "Malformed peers.json, starting with empty peer list: " + std::string(e.what()));
+        LOG_WARN("Malformed peers.json, starting with empty peer list: " + std::string(e.what()));
         node_uuid_ = generate_uuid_v4();
         save_peers();
         return;
@@ -68,14 +68,20 @@ void PeerManager::load_peers() {
     }
 
     if (j.contains("peers") && j["peers"].is_array()) {
-        peers_ = j["peers"].get<std::vector<PeerEntry>>();
+        auto peer_vec = j["peers"].get<std::vector<PeerEntry>>();
+        for (auto &p : peer_vec) {
+            peers_[peer_key(p.host, p.port)] = std::move(p);
+        }
     }
 
     if (j.contains("bans") && j["bans"].is_array()) {
-        bans_ = j["bans"].get<std::vector<BanRecord>>();
+        auto ban_vec = j["bans"].get<std::vector<BanRecord>>();
+        for (auto &b : ban_vec) {
+            bans_[peer_key(b.host, b.port)] = std::move(b);
+        }
     }
 
-    logMessage("INFO", "Loaded " + std::to_string(peers_.size()) + " peers, UUID: " + node_uuid_);
+    LOG_INFO("Loaded " + std::to_string(peers_.size()) + " peers, UUID: " + node_uuid_);
 }
 
 void PeerManager::save_peers() {
@@ -84,12 +90,34 @@ void PeerManager::save_peers() {
 
     nlohmann::json j;
     j["node_uuid"] = node_uuid_;
-    j["peers"] = peers_;
-    j["bans"] = bans_;
+    
+    // Serialize map values as JSON arrays to preserve on-disk format
+    nlohmann::json peers_arr = nlohmann::json::array();
+    for (const auto &[key, entry] : peers_) {
+        nlohmann::json pj;
+        pj["host"] = entry.host;
+        pj["port"] = entry.port;
+        pj["node_uuid"] = entry.node_uuid;
+        pj["last_seen"] = entry.last_seen;
+        pj["error_count"] = entry.error_count;
+        peers_arr.push_back(pj);
+    }
+    j["peers"] = peers_arr;
+
+    nlohmann::json bans_arr = nlohmann::json::array();
+    for (const auto &[key, ban] : bans_) {
+        nlohmann::json bj;
+        bj["host"] = ban.host;
+        bj["port"] = ban.port;
+        bj["reason"] = ban.reason;
+        bj["expires"] = ban.expires;
+        bans_arr.push_back(bj);
+    }
+    j["bans"] = bans_arr;
 
     std::ofstream ofs(temp_path);
     if (!ofs.is_open()) {
-        logMessage("ERROR", "Cannot write peers.json.tmp");
+        LOG_ERROR("Cannot write peers.json.tmp");
         return;
     }
     ofs << j.dump(2) << std::endl;
@@ -98,7 +126,7 @@ void PeerManager::save_peers() {
     std::error_code ec;
     std::filesystem::rename(temp_path, peers_path, ec);
     if (ec) {
-        logMessage("ERROR", "Failed to rename peers.json.tmp: " + ec.message());
+        LOG_ERROR("Failed to rename peers.json.tmp: " + ec.message());
     }
 }
 
@@ -118,14 +146,14 @@ static std::string normalize_address(const std::string &host) {
 
 bool PeerManager::add_peer(const PeerEntry &entry) {
     auto norm_host = normalize_address(entry.host);
-    // Check if already exists
-    for (auto &p : peers_) {
-        if (p.host == norm_host && p.port == entry.port) {
-            // Update existing entry
-            if (!entry.node_uuid.empty()) p.node_uuid = entry.node_uuid;
-            if (entry.last_seen > p.last_seen) p.last_seen = entry.last_seen;
-            return true;
-        }
+    auto key = peer_key(norm_host, entry.port);
+
+    auto it = peers_.find(key);
+    if (it != peers_.end()) {
+        // Update existing entry
+        if (!entry.node_uuid.empty()) it->second.node_uuid = entry.node_uuid;
+        if (entry.last_seen > it->second.last_seen) it->second.last_seen = entry.last_seen;
+        return true;
     }
 
     // Cap enforcement with oldest-seen eviction
@@ -133,49 +161,50 @@ bool PeerManager::add_peer(const PeerEntry &entry) {
         evict_oldest_peer();
     }
 
-    peers_.push_back(entry);
-    peers_.back().host = norm_host;
+    PeerEntry new_entry = entry;
+    new_entry.host = norm_host;
+    peers_[key] = std::move(new_entry);
     return true;
 }
 
 void PeerManager::evict_oldest_peer() {
     if (peers_.empty()) return;
 
-    auto oldest = std::min_element(peers_.begin(), peers_.end(),
-        [](const PeerEntry &a, const PeerEntry &b) {
-            return a.last_seen < b.last_seen;
-        });
+    auto oldest = peers_.begin();
+    for (auto it = peers_.begin(); it != peers_.end(); ++it) {
+        if (it->second.last_seen < oldest->second.last_seen) {
+            oldest = it;
+        }
+    }
     peers_.erase(oldest);
 }
 
 bool PeerManager::remove_peer(const std::string &host_raw, uint16_t port) {
     auto host = normalize_address(host_raw);
-    auto it = std::remove_if(peers_.begin(), peers_.end(),
-        [&](const PeerEntry &p) { return p.host == host && p.port == port; });
-    if (it != peers_.end()) {
-        peers_.erase(it, peers_.end());
-        return true;
-    }
-    return false;
+    auto key = peer_key(host, port);
+    return peers_.erase(key) > 0;
 }
 
 std::vector<PeerEntry> PeerManager::get_peers() const {
-    return peers_;
+    std::vector<PeerEntry> result;
+    result.reserve(peers_.size());
+    for (const auto &[key, entry] : peers_) {
+        result.push_back(entry);
+    }
+    return result;
 }
 
 PeerEntry* PeerManager::find_peer(const std::string &host_raw, uint16_t port) {
     auto host = normalize_address(host_raw);
-    for (auto &p : peers_) {
-        if (p.host == host && p.port == port) return &p;
-    }
+    auto it = peers_.find(peer_key(host, port));
+    if (it != peers_.end()) return &it->second;
     return nullptr;
 }
 
 const PeerEntry* PeerManager::find_peer(const std::string &host_raw, uint16_t port) const {
     auto host = normalize_address(host_raw);
-    for (auto &p : peers_) {
-        if (p.host == host && p.port == port) return &p;
-    }
+    auto it = peers_.find(peer_key(host, port));
+    if (it != peers_.end()) return &it->second;
     return nullptr;
 }
 
@@ -216,11 +245,10 @@ void PeerManager::start() {
         }
 
         // Also connect to known peers from peers.json
-        for (const auto &peer : peers_) {
+        for (const auto &[pk, peer] : peers_) {
             if (outbound_connections_.size() >= config_.max_outbound) break;
             if (is_banned(peer.host, peer.port)) continue;
-            auto key = peer_key(peer.host, peer.port);
-            if (outbound_connections_.count(key)) continue;
+            if (outbound_connections_.count(pk)) continue;
             connect_to(peer.host, peer.port);
         }
 
@@ -234,7 +262,7 @@ void PeerManager::connect_to(const std::string &host_raw, uint16_t port) {
 
     // Check limits
     if (outbound_connections_.size() >= config_.max_outbound) {
-        logMessage("WARN", "Outbound connection limit reached, cannot connect to " + key);
+        LOG_WARN("Outbound connection limit reached, cannot connect to " + key);
         return;
     }
 
@@ -245,17 +273,17 @@ void PeerManager::connect_to(const std::string &host_raw, uint16_t port) {
 
     // Check ban
     if (is_banned(host, port)) {
-        logMessage("WARN", "Peer " + key + " is banned, skipping connection");
+        LOG_WARN("Peer " + key + " is banned, skipping connection");
         return;
     }
 
     // Never connect to ourselves
     if (is_self(host, port)) {
-        logMessage("DEBUG", "Skipping self-connection to " + key);
+        LOG_DEBUG("Skipping self-connection to " + key);
         return;
     }
 
-    logMessage("INFO", "Connecting to peer " + key);
+    LOG_INFO("Connecting to peer " + key);
 
     auto client = std::make_shared<PeerClient>(io_context_, ssl_context_, host, port, bc_, sync_status_);
     client->set_peer_manager(this);
@@ -282,7 +310,7 @@ void PeerManager::on_peer_disconnected(const std::string &host_ref, uint16_t por
         peer->error_count++;
     }
 
-    logMessage("INFO", "Peer disconnected: " + key);
+    LOG_INFO("Peer disconnected: " + key);
 
     // Check if we still have an inbound session from the same node (e.g. dedup dropped
     // our outbound but the inbound is still alive). If so, skip reconnect.
@@ -304,8 +332,7 @@ void PeerManager::on_peer_disconnected(const std::string &host_ref, uint16_t por
 
     // Try to replace with a *different* known peer
     if (config_.discovery_enabled && outbound_connections_.size() < config_.max_outbound) {
-        for (const auto &p : peers_) {
-            auto pk = peer_key(p.host, p.port);
+        for (const auto &[pk, p] : peers_) {
             if (pk == key) continue; // Skip the peer that just disconnected
             if (outbound_connections_.count(pk)) continue;
             if (is_banned(p.host, p.port)) continue;
@@ -321,7 +348,7 @@ void PeerManager::on_inbound_connected(const std::string &host_raw, uint16_t por
     auto key = peer_key(host, port);
     inbound_sessions_[key] = session;
     inbound_count_++;
-    logMessage("INFO", "Inbound connection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
+    LOG_INFO("Inbound connection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
 }
 
 void PeerManager::on_inbound_disconnected(const std::string &host_raw, uint16_t port) {
@@ -329,7 +356,7 @@ void PeerManager::on_inbound_disconnected(const std::string &host_raw, uint16_t 
     auto key = peer_key(host, port);
     inbound_sessions_.erase(key);
     if (inbound_count_ > 0) inbound_count_--;
-    logMessage("INFO", "Inbound disconnection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
+    LOG_INFO("Inbound disconnection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
 }
 
 // --- Peer Exchange ---
@@ -420,7 +447,7 @@ void PeerManager::check_duplicate_connection(const std::string &remote_uuid,
 
     // If the remote UUID is our own, it's a self-connection — drop immediately
     if (remote_uuid == node_uuid_) {
-        logMessage("WARN", "Self-connection detected (UUID " + remote_uuid + ") — closing");
+        LOG_WARN("Self-connection detected (UUID " + remote_uuid + ") — closing");
         auto self_key = peer_key(host, port);
         // Defer the erase so the calling PeerClient is not destroyed mid-call
         boost::asio::post(io_context_, [this, self_key]() {
@@ -456,10 +483,10 @@ void PeerManager::check_duplicate_connection(const std::string &remote_uuid,
 
     // The dedup rule: lower UUID keeps its outbound
     if (node_uuid_ < remote_uuid) {
-        logMessage("INFO", "Duplicate connection detected for UUID " + remote_uuid + " — keeping our outbound (lower UUID)");
+        LOG_INFO("Duplicate connection detected for UUID " + remote_uuid + " — keeping our outbound (lower UUID)");
         // The remote (higher UUID) should drop its outbound to us; nothing to do here
     } else {
-        logMessage("INFO", "Duplicate connection detected for UUID " + remote_uuid + " — dropping our outbound (higher UUID)");
+        LOG_INFO("Duplicate connection detected for UUID " + remote_uuid + " — dropping our outbound (higher UUID)");
         // Drop our outbound connection; keep the inbound
         boost::asio::post(io_context_, [this, dup_outbound_key]() {
             outbound_connections_.erase(dup_outbound_key);
@@ -504,45 +531,41 @@ void PeerManager::ban_peer(const std::string &host, uint16_t port, const std::st
 
     // Remove existing ban for same address
     unban_peer(host, port);
-    bans_.push_back(ban);
+    bans_[peer_key(host, port)] = ban;
 
     save_peers();
-    logMessage("INFO", "Banned peer " + key + " reason: " + reason);
+    LOG_INFO("Banned peer " + key + " reason: " + reason);
 }
 
 void PeerManager::unban_peer(const std::string &host, uint16_t port) {
-    bans_.erase(
-        std::remove_if(bans_.begin(), bans_.end(),
-            [&](const BanRecord &b) { return b.host == host && b.port == port; }),
-        bans_.end()
-    );
+    bans_.erase(peer_key(host, port));
 }
 
 bool PeerManager::is_banned(const std::string &host, uint16_t port) const {
+    auto it = bans_.find(peer_key(host, port));
+    if (it == bans_.end()) return false;
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    for (const auto &ban : bans_) {
-        if (ban.host == host && ban.port == port) {
-            if (ban.expires == 0 || ban.expires > now) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return it->second.expires == 0 || it->second.expires > now;
 }
 
 void PeerManager::purge_expired_bans() {
     auto now = static_cast<uint64_t>(std::time(nullptr));
-    bans_.erase(
-        std::remove_if(bans_.begin(), bans_.end(),
-            [now](const BanRecord &b) {
-                return b.expires > 0 && b.expires <= now;
-            }),
-        bans_.end()
-    );
+    for (auto it = bans_.begin(); it != bans_.end(); ) {
+        if (it->second.expires > 0 && it->second.expires <= now) {
+            it = bans_.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 std::vector<BanRecord> PeerManager::get_bans() const {
-    return bans_;
+    std::vector<BanRecord> result;
+    result.reserve(bans_.size());
+    for (const auto &[key, ban] : bans_) {
+        result.push_back(ban);
+    }
+    return result;
 }
 
 // --- Reconnection with Backoff ---
@@ -563,7 +586,7 @@ void PeerManager::schedule_reconnect(const std::string &host, uint16_t port) {
     double jitter_factor = 0.8 + (std::uniform_real_distribution<double>(0.0, 0.4)(gen));
     auto delay_ms = static_cast<uint64_t>(state.current_delay * jitter_factor * 1000);
 
-    logMessage("INFO", "Scheduling reconnect to " + key + " in " + std::to_string(delay_ms / 1000) + "s");
+    LOG_INFO("Scheduling reconnect to " + key + " in " + std::to_string(delay_ms / 1000) + "s");
 
     state.timer = std::make_shared<boost::asio::steady_timer>(io_context_);
     state.timer->expires_after(std::chrono::milliseconds(delay_ms));
@@ -602,7 +625,7 @@ uint16_t PeerManager::get_listen_port() const {
 
 std::vector<PeerAddress> PeerManager::get_non_banned_peer_addresses() const {
     std::vector<PeerAddress> addresses;
-    for (const auto &p : peers_) {
+    for (const auto &[key, p] : peers_) {
         if (!is_banned(p.host, p.port)) {
             addresses.push_back({p.host, p.port});
         }

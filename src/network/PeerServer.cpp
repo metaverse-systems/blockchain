@@ -4,6 +4,7 @@
 #include "../BlockPropagation.hpp"
 #include "SyncMessages.hpp"
 #include "PeerMessages.hpp"
+#include "PacketSerializer.hpp"
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 
@@ -25,7 +26,7 @@ void PeerServer::on_handshake_complete()
 {
     // Check if inbound connection can be accepted
     if (peer_manager && !peer_manager->can_accept_inbound()) {
-        logMessage("WARN", "Inbound connection limit reached, rejecting");
+        LOG_WARN("Inbound connection limit reached, rejecting");
         boost::system::error_code ec;
         ssl_socket.lowest_layer().close(ec);
         return;
@@ -36,7 +37,7 @@ void PeerServer::on_handshake_complete()
         auto rhost = remote_host();
         auto rport = remote_port();
         if (peer_manager->is_banned(rhost, rport)) {
-            logMessage("WARN", "Rejecting banned peer " + rhost + ":" + std::to_string(rport));
+            LOG_WARN("Rejecting banned peer " + rhost + ":" + std::to_string(rport));
             boost::system::error_code ec;
             ssl_socket.lowest_layer().close(ec);
             return;
@@ -84,13 +85,13 @@ void PeerServer::do_read_body(const PacketHeader &header)
                             boost::archive::binary_iarchive ia(iss);
                             Block b;
                             ia >> b;
-                            logMessage("INFO", "Received block #" + std::to_string(b.index));
+                            LOG_INFO("Received block #" + std::to_string(b.index));
                             if (block_propagation_) {
                                 auto sender_key = remote_host() + ":" + std::to_string(remote_port());
                                 block_propagation_->on_block_received(b, sender_key);
                             }
                         } catch (const std::exception &e) {
-                            logMessage("ERROR", "Failed to deserialize BLOCK: " + std::string(e.what()));
+                            LOG_ERROR("Failed to deserialize BLOCK: " + std::string(e.what()));
                             if (peer_manager) {
                                 peer_manager->increment_error(remote_host(), remote_port());
                             }
@@ -102,7 +103,7 @@ void PeerServer::do_read_body(const PacketHeader &header)
                         boost::archive::binary_iarchive ia(iss);
                         SyncQuery query;
                         ia >> query;
-                        logMessage("INFO", "Received BLOCKCHAIN_QUERY with local_chain_height=" + std::to_string(query.local_chain_height));
+                        LOG_INFO("Received BLOCKCHAIN_QUERY with local_chain_height=" + std::to_string(query.local_chain_height));
                         handle_blockchain_query(query);
                         return; // handler chains back to do_read_header
                     }
@@ -112,11 +113,11 @@ void PeerServer::do_read_body(const PacketHeader &header)
                             boost::archive::binary_iarchive ia(iss);
                             PeerExchangeRequest request;
                             ia >> request;
-                            logMessage("INFO", "Received PEER_EXCHANGE from uuid=" + request.sender_uuid
+                            LOG_INFO("Received PEER_EXCHANGE from uuid=" + request.sender_uuid
                                        + " peers=" + std::to_string(request.peers.size()));
                             handle_peer_exchange(request);
                         } catch (const std::exception &e) {
-                            logMessage("ERROR", "Failed to deserialize PEER_EXCHANGE: " + std::string(e.what()));
+                            LOG_ERROR("Failed to deserialize PEER_EXCHANGE: " + std::string(e.what()));
                             if (peer_manager) {
                                 peer_manager->increment_error(remote_host(), remote_port());
                             }
@@ -129,13 +130,13 @@ void PeerServer::do_read_body(const PacketHeader &header)
                             boost::archive::binary_iarchive ia(iss);
                             PeerExchangeResponse response;
                             ia >> response;
-                            logMessage("INFO", "Received PEER_EXCHANGE_RESPONSE from uuid=" + response.sender_uuid);
+                            LOG_INFO("Received PEER_EXCHANGE_RESPONSE from uuid=" + response.sender_uuid);
                             if (peer_manager) {
                                 peer_manager->on_peer_exchange_received(response.sender_uuid, response.sender_listen_port,
                                                                         remote_host(), response.peers);
                             }
                         } catch (const std::exception &e) {
-                            logMessage("ERROR", "Failed to deserialize PEER_EXCHANGE_RESPONSE: " + std::string(e.what()));
+                            LOG_ERROR("Failed to deserialize PEER_EXCHANGE_RESPONSE: " + std::string(e.what()));
                             if (peer_manager) {
                                 peer_manager->increment_error(remote_host(), remote_port());
                             }
@@ -143,13 +144,13 @@ void PeerServer::do_read_body(const PacketHeader &header)
                         break;
                     }
                     default:
-                        logMessage("ERROR", "Received unknown packet type: " + std::to_string(header.type));
+                        LOG_ERROR("Received unknown packet type: " + std::to_string(header.type));
                         break;
                 }
 
                 do_read_header();
             } else {
-                logMessage("ERROR", "Read body failed: " + ec.message());
+                LOG_ERROR("Read body failed: " + ec.message());
                 if (peer_manager) {
                     peer_manager->increment_error(remote_host(), remote_port());
                     peer_manager->on_inbound_disconnected(remote_host(), remote_port());
@@ -214,7 +215,7 @@ void PeerServer::send_sync_response(const SyncResponse &response, size_t remaini
     boost::asio::async_write(this->ssl_socket, buffers,
         [this, self, header_buf, payload_buf, remaining_chunks, next_chunk, total_height](const boost::system::error_code &ec, std::size_t) {
             if (!ec) {
-                logMessage("INFO", "Sent BLOCKCHAIN_RESPONSE chunk " + std::to_string(next_chunk > 0 ? next_chunk - 1 : 0));
+                LOG_INFO("Sent BLOCKCHAIN_RESPONSE chunk " + std::to_string(next_chunk > 0 ? next_chunk - 1 : 0));
 
                 if (remaining_chunks > 0) {
                     // Build and send the next chunk
@@ -235,7 +236,7 @@ void PeerServer::send_sync_response(const SyncResponse &response, size_t remaini
                     do_read_header();
                 }
             } else {
-                logMessage("ERROR", "Failed to send BLOCKCHAIN_RESPONSE: " + ec.message());
+                LOG_ERROR("Failed to send BLOCKCHAIN_RESPONSE: " + ec.message());
             }
         });
 }
@@ -273,14 +274,9 @@ void PeerServer::send_packet(const T &obj, uint64_t packet_type)
 {
     auto self(shared_from_this());
 
-    std::stringstream ss;
-    boost::archive::binary_oarchive oa(ss);
-    oa << obj;
-    std::string serialized = ss.str();
+    auto [header_data, serialized] = serialize_packet(obj, packet_type);
 
-    PacketHeader header(serialized.size(), packet_type);
-    auto header_buf = std::make_shared<std::vector<char>>(sizeof(header));
-    std::memcpy(header_buf->data(), &header, sizeof(header));
+    auto header_buf = std::make_shared<std::vector<char>>(std::move(header_data));
     auto payload_buf = std::make_shared<std::string>(std::move(serialized));
 
     std::array<boost::asio::const_buffer, 2> buffers = {
@@ -291,10 +287,10 @@ void PeerServer::send_packet(const T &obj, uint64_t packet_type)
     boost::asio::async_write(this->ssl_socket, buffers,
         [this, self, header_buf, payload_buf, packet_type](const boost::system::error_code &ec, std::size_t) {
             if (!ec) {
-                logMessage("INFO", "Sent packet type " + std::to_string(packet_type));
+                LOG_INFO("Sent packet type " + std::to_string(packet_type));
                 do_read_header();
             } else {
-                logMessage("ERROR", "Failed to send packet: " + ec.message());
+                LOG_ERROR("Failed to send packet: " + ec.message());
             }
         });
 }

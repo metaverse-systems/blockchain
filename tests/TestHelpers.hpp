@@ -74,4 +74,22 @@ inline std::vector<Block> buildValidChain(size_t length, uint32_t difficulty = 0
     return chain;
 }
 
+// Fast difficulty-0 block creation for chunk persistence tests
+inline Block make_block(size_t index, const std::string &prevHash) {
+    StreamEntry e;
+    e.stream = "test";
+    e.key = "k" + std::to_string(index);
+    e.data = "data";
+
+    Block b;
+    b.index = index;
+    b.timestamp = static_cast<uint64_t>(std::time(nullptr));
+    b.entries = {e};
+    b.prevHash = prevHash;
+    b.difficulty = 0;
+    b.nonce = 0;
+    b.hash = b.calculateHash();
+    return b;
+}
+
 } // namespace TestHelpers
