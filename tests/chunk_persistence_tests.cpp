@@ -119,8 +119,8 @@ TEST_CASE("Periodic timer fires and saves dirty active chunk", "[US3][persistenc
         // Add a block to make dirty
         bc.publish("test", "k1", "data", {"k1"});
 
-        // Run the io_context to process the timer
-        io.run_for(std::chrono::milliseconds(100));
+        // Process any ready handlers without blocking
+        io.poll();
 
         bc.stopPeriodicSave();
     }
@@ -142,7 +142,7 @@ TEST_CASE("Periodic timer skips save when not dirty", "[US3][persistence]")
         // Without adding new blocks, periodic save should be a no-op
         boost::asio::io_context io;
         bc.startPeriodicSave(io);
-        io.run_for(std::chrono::milliseconds(100));
+        io.poll();
         bc.stopPeriodicSave();
     }
     TestHelpers::cleanupTestDir(dir);
@@ -159,7 +159,7 @@ TEST_CASE("Periodic save disabled when interval is 0", "[US3][persistence]")
         // No timer should be started when interval is 0 (default)
         boost::asio::io_context io;
         bc.startPeriodicSave(io);  // save_interval_seconds_ == 0, should be a no-op
-        io.run_for(std::chrono::milliseconds(100));
+        io.poll();
         bc.stopPeriodicSave();
     }
     TestHelpers::cleanupTestDir(dir);
@@ -328,8 +328,10 @@ TEST_CASE("ChunkRetainGuard RAII releases chunks on scope exit", "[US3][persiste
             Block b = bc.getBlockByIndex(0);
             REQUIRE(b.index == 0);
         }
-        // Guard released — chunks freed
-        SUCCEED("ChunkRetainGuard RAII cleanup completed");
+        // Guard released — chunk data cleared by releaseChunks()
+        // Verify chain integrity is maintained after guard release
+        REQUIRE(bc.getChainLength() == 101);
+        REQUIRE(bc.getChunkCount() == 2);
     }
     TestHelpers::cleanupTestDir(dir);
 }

@@ -45,6 +45,26 @@ static bool wait_for_outbound_peers(RpcTestClient &client, size_t count, int tim
     return false;
 }
 
+// Helper: wait until target node shows the expected inbound peer count,
+// confirming the connection is ready on both ends (replaces fixed sleep_for delays).
+static bool wait_for_inbound_peers(RpcTestClient &client, size_t count, int timeout_seconds) {
+    auto start = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(timeout_seconds)) {
+        try {
+            auto resp = client.call("getNodeStatus");
+            auto result = resp["result"];
+            if (result.is_string()) {
+                auto parsed = nlohmann::json::parse(result.get<std::string>());
+                if (parsed["inboundPeers"].get<size_t>() >= count) return true;
+            } else {
+                if (result["inboundPeers"].get<size_t>() >= count) return true;
+            }
+        } catch (...) {}
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    return false;
+}
+
 // =========================================================================
 // T028: Block propagation test — publish on A after B connects, verify B receives it
 // =========================================================================
@@ -68,8 +88,8 @@ TEST_CASE("P2P: New block on Node A propagates to connected Node B", "[p2p][inte
     // Wait for the connection to be established
     REQUIRE(wait_for_outbound_peers(*clientB, 1, 10));
 
-    // Small delay for connection to fully stabilize
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // Wait for Node A to register the inbound connection
+    REQUIRE(wait_for_inbound_peers(*clientA, 1, 10));
 
     // Publish a block on Node A
     clientA->call("publish", {
@@ -100,7 +120,7 @@ TEST_CASE("P2P: Multiple blocks propagate from Node A to Node B", "[p2p][integra
     // Connect Node B to Node A
     nodeB->connect_to_peer("127.0.0.1", nodeA->p2p_port);
     REQUIRE(wait_for_outbound_peers(*clientB, 1, 10));
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    REQUIRE(wait_for_inbound_peers(*clientA, 1, 10));
 
     // Publish 5 blocks on Node A, with delays so each propagates before the next
     for (int i = 0; i < 5; i++) {
@@ -135,11 +155,11 @@ TEST_CASE("P2P: Block propagates A -> B -> C via relay", "[p2p][integration]") {
     // Connect B to A, and C to B (chain topology: A <- B <- C)
     nodeB->connect_to_peer("127.0.0.1", nodeA->p2p_port);
     REQUIRE(wait_for_outbound_peers(*clientB, 1, 10));
+    REQUIRE(wait_for_inbound_peers(*clientA, 1, 10));
 
     nodeC->connect_to_peer("127.0.0.1", nodeB->p2p_port);
     REQUIRE(wait_for_outbound_peers(*clientC, 1, 10));
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    REQUIRE(wait_for_inbound_peers(*clientB, 1, 10));
 
     // Publish a block on Node A
     clientA->call("publish", {

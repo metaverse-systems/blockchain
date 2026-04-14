@@ -9,6 +9,7 @@
 #include "../src/SyncState.hpp"
 #include "../src/utils.hpp"
 #include <cstdlib>
+#include <openssl/ssl.h>
 
 namespace {
 inline void env_set(const char* name, const char* value) {
@@ -47,8 +48,9 @@ TEST_CASE("Server Construction", "[Server]")
     Server<RpcServer, MockAcceptor> rpc(io_context, ssl_context, acceptor, bc);
     Server<PeerServer, MockAcceptor> node_server(io_context, ssl_context, acceptor, bc);
 
-    // Assert
-    REQUIRE(true);
+    // Assert: no session handler before any connection is accepted
+    REQUIRE(rpc.get_last_session_handler() == nullptr);
+    REQUIRE(node_server.get_last_session_handler() == nullptr);
 }
 
 TEST_CASE("Server uses SessionHandler correctly", "[Server]")
@@ -126,8 +128,10 @@ TEST_CASE("P2P mutual TLS context rejects missing peer cert", "[TLS]")
     // Setting mutual TLS mode
     mutual_ctx.set_verify_mode(ssl::verify_peer | ssl::verify_fail_if_no_peer_cert);
 
-    // Verify the context was configured (no throw = success)
-    REQUIRE(true);
+    // Verify the verify mode was actually applied
+    int mode = SSL_CTX_get_verify_mode(mutual_ctx.native_handle());
+    REQUIRE((mode & SSL_VERIFY_PEER) != 0);
+    REQUIRE((mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT) != 0);
 }
 
 TEST_CASE("Stalled connection times out and is closed", "[Timeout]")
@@ -223,10 +227,9 @@ TEST_CASE("Read-only RPCs succeed while isSyncing is true", "[RPC][Sync]")
     Block genesis = bc.getBlockByIndex(0);
     REQUIRE(genesis.index == 0);
 
-    // getBlocksByKeys should work during sync (returns empty for no keys)
+    // getBlocksByKeys should work during sync (returns empty for nonexistent keys)
     std::vector<Block> blocks = bc.getBlocksByKeys({"nonexistent"});
-    // This just verifies the call doesn't throw
-    REQUIRE(true);
+    REQUIRE(blocks.empty());
 
     status.isSyncing.store(false);
 }

@@ -36,7 +36,7 @@ class ChainPersistence
     void saveStreamIndex(const StreamKeyIndex& streamKeyIndex);
     void loadStreamIndex(StreamKeyIndex& streamKeyIndex);
 
-    void saveAllChunks(std::vector<ChunkHandler>& chain,
+    size_t saveAllChunks(std::vector<ChunkHandler>& chain,
                        const std::map<std::string, std::vector<size_t>>& keyIndexMap,
                        const std::set<std::string>& streamRegistry,
                        const StreamKeyIndex& streamKeyIndex,

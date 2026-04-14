@@ -2,6 +2,22 @@
 #include <catch2/catch_all.hpp>
 #include "IntegrationTestFixture.hpp"
 
+// Retry-with-backoff helper for RPC calls that may fail transiently
+// during server startup (connection not fully ready).
+static nlohmann::json call_with_retry(RpcTestClient &client, const std::string &method,
+                                       const nlohmann::json &params = nlohmann::json::object(),
+                                       int max_retries = 3) {
+    for (int attempt = 0; attempt < max_retries; attempt++) {
+        try {
+            return client.call(method, params);
+        } catch (const std::exception &) {
+            if (attempt == max_retries - 1) throw;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100 * (attempt + 1)));
+        }
+    }
+    throw std::runtime_error("unreachable");
+}
+
 // Shared fixture: one NodeInstance with allowed_streams = {"teststream"}
 // Per-test watchdog is handled by Catch2 timeout if needed.
 
@@ -37,7 +53,7 @@ TEST_CASE("RPC: getChainLength returns 1 on fresh node", "[rpc][integration]") {
     auto *node = fixture.create_node({"teststream"});
     auto client = fixture.create_rpc_client(node);
 
-    auto resp = client->call("getChainLength");
+    auto resp = call_with_retry(*client, "getChainLength");
     auto result = get_result(resp);
 
     // Result may be an integer or string "1"
@@ -56,7 +72,7 @@ TEST_CASE("RPC: getChunkCount returns 1 on fresh node", "[rpc][integration]") {
     auto *node = fixture.create_node({"teststream"});
     auto client = fixture.create_rpc_client(node);
 
-    auto resp = client->call("getChunkCount");
+    auto resp = call_with_retry(*client, "getChunkCount");
     auto result = get_result(resp);
 
     if (result.is_number()) {
@@ -74,7 +90,7 @@ TEST_CASE("RPC: getNodeStatus returns all 7 fields with syncState idle", "[rpc][
     auto *node = fixture.create_node({"teststream"});
     auto client = fixture.create_rpc_client(node);
 
-    auto resp = client->call("getNodeStatus");
+    auto resp = call_with_retry(*client, "getNodeStatus");
     auto result = parse_result(resp);
 
     REQUIRE(result.contains("chainLength"));

@@ -322,6 +322,9 @@ TEST_CASE("NodeConfig validation valid config passes", "[NodeConfig][validate]")
     NodeConfig cfg;
     // Default config with no blockchain_dir (skips TLS file checks)
     REQUIRE_NOTHROW(cfg.validate());
+    // Verify defaults are populated after validation
+    REQUIRE(cfg.network.rpc_port == 12345);
+    REQUIRE(cfg.network.p2p_port == 12346);
 }
 
 TEST_CASE("NodeConfig unknown key warns but does not fail", "[NodeConfig]") {
@@ -335,7 +338,10 @@ TEST_CASE("NodeConfig unknown key warns but does not fail", "[NodeConfig]") {
     std::ofstream(cfg_path) << j.dump(2);
 
     // Should not throw — unknown keys only warn
-    REQUIRE_NOTHROW(NodeConfig::load(cfg_path));
+    NodeConfig loaded = NodeConfig::load(cfg_path);
+    // Known fields should be loaded correctly
+    REQUIRE(loaded.network.rpc_port == 12345);
+    REQUIRE(loaded.network.p2p_port == 12346);
 
     std::filesystem::remove_all(dir);
 }

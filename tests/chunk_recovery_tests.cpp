@@ -351,3 +351,38 @@ TEST_CASE("Startup recovery completes within 30 seconds", "[US5][performance]")
     }
     cleanup_test_dir(dir);
 }
+
+// US5: recoverChain rebuilds from chunks when index files are corrupted
+TEST_CASE("recoverChain rebuilds chain with corrupted index files", "[US5][recovery]")
+{
+    auto dir = create_test_dir("corrupt_index");
+    {
+        // Build a small chain (11 blocks = genesis + 10), save, then corrupt index files
+        build_and_save_chain(dir, 11);
+
+        // Corrupt keys.dat with garbage data
+        auto keys_path = dir / "keys.dat";
+        if (std::filesystem::exists(keys_path)) {
+            std::ofstream ofs(keys_path, std::ios::binary | std::ios::trunc);
+            ofs << "CORRUPTED GARBAGE DATA";
+        }
+
+        // Corrupt streams.dat with garbage data
+        auto streams_path = dir / "streams.dat";
+        if (std::filesystem::exists(streams_path)) {
+            std::ofstream ofs(streams_path, std::ios::binary | std::ios::trunc);
+            ofs << "CORRUPTED GARBAGE DATA";
+        }
+
+        // Recover should still load blocks from chunk files
+        ConsensusConfig cfg;
+        cfg.initialDifficulty = 0;
+        cfg.minDifficulty = 0;
+        Blockchain<Chunk> bc(dir, cfg);
+        bc.recoverChain();
+
+        // Chain should be intact — block data is in chunk files, not index files
+        REQUIRE(bc.getChainLength() == 11);
+    }
+    cleanup_test_dir(dir);
+}

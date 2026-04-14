@@ -15,17 +15,17 @@
 
 **Purpose**: Create the interface split and shared test infrastructure that all user stories depend on.
 
-- [ ] T001 Create `IChainReader` interface header in `src/IChainReader.hpp` with 10 read-only virtual methods per contracts/interfaces.md
-- [ ] T002 Create `IChainWriter` interface header in `src/IChainWriter.hpp` with 7 mutation virtual methods per contracts/interfaces.md
-- [ ] T003 Modify `src/IBlockchain.hpp` to inherit from `IChainReader` and `IChainWriter`, removing duplicated method declarations now inherited from sub-interfaces
-- [ ] T004 Update `src/Blockchain.hpp` and `src/Blockchain.cpp` to compile against the new inheritance hierarchy (IBlockchain → IChainReader + IChainWriter)
-- [ ] T005 Update all consumers that include `IBlockchain.hpp` to also include the new sub-interface headers where needed (ensure `make -j8` builds clean)
-- [ ] T006 Add `friend class RpcHandlerTests;` declaration to `src/network/RpcServer.hpp` to enable direct handler testing
-- [ ] T007 Change `saveAllChunks()` in `src/ChainPersistence.hpp` to return `size_t` (failure count) and only set `dirty = false` when all operations succeed
-- [ ] T008 Update `src/Blockchain.hpp` and `src/Blockchain.cpp` for the new `saveAllChunks()` return type (callers that discard the return value need no changes)
-- [ ] T009 Create `MockChainReader` class in `tests/TestHelpers.hpp` implementing `IChainReader` with configurable return values for all 10 methods
-- [ ] T010 [P] Create `MockChainWriter` class in `tests/TestHelpers.hpp` implementing `IChainWriter` with call-recording for all 7 methods
-- [ ] T011 Build and run existing tests to confirm no regressions from the interface split and `saveAllChunks()` contract change (`make -j8` then run each test binary individually)
+- [X] T001 Create `IChainReader` interface header in `src/IChainReader.hpp` with 10 read-only virtual methods per contracts/interfaces.md
+- [X] T002 Create `IChainWriter` interface header in `src/IChainWriter.hpp` with 7 mutation virtual methods per contracts/interfaces.md
+- [X] T003 Modify `src/IBlockchain.hpp` to inherit from `IChainReader` and `IChainWriter`, removing duplicated method declarations now inherited from sub-interfaces
+- [X] T004 Update `src/Blockchain.hpp` and `src/Blockchain.cpp` to compile against the new inheritance hierarchy (IBlockchain → IChainReader + IChainWriter)
+- [X] T005 Update all consumers that include `IBlockchain.hpp` to also include the new sub-interface headers where needed (ensure `make -j8` builds clean)
+- [X] T006 Add `friend class RpcHandlerTests;` declaration to `src/network/RpcServer.hpp` to enable direct handler testing
+- [X] T007 Change `saveAllChunks()` in `src/ChainPersistence.hpp` to return `size_t` (failure count) and only set `dirty = false` when all operations succeed
+- [X] T008 Update `src/Blockchain.hpp` and `src/Blockchain.cpp` for the new `saveAllChunks()` return type (callers that discard the return value need no changes)
+- [X] T009 Create `MockChainReader` class in `tests/TestHelpers.hpp` implementing `IChainReader` with configurable return values for all 10 methods
+- [X] T010 [P] Create `MockChainWriter` class in `tests/TestHelpers.hpp` implementing `IChainWriter` with call-recording for all 7 methods
+- [X] T011 Build and run existing tests to confirm no regressions from the interface split and `saveAllChunks()` contract change (`make -j8` then run each test binary individually)
 
 **Checkpoint**: Interface split complete, mock infrastructure ready, all existing tests pass.
 
@@ -35,7 +35,7 @@
 
 **Purpose**: Systematic audit of all 26 test files to build a complete inventory of trivial/vacuous assertions. This inventory drives US1 and US2 implementation.
 
-- [ ] T012 Audit all 26 test files for `REQUIRE(true)`, `SUCCEED(...)`, and `REQUIRE_NOTHROW(...)` used as sole assertions; produce a checklist in `specs/020-address-test-quality/assertion-audit.md` listing every flagged test case with file, line, test name, and proposed replacement assertion
+- [X] T012 Audit all 26 test files for `REQUIRE(true)`, `SUCCEED(...)`, and `REQUIRE_NOTHROW(...)` used as sole assertions; produce a checklist in `specs/020-address-test-quality/assertion-audit.md` listing every flagged test case with file, line, test name, and proposed replacement assertion
 
 **Checkpoint**: Complete inventory of every test needing assertion improvement across all 26 files.
 
@@ -49,13 +49,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Replace trivial assertions in `tests/server_tests.cpp` (3 instances: "Server Construction" L51, "P2P mutual TLS context rejects missing peer cert" L130, and L229) with assertions checking observable server/SSL properties
-- [ ] T014 [P] [US1+US2] Replace `SUCCEED(...)` in `tests/block_propagation_tests.cpp` (2 instances: "FIFO eviction capacity" L49, "Pending pool capacity eviction" L327) with assertions verifying dedup cache size, pool size equals capacity (64), and oldest-entry eviction via chain height after resolution; verify each assertion is mutation-sensitive (absorbs former T021)
-- [ ] T015 [P] [US1+US2] Replace `SUCCEED(...)` in `tests/consensus_tests.cpp` ("Difficulty cache invalidated" L560) with assertion that cached difficulty before `replaceChain` differs from recomputed difficulty after; verify mutation-sensitivity (absorbs former T022)
-- [ ] T016 [P] [US1] Replace `SUCCEED(...)` in `tests/chunk_persistence_tests.cpp` ("ChunkRetainGuard RAII cleanup" L332) with assertion verifying the guard actually freed the chunk
-- [ ] T017 [P] [US1] Replace `REQUIRE_NOTHROW`-only assertions in `tests/lifecycle_tests.cpp` (L50, L61, L305) with assertions checking that only dirty chunks were saved and chunk state is correct after save
-- [ ] T018 [US1] Audit remaining 21 test files from the inventory (T012) and replace any additional trivial/vacuous sole-assertions found; commit per-file or per-logical-group
-- [ ] T019 [US1] Verify `grep -rn 'REQUIRE(true)' tests/` returns zero matches and `grep -rn 'SUCCEED(' tests/` returns zero sole-assertion matches; fix any remaining instances
+- [X] T013 [P] [US1] Replace trivial assertions in `tests/server_tests.cpp` (3 instances: "Server Construction" L51, "P2P mutual TLS context rejects missing peer cert" L130, and L229) with assertions checking observable server/SSL properties
+- [X] T014 [P] [US1+US2] Replace `SUCCEED(...)` in `tests/block_propagation_tests.cpp` (2 instances: "FIFO eviction capacity" L49, "Pending pool capacity eviction" L327) with assertions verifying dedup cache size, pool size equals capacity (64), and oldest-entry eviction via chain height after resolution; verify each assertion is mutation-sensitive (absorbs former T021)
+- [X] T015 [P] [US1+US2] Replace `SUCCEED(...)` in `tests/consensus_tests.cpp` ("Difficulty cache invalidated" L560) with assertion that cached difficulty before `replaceChain` differs from recomputed difficulty after; verify mutation-sensitivity (absorbs former T022)
+- [X] T016 [P] [US1] Replace `SUCCEED(...)` in `tests/chunk_persistence_tests.cpp` ("ChunkRetainGuard RAII cleanup" L332) with assertion verifying the guard actually freed the chunk
+- [X] T017 [P] [US1] Replace `REQUIRE_NOTHROW`-only assertions in `tests/lifecycle_tests.cpp` (L50, L61, L305) with assertions checking that only dirty chunks were saved and chunk state is correct after save
+- [X] T018 [US1] Audit remaining 21 test files from the inventory (T012) and replace any additional trivial/vacuous sole-assertions found; commit per-file or per-logical-group
+- [X] T019 [US1] Verify `grep -rn 'REQUIRE(true)' tests/` returns zero matches and `grep -rn 'SUCCEED(' tests/` returns zero sole-assertion matches; fix any remaining instances
 
 **Checkpoint**: SC-001 met — zero trivial sole-assertions remain across all 26 test files.
 
@@ -69,9 +69,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Fix "Rate limiter allows up to limit then rejects" test in `tests/block_propagation_tests.cpp` to assert that blocks 11+ are actually rejected (chain height unchanged after rate-limited blocks)
-- [ ] T023 [P] [US2] Fix "Chain reorg deeper than maxReorgDepth is rejected" test in `tests/consensus_tests.cpp` to assert chain state unchanged AND verify the candidate chain is otherwise valid and longer (demonstrating the depth check is the sole rejection reason)
-- [ ] T024 [US2] Review all tests updated in US1 (T013-T018, including merged T014/T015) and verify each one fails when its target behavior is deliberately broken; fix any that still pass vacuously
+- [X] T020 [P] [US2] Fix "Rate limiter allows up to limit then rejects" test in `tests/block_propagation_tests.cpp` to assert that blocks 11+ are actually rejected (chain height unchanged after rate-limited blocks)
+- [X] T023 [P] [US2] Fix "Chain reorg deeper than maxReorgDepth is rejected" test in `tests/consensus_tests.cpp` to assert chain state unchanged AND verify the candidate chain is otherwise valid and longer (demonstrating the depth check is the sole rejection reason)
+- [X] T024 [US2] Review all tests updated in US1 (T013-T018, including merged T014/T015) and verify each one fails when its target behavior is deliberately broken; fix any that still pass vacuously
 
 > **Note**: T021 and T022 were merged into T014 and T015 respectively (Phase 3) to avoid touching the same test cases twice.
 
@@ -87,11 +87,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Rewrite `tests/rpc_expansion_tests.cpp` test infrastructure: create `RpcHandlerTests` class that constructs an `RpcServer` with a test `io_context`/`ssl::context` and a full `MockBlockchain` (inheriting `IBlockchain`, since the constructor requires `IBlockchain&`), accessing private handlers via `friend class RpcHandlerTests`
-- [ ] T026 [P] [US3] Rewrite `getNodeStatus` tests (3 tests) in `tests/rpc_expansion_tests.cpp` to call `handle_getNodeStatus()` directly and assert response fields match mock blockchain state
-- [ ] T027 [P] [US3] Rewrite `getBlockRange` tests (8 tests) in `tests/rpc_expansion_tests.cpp` to call `handle_getBlockRange()` directly and assert correct block data, boundary conditions, and error codes
-- [ ] T028 [P] [US3] Rewrite `getChainLength` and `getChunkCount` tests (4 tests) in `tests/rpc_expansion_tests.cpp` to call `handle_getChainLength()` and `handle_getChunkCount()` directly and assert values match mock state
-- [ ] T029 [US3] Verify all 15 tests in `tests/rpc_expansion_tests.cpp` exercise real handler logic by temporarily breaking a handler and confirming test failure
+- [X] T025 [US3] Rewrite `tests/rpc_expansion_tests.cpp` test infrastructure: create `RpcHandlerTests` class that constructs an `RpcServer` with a test `io_context`/`ssl::context` and a full `MockBlockchain` (inheriting `IBlockchain`, since the constructor requires `IBlockchain&`), accessing private handlers via `friend class RpcHandlerTests`
+- [X] T026 [P] [US3] Rewrite `getNodeStatus` tests (3 tests) in `tests/rpc_expansion_tests.cpp` to call `handle_getNodeStatus()` directly and assert response fields match mock blockchain state
+- [X] T027 [P] [US3] Rewrite `getBlockRange` tests (8 tests) in `tests/rpc_expansion_tests.cpp` to call `handle_getBlockRange()` directly and assert correct block data, boundary conditions, and error codes
+- [X] T028 [P] [US3] Rewrite `getChainLength` and `getChunkCount` tests (4 tests) in `tests/rpc_expansion_tests.cpp` to call `handle_getChainLength()` and `handle_getChunkCount()` directly and assert values match mock state
+- [X] T029 [US3] Verify all 15 tests in `tests/rpc_expansion_tests.cpp` exercise real handler logic by temporarily breaking a handler and confirming test failure
 
 **Checkpoint**: SC-003 met — all RPC expansion tests exercise production handler code.
 
@@ -105,10 +105,10 @@
 
 ### Implementation for User Story 4
 
-- [ ] T030 [P] [US4] Replace `sleep_for(500ms)` stabilization delay in `tests/p2p_sync_integration_tests.cpp` with a `wait_for_connection_ready()` helper that polls `getNodeStatus` until connection count matches
-- [ ] T031 [P] [US4] Wrap `client->call()` in `tests/rpc_integration_tests.cpp` with a retry-with-backoff helper that verifies connection readiness before issuing RPC calls
-- [ ] T032 [P] [US4] Replace `io.run_for(100ms)` in `tests/chunk_persistence_tests.cpp` timer tests with deterministic `io.poll()` / `io.run_one()` event-loop advancement
-- [ ] T033 [US4] Run each integration test binary 10 times locally and confirm zero flaky failures: `for i in {1..10}; do ./tests/p2p_sync_integration_tests && ./tests/rpc_integration_tests && ./tests/lifecycle_integration_tests && echo "PASS $i"; done`
+- [X] T030 [P] [US4] Replace `sleep_for(500ms)` stabilization delay in `tests/p2p_sync_integration_tests.cpp` with a `wait_for_connection_ready()` helper that polls `getNodeStatus` until connection count matches
+- [X] T031 [P] [US4] Wrap `client->call()` in `tests/rpc_integration_tests.cpp` with a retry-with-backoff helper that verifies connection readiness before issuing RPC calls
+- [X] T032 [P] [US4] Replace `io.run_for(100ms)` in `tests/chunk_persistence_tests.cpp` timer tests with deterministic `io.poll()` / `io.run_one()` event-loop advancement
+- [X] T033 [US4] Run each integration test binary 10 times locally and confirm zero flaky failures: `for i in {1..10}; do ./tests/p2p_sync_integration_tests && ./tests/rpc_integration_tests && ./tests/lifecycle_integration_tests && echo "PASS $i"; done`
 
 **Checkpoint**: SC-004 met — 10 consecutive local runs pass without timing-related failures.
 
@@ -122,12 +122,12 @@
 
 ### Implementation for User Story 5
 
-- [ ] T034 [P] [US5] Add test for partial `saveAllChunks()` failure in `tests/lifecycle_tests.cpp`: use a `MockChunk` that throws on `save()` for one chunk, assert return value > 0, assert `dirty` flag remains true, assert other chunks were still saved
-- [ ] T035 [P] [US5] Add test for peer disconnect during block propagation in `tests/block_propagation_tests.cpp`: provide a `RelayCallback` that throws/disconnects mid-relay, assert no crash and chain state is consistent
-- [ ] T036 [P] [US5] Add test for rate limiter window reset in `tests/block_propagation_tests.cpp`: submit blocks up to limit, wait >1 second for window to expire, submit another block and assert it is accepted (chain height increases). **Depends on T020** (same file, rate-limiter context)
-- [ ] T037 [P] [US5] Add test for pending pool TTL expiry in `tests/block_propagation_tests.cpp`: insert gap blocks, use injected clock or reduced TTL interval to trigger expiry (do NOT use real 60s wait — violates FR-004/SC-006), submit connecting block and assert expired entries were not resolved (chain height reflects only non-expired blocks)
-- [ ] T038 [P] [US5] Add test for block relay sender exclusion in `tests/block_propagation_tests.cpp`: provide a test `RelayCallback`, submit a block with sender key "peer1", assert callback is invoked with block and sender key "peer1" (enabling caller to exclude sender)
-- [ ] T039 [P] [US5] Add test for `recoverChain()` with corrupted index files in `tests/chunk_recovery_tests.cpp`: create a test directory with valid chunk files but corrupted `keys.dat`/`streams.dat`, run `recoverChain()`, assert chain is rebuilt from chunks and block count is correct
+- [X] T034 [P] [US5] Add test for partial `saveAllChunks()` failure in `tests/lifecycle_tests.cpp`: use a `MockChunk` that throws on `save()` for one chunk, assert return value > 0, assert `dirty` flag remains true, assert other chunks were still saved
+- [X] T035 [P] [US5] Add test for peer disconnect during block propagation in `tests/block_propagation_tests.cpp`: provide a `RelayCallback` that throws/disconnects mid-relay, assert no crash and chain state is consistent
+- [X] T036 [P] [US5] Add test for rate limiter window reset in `tests/block_propagation_tests.cpp`: submit blocks up to limit, wait >1 second for window to expire, submit another block and assert it is accepted (chain height increases). **Depends on T020** (same file, rate-limiter context)
+- [X] T037 [P] [US5] Add test for pending pool TTL expiry in `tests/block_propagation_tests.cpp`: insert gap blocks, use injected clock or reduced TTL interval to trigger expiry (do NOT use real 60s wait — violates FR-004/SC-006), submit connecting block and assert expired entries were not resolved (chain height reflects only non-expired blocks)
+- [X] T038 [P] [US5] Add test for block relay sender exclusion in `tests/block_propagation_tests.cpp`: provide a test `RelayCallback`, submit a block with sender key "peer1", assert callback is invoked with block and sender key "peer1" (enabling caller to exclude sender)
+- [X] T039 [P] [US5] Add test for `recoverChain()` with corrupted index files in `tests/chunk_recovery_tests.cpp`: create a test directory with valid chunk files but corrupted `keys.dat`/`streams.dat`, run `recoverChain()`, assert chain is rebuilt from chunks and block count is correct
 
 **Checkpoint**: SC-005 met — all 6 open coverage gaps have corresponding test cases.
 
@@ -137,11 +137,11 @@
 
 **Purpose**: Final validation, documentation, and cleanup.
 
-- [ ] T040 Build the full project with `make -j8` and run every test binary individually to confirm all tests pass; time each binary and verify none exceeds 30 seconds (SC-006)
-- [ ] T041 Run `grep -rn 'REQUIRE(true)\|SUCCEED(' tests/` and confirm zero sole-assertion matches remain (SC-001 final validation)
-- [ ] T042 Update `docs/AUDIT.md` to mark test-quality items §7.1, §7.2, §7.3, §7.4, §7.5 as resolved with cross-references to the specific changes made, update the summary table counts, and close the remaining open recommendations (#5, #6, #12)
-- [ ] T043 Update `docs/ROADMAP.md` to move 020-address-test-quality from in-progress/suggested to completed with a one-line summary
-- [ ] T044 Run quickstart.md validation: execute the determinism verification loop and the trivial-assertion grep check from `specs/020-address-test-quality/quickstart.md`
+- [X] T040 Build the full project with `make -j8` and run every test binary individually to confirm all tests pass; time each binary and verify none exceeds 30 seconds (SC-006)
+- [X] T041 Run `grep -rn 'REQUIRE(true)\|SUCCEED(' tests/` and confirm zero sole-assertion matches remain (SC-001 final validation)
+- [X] T042 Update `docs/AUDIT.md` to mark test-quality items §7.1, §7.2, §7.3, §7.4, §7.5 as resolved with cross-references to the specific changes made, update the summary table counts, and close the remaining open recommendations (#5, #6, #12)
+- [X] T043 Update `docs/ROADMAP.md` to move 020-address-test-quality from in-progress/suggested to completed with a one-line summary
+- [X] T044 Run quickstart.md validation: execute the determinism verification loop and the trivial-assertion grep check from `specs/020-address-test-quality/quickstart.md`
 
 **Checkpoint**: All success criteria (SC-001 through SC-006) verified. Documentation updated. Feature complete.
 

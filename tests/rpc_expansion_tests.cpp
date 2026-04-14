@@ -6,32 +6,65 @@
 #include "../src/PeerManager.hpp"
 #include "../src/json.hpp"
 
-// Helper: simulate a JSON-RPC call through the RpcServer dispatch path.
-// We test by calling the blockchain interface directly, matching how the
-// RPC handlers assemble responses, because the RpcServer::do_read() is
-// async/SSL-bound and not easily unit-testable without full TLS setup.
-// Integration coverage: the tests validate the same data-flow that the
-// JSON-RPC handlers execute (parse → method match → handler → serialise).
+// RpcHandlerTests: friend class that accesses private handler methods on RpcServer.
+// Creates a real RpcServer with a test io_context/ssl_context and MockBlockchain,
+// then calls handler methods directly to verify actual production handler logic.
+class RpcHandlerTests {
+public:
+    boost::asio::io_context io;
+    boost::asio::ssl::context ssl_ctx;
+    MockBlockchain bc;
+    std::shared_ptr<RpcServer> server;
+
+    RpcHandlerTests()
+        : ssl_ctx(boost::asio::ssl::context::tls_server)
+    {
+        server = RpcServer::create(io, ssl_ctx, bc);
+    }
+
+    // Build a minimal JSON-RPC request
+    static nlohmann::json makeRequest(int id, const std::string &method,
+                                       const nlohmann::json &params = nullptr) {
+        nlohmann::json req;
+        req["jsonrpc"] = "2.0";
+        req["id"] = id;
+        req["method"] = method;
+        req["params"] = params;
+        return req;
+    }
+
+    nlohmann::json callGetNodeStatus(int id = 1) {
+        return server->handle_getNodeStatus(makeRequest(id, "getNodeStatus"));
+    }
+
+    nlohmann::json callGetBlockRange(int id, nlohmann::json params) {
+        return server->handle_getBlockRange(makeRequest(id, "getBlockRange", params));
+    }
+
+    nlohmann::json callGetChainLength(int id = 1) {
+        return server->handle_getChainLength(makeRequest(id, "getChainLength"));
+    }
+
+    nlohmann::json callGetChunkCount(int id = 1) {
+        return server->handle_getChunkCount(makeRequest(id, "getChunkCount"));
+    }
+
+    void setSyncStatus(SyncStatus *status) { server->set_sync_status(status); }
+    void setPeerManager(PeerManager *pm) { server->set_peer_manager(pm); }
+};
 
 // =========================================================================
-// getNodeStatus tests (US1)
+// getNodeStatus tests
 // =========================================================================
 
 TEST_CASE("getNodeStatus: response contains all 7 fields", "[rpc][getNodeStatus]") {
-    MockBlockchain bc;
-    // Publish a block so chain isn't just genesis
-    bc.publish("s", "k", "d", {"k"});
+    RpcHandlerTests h;
+    h.bc.publish("s", "k", "d", {"k"});
 
-    // Simulate what the RPC handler does
-    nlohmann::json result;
-    result["chainLength"] = bc.getChainLength();
-    result["chunkCount"] = bc.getChunkCount();
-    result["syncState"] = "idle";
-    result["currentDifficulty"] = bc.getCurrentDifficulty();
-    result["inboundPeers"] = static_cast<size_t>(0);
-    result["outboundPeers"] = static_cast<size_t>(0);
-    result["nodeUuid"] = "";
+    auto response = h.callGetNodeStatus();
 
+    REQUIRE(response.contains("result"));
+    auto result = response["result"];
     REQUIRE(result.contains("chainLength"));
     REQUIRE(result.contains("chunkCount"));
     REQUIRE(result.contains("syncState"));
@@ -43,41 +76,27 @@ TEST_CASE("getNodeStatus: response contains all 7 fields", "[rpc][getNodeStatus]
     REQUIRE(result["chainLength"].get<size_t>() == 2);
     REQUIRE(result["chunkCount"].get<size_t>() == 1);
     REQUIRE(result["currentDifficulty"].get<uint32_t>() == 4);
+    REQUIRE(result["syncState"].get<std::string>() == "idle");
+    REQUIRE(response["id"].get<int>() == 1);
 }
 
 TEST_CASE("getNodeStatus: sync active shows syncing", "[rpc][getNodeStatus]") {
-    MockBlockchain bc;
+    RpcHandlerTests h;
     SyncStatus sync;
     sync.isSyncing.store(true);
+    h.setSyncStatus(&sync);
 
-    nlohmann::json result;
-    result["chainLength"] = bc.getChainLength();
-    result["chunkCount"] = bc.getChunkCount();
-    result["syncState"] = sync.isSyncing.load() ? "syncing" : "idle";
-    result["currentDifficulty"] = bc.getCurrentDifficulty();
-    result["inboundPeers"] = static_cast<size_t>(0);
-    result["outboundPeers"] = static_cast<size_t>(0);
-    result["nodeUuid"] = "";
+    auto response = h.callGetNodeStatus();
+    auto result = response["result"];
 
     REQUIRE(result["syncState"].get<std::string>() == "syncing");
 }
 
 TEST_CASE("getNodeStatus: no peer_manager shows zero peer counts", "[rpc][getNodeStatus]") {
-    MockBlockchain bc;
+    RpcHandlerTests h;
 
-    // peer_manager is null → defaults to 0
-    size_t inbound = 0;
-    size_t outbound = 0;
-    std::string uuid = "";
-
-    nlohmann::json result;
-    result["chainLength"] = bc.getChainLength();
-    result["chunkCount"] = bc.getChunkCount();
-    result["syncState"] = "idle";
-    result["currentDifficulty"] = bc.getCurrentDifficulty();
-    result["inboundPeers"] = inbound;
-    result["outboundPeers"] = outbound;
-    result["nodeUuid"] = uuid;
+    auto response = h.callGetNodeStatus();
+    auto result = response["result"];
 
     REQUIRE(result["inboundPeers"].get<size_t>() == 0);
     REQUIRE(result["outboundPeers"].get<size_t>() == 0);
@@ -85,21 +104,22 @@ TEST_CASE("getNodeStatus: no peer_manager shows zero peer counts", "[rpc][getNod
 }
 
 // =========================================================================
-// getBlockRange tests (US2)
+// getBlockRange tests
 // =========================================================================
 
 TEST_CASE("getBlockRange: valid range returns correct blocks in order", "[rpc][getBlockRange]") {
-    MockBlockchain bc;
-    bc.publish("s", "k1", "d1", {"k1"});
-    bc.publish("s", "k2", "d2", {"k2"});
-    bc.publish("s", "k3", "d3", {"k3"});
+    RpcHandlerTests h;
+    h.bc.publish("s", "k1", "d1", {"k1"});
+    h.bc.publish("s", "k2", "d2", {"k2"});
+    h.bc.publish("s", "k3", "d3", {"k3"});
 
-    // Simulate handler: range [0, 2]
-    nlohmann::json blocks = nlohmann::json::array();
-    for (size_t i = 0; i <= 2; i++) {
-        blocks.push_back(bc.getBlockByIndex(i).toJson());
-    }
+    nlohmann::json params;
+    params["startIndex"] = 0;
+    params["endIndex"] = 2;
+    auto response = h.callGetBlockRange(1, params);
 
+    REQUIRE(response.contains("result"));
+    auto blocks = nlohmann::json::parse(response["result"].get<std::string>());
     REQUIRE(blocks.size() == 3);
     REQUIRE(blocks[0]["index"].get<size_t>() == 0);
     REQUIRE(blocks[1]["index"].get<size_t>() == 1);
@@ -107,128 +127,147 @@ TEST_CASE("getBlockRange: valid range returns correct blocks in order", "[rpc][g
 }
 
 TEST_CASE("getBlockRange: end index clamped when beyond chain length", "[rpc][getBlockRange]") {
-    MockBlockchain bc;
-    bc.publish("s", "k1", "d1", {"k1"});
-    // Chain length = 2 (genesis + 1)
+    RpcHandlerTests h;
+    h.bc.publish("s", "k1", "d1", {"k1"});
 
-    size_t startIndex = 0;
-    size_t endIndex = 100; // way beyond chain
-    size_t chainLength = bc.getChainLength();
+    nlohmann::json params;
+    params["startIndex"] = 0;
+    params["endIndex"] = 100;
+    auto response = h.callGetBlockRange(1, params);
 
-    // Clamp
-    if (endIndex >= chainLength) endIndex = chainLength - 1;
-
-    nlohmann::json blocks = nlohmann::json::array();
-    for (size_t i = startIndex; i <= endIndex; i++) {
-        blocks.push_back(bc.getBlockByIndex(i).toJson());
-    }
-
+    REQUIRE(response.contains("result"));
+    auto blocks = nlohmann::json::parse(response["result"].get<std::string>());
     REQUIRE(blocks.size() == 2);
     REQUIRE(blocks[0]["index"].get<size_t>() == 0);
     REQUIRE(blocks[1]["index"].get<size_t>() == 1);
 }
 
 TEST_CASE("getBlockRange: headersOnly=true returns header-only objects", "[rpc][getBlockRange]") {
-    MockBlockchain bc;
-    bc.publish("s", "k1", "d1", {"k1"});
+    RpcHandlerTests h;
+    h.bc.publish("s", "k1", "d1", {"k1"});
 
-    nlohmann::json blocks = nlohmann::json::array();
-    for (size_t i = 0; i <= 1; i++) {
-        blocks.push_back(bc.getBlockByIndex(i).toHeaderJson());
-    }
+    nlohmann::json params;
+    params["startIndex"] = 0;
+    params["endIndex"] = 1;
+    params["headersOnly"] = true;
+    auto response = h.callGetBlockRange(1, params);
 
+    REQUIRE(response.contains("result"));
+    auto blocks = nlohmann::json::parse(response["result"].get<std::string>());
     REQUIRE(blocks.size() == 2);
-    // Header-only should NOT contain "entries"
     REQUIRE_FALSE(blocks[0].contains("entries"));
     REQUIRE_FALSE(blocks[1].contains("entries"));
-    // But should contain header fields
     REQUIRE(blocks[0].contains("index"));
     REQUIRE(blocks[0].contains("hash"));
     REQUIRE(blocks[0].contains("merkleRoot"));
 }
 
 TEST_CASE("getBlockRange: start > end returns error -32602", "[rpc][getBlockRange]") {
-    size_t startIndex = 10;
-    size_t endIndex = 5;
+    RpcHandlerTests h;
 
-    REQUIRE(startIndex > endIndex);
-    // Handler would return errorMessage(id, -32602, "Invalid range: startIndex exceeds endIndex")
+    nlohmann::json params;
+    params["startIndex"] = 10;
+    params["endIndex"] = 5;
+    auto response = h.callGetBlockRange(1, params);
+
+    REQUIRE(response.contains("error"));
+    REQUIRE(response["error"]["code"].get<int>() == -32602);
+    REQUIRE(response["error"]["message"].get<std::string>().find("startIndex exceeds endIndex") != std::string::npos);
 }
 
 TEST_CASE("getBlockRange: start beyond chain returns error -32001", "[rpc][getBlockRange]") {
-    MockBlockchain bc;
-    // Chain length = 1 (genesis only)
-    size_t startIndex = 5;
-    size_t chainLength = bc.getChainLength();
+    RpcHandlerTests h;
 
-    REQUIRE(startIndex >= chainLength);
-    // Handler would return errorMessage(id, -32001, "Start index out of range")
+    nlohmann::json params;
+    params["startIndex"] = 5;
+    params["endIndex"] = 10;
+    auto response = h.callGetBlockRange(1, params);
+
+    REQUIRE(response.contains("error"));
+    REQUIRE(response["error"]["code"].get<int>() == -32001);
+    REQUIRE(response["error"]["message"].get<std::string>().find("Start index out of range") != std::string::npos);
 }
 
 TEST_CASE("getBlockRange: range exceeding 1000 returns error -32602", "[rpc][getBlockRange]") {
-    size_t startIndex = 0;
-    size_t endIndex = 1500;
+    RpcHandlerTests h;
 
-    static constexpr size_t kMaxBlockRange = 1000;
-    size_t rangeSize = endIndex - startIndex + 1;
+    nlohmann::json params;
+    params["startIndex"] = 0;
+    params["endIndex"] = 1500;
+    auto response = h.callGetBlockRange(1, params);
 
-    REQUIRE(rangeSize > kMaxBlockRange);
-    // Handler would return errorMessage(id, -32602, "Range too large: maximum 1000 blocks per request")
+    REQUIRE(response.contains("error"));
+    REQUIRE(response["error"]["code"].get<int>() == -32602);
+    REQUIRE(response["error"]["message"].get<std::string>().find("Range too large") != std::string::npos);
 }
 
 TEST_CASE("getBlockRange: missing params returns error -32602", "[rpc][getBlockRange]") {
-    nlohmann::json params; // empty object
-    REQUIRE_FALSE(params.contains("startIndex"));
-    REQUIRE_FALSE(params.contains("endIndex"));
-    // Handler would return errorMessage(id, -32602, "Invalid params")
+    RpcHandlerTests h;
+
+    auto response = h.callGetBlockRange(1, nlohmann::json::object());
+
+    REQUIRE(response.contains("error"));
+    REQUIRE(response["error"]["code"].get<int>() == -32602);
 }
 
 TEST_CASE("getBlockRange: start=0 end=0 returns genesis block only", "[rpc][getBlockRange]") {
-    MockBlockchain bc;
+    RpcHandlerTests h;
 
-    nlohmann::json blocks = nlohmann::json::array();
-    blocks.push_back(bc.getBlockByIndex(0).toJson());
+    nlohmann::json params;
+    params["startIndex"] = 0;
+    params["endIndex"] = 0;
+    auto response = h.callGetBlockRange(1, params);
 
+    REQUIRE(response.contains("result"));
+    auto blocks = nlohmann::json::parse(response["result"].get<std::string>());
     REQUIRE(blocks.size() == 1);
     REQUIRE(blocks[0]["index"].get<size_t>() == 0);
 }
 
 // =========================================================================
-// getChainLength tests (US3)
+// getChainLength tests
 // =========================================================================
 
 TEST_CASE("getChainLength: returns correct integer for chain with multiple blocks", "[rpc][getChainLength]") {
-    MockBlockchain bc;
-    bc.publish("s", "k1", "d1", {"k1"});
-    bc.publish("s", "k2", "d2", {"k2"});
-    bc.publish("s", "k3", "d3", {"k3"});
+    RpcHandlerTests h;
+    h.bc.publish("s", "k1", "d1", {"k1"});
+    h.bc.publish("s", "k2", "d2", {"k2"});
+    h.bc.publish("s", "k3", "d3", {"k3"});
 
-    size_t length = bc.getChainLength();
-    REQUIRE(length == 4); // genesis + 3
+    auto response = h.callGetChainLength();
+
+    REQUIRE(response.contains("result"));
+    REQUIRE(response["result"].get<std::string>() == "4");
 }
 
 TEST_CASE("getChainLength: returns 1 for genesis-only chain", "[rpc][getChainLength]") {
-    MockBlockchain bc;
+    RpcHandlerTests h;
 
-    size_t length = bc.getChainLength();
-    REQUIRE(length == 1);
+    auto response = h.callGetChainLength();
+
+    REQUIRE(response.contains("result"));
+    REQUIRE(response["result"].get<std::string>() == "1");
 }
 
 // =========================================================================
-// getChunkCount tests (US3)
+// getChunkCount tests
 // =========================================================================
 
 TEST_CASE("getChunkCount: returns correct chunk count", "[rpc][getChunkCount]") {
-    MockBlockchain bc;
-    bc.publish("s", "k1", "d1", {"k1"});
+    RpcHandlerTests h;
+    h.bc.publish("s", "k1", "d1", {"k1"});
 
-    size_t count = bc.getChunkCount();
-    REQUIRE(count == 1); // 2 blocks / 100 chunkSize = 1 chunk
+    auto response = h.callGetChunkCount();
+
+    REQUIRE(response.contains("result"));
+    REQUIRE(response["result"].get<std::string>() == "1");
 }
 
 TEST_CASE("getChunkCount: returns 1 for genesis-only chain", "[rpc][getChunkCount]") {
-    MockBlockchain bc;
+    RpcHandlerTests h;
 
-    size_t count = bc.getChunkCount();
-    REQUIRE(count == 1);
+    auto response = h.callGetChunkCount();
+
+    REQUIRE(response.contains("result"));
+    REQUIRE(response["result"].get<std::string>() == "1");
 }
