@@ -115,7 +115,8 @@ size_t ChainPersistence<ChunkHandler>::saveAllChunks(std::vector<ChunkHandler>& 
             try {
                 chain[i].save();
             } catch (const std::exception &e) {
-                throw PersistenceError("Failed to save chunk " + std::to_string(i) + ": " + std::string(e.what()));
+                logMessage("ERROR", "Failed to save chunk " + std::to_string(i) + ": " + std::string(e.what()));
+                failures++;
             }
         }
     }
