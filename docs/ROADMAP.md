@@ -26,6 +26,7 @@ Last updated: 2026-04-13
 | 018  | Audit Bug & Security Fixes | Fixed 4 bugs (sync response block append, RPC getBlockByIndex bounds check, getBlockByIndex resize chunk IDs, recovery triple-load) and 2 security issues (port range validation in parsePeerKey, seed node input validation in main); single-pass recovery optimization |
 | 019  | Performance & Deduplication Cleanup | O(1) peer lookups via `unordered_map`, RPC dispatch table replacing 21-branch `if`/`else`, shared `serialize_packet<T>()` template, consolidated `TestHelpers`, lazy `LOG_*` macros |
 | 020  | Address Test Quality | Replaced all trivial/vacuous assertions with behavioral checks, rewrote RPC expansion tests against real handlers, made integration tests deterministic, added 6 coverage-gap tests, split `IBlockchain` into `IChainReader`/`IChainWriter` |
+| 021  | Architecture Remediation | Segregated `IBlockchain` into `IChainReader`/`IChainWriter` with narrow references in `RpcServer`, introduced `ChainService` mediator between network and domain layers, domain-specific exception hierarchy (`ChainError` → `ValidationError`/`PersistenceError`/`PeerError`), streaming `replaceChainStreaming()` with 100-block batch validation, wire-format cleanup (`chunk_index` → `start_index`) |
 
 ## Suggested Specs
 

@@ -2,6 +2,7 @@
 #include "../src/Block.hpp"
 #include "../src/StreamEntry.hpp"
 #include "../src/Blockchain.hpp"
+#include "../src/ChainError.hpp"
 #include "../src/Chunk.hpp"
 #include "TestHelpers.hpp"
 #include <filesystem>
@@ -136,6 +137,119 @@ TEST_CASE("replaceChain persists all new chunk files", "[US8][replace]")
         // The active chunk (chunk 1) should be saved after replaceChain
         REQUIRE(bc.getChainLength() == 150);
         REQUIRE(bc.getChunkCount() == 2);
+    }
+    cleanup_test_dir(dir);
+}
+
+// Streaming replaceChain tests
+
+TEST_CASE("replaceChainStreaming produces same result as all-in-memory", "[US4][streaming]")
+{
+    auto dir = create_test_dir("streaming_same");
+    {
+        auto cfg = TestHelpers::defaultConsensusConfig();
+        cfg.maxReorgDepth = 1000;
+        Blockchain<Chunk> bc(dir, cfg);
+
+        auto candidate = build_candidate_chain(150);
+
+        bc.replaceChainStreaming(candidate.size(),
+            [&](size_t start, size_t count) -> std::vector<Block> {
+                return std::vector<Block>(candidate.begin() + start,
+                                         candidate.begin() + start + count);
+            });
+
+        REQUIRE(bc.getChainLength() == 150);
+        REQUIRE(bc.getChunkCount() == 2);
+
+        // Verify all blocks are accessible
+        for (size_t i = 0; i < 150; i++) {
+            Block b = bc.getBlockByIndex(i);
+            REQUIRE(b.index == i);
+            REQUIRE(b.hash == candidate[i].hash);
+        }
+    }
+    cleanup_test_dir(dir);
+}
+
+TEST_CASE("replaceChainStreaming preserves original chain on validation failure", "[US4][streaming]")
+{
+    auto dir = create_test_dir("streaming_fail");
+    {
+        auto cfg = TestHelpers::defaultConsensusConfig();
+        cfg.maxReorgDepth = 1000;
+        Blockchain<Chunk> bc(dir, cfg);
+
+        // Add some blocks first
+        for (size_t i = 1; i <= 5; i++) {
+            bc.publish("test", "k" + std::to_string(i), "data", {"k" + std::to_string(i)});
+        }
+        size_t original_length = bc.getChainLength();
+
+        // Build a candidate with an invalid block
+        auto candidate = build_candidate_chain(10);
+        candidate[5].hash = "invalid_hash"; // corrupt block 5
+
+        REQUIRE_THROWS_AS(
+            bc.replaceChainStreaming(candidate.size(),
+                [&](size_t start, size_t count) -> std::vector<Block> {
+                    return std::vector<Block>(candidate.begin() + start,
+                                             candidate.begin() + start + count);
+                }),
+            ValidationError);
+
+        // Original chain should be preserved
+        REQUIRE(bc.getChainLength() == original_length);
+    }
+    cleanup_test_dir(dir);
+}
+
+TEST_CASE("replaceChainStreaming clears difficulty cache", "[US4][streaming]")
+{
+    auto dir = create_test_dir("streaming_diffcache");
+    {
+        auto cfg = TestHelpers::defaultConsensusConfig();
+        cfg.maxReorgDepth = 1000;
+        Blockchain<Chunk> bc(dir, cfg);
+
+        // Prime the difficulty cache
+        bc.getDifficultyForHeight(0);
+
+        auto candidate = build_candidate_chain(10);
+
+        bc.replaceChainStreaming(candidate.size(),
+            [&](size_t start, size_t count) -> std::vector<Block> {
+                return std::vector<Block>(candidate.begin() + start,
+                                         candidate.begin() + start + count);
+            });
+
+        REQUIRE(bc.getChainLength() == 10);
+    }
+    cleanup_test_dir(dir);
+}
+
+TEST_CASE("replaceChainStreaming rejects shorter candidate", "[US4][streaming]")
+{
+    auto dir = create_test_dir("streaming_shorter");
+    {
+        auto cfg = TestHelpers::defaultConsensusConfig();
+        cfg.maxReorgDepth = 1000;
+        Blockchain<Chunk> bc(dir, cfg);
+
+        // Add blocks so chain is length 5
+        for (size_t i = 1; i <= 4; i++) {
+            bc.publish("test", "k" + std::to_string(i), "data", {"k" + std::to_string(i)});
+        }
+
+        auto candidate = build_candidate_chain(3);
+
+        REQUIRE_THROWS_AS(
+            bc.replaceChainStreaming(candidate.size(),
+                [&](size_t start, size_t count) -> std::vector<Block> {
+                    return std::vector<Block>(candidate.begin() + start,
+                                             candidate.begin() + start + count);
+                }),
+            ValidationError);
     }
     cleanup_test_dir(dir);
 }

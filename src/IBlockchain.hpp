@@ -35,15 +35,6 @@ class IBlockchain : public IChainReader, public IChainWriter
     virtual void dumpBlocks() = 0;
     virtual void dumpKeys() = 0;
 
-    // Query methods returning mutable copies (kept on IBlockchain)
-    virtual std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys) = 0;
-    virtual Block getBlockByIndex(size_t index) = 0;
-
-    // Merkle proof methods
-    virtual nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) = 0;
-    virtual nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
-                                                 const nlohmann::json &proofArray) = 0;
-
     static bool isValidNewBlock(const Block &newBlock, const Block &previousBlock, const ConsensusConfig &config)
     {
         if (previousBlock.index + 1 != newBlock.index) {

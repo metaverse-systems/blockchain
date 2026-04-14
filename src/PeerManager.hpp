@@ -13,6 +13,7 @@
 #include <functional>
 #include "PeerConfig.hpp"
 #include "IBlockchain.hpp"
+#include "ChainService.hpp"
 #include "SyncState.hpp"
 #include "json.hpp"
 
@@ -27,6 +28,7 @@ public:
                 const PeerConfig &config,
                 const std::filesystem::path &data_dir,
                 IBlockchain &bc,
+                ChainService &chain_service,
                 SyncStatus &sync_status,
                 uint16_t p2p_port = 0);
 
@@ -35,8 +37,8 @@ public:
     void save_peers();
 
     // Peer list management
-    bool add_peer(const PeerEntry &entry);
-    bool remove_peer(const std::string &host, uint16_t port);
+    void add_peer(const PeerEntry &entry);
+    void remove_peer(const std::string &host, uint16_t port);
     std::vector<PeerEntry> get_peers() const;
     PeerEntry* find_peer(const std::string &host, uint16_t port);
     const PeerEntry* find_peer(const std::string &host, uint16_t port) const;
@@ -108,6 +110,7 @@ private:
     PeerConfig config_;
     std::filesystem::path data_dir_;
     IBlockchain &bc_;
+    ChainService &chain_service_;
     SyncStatus &sync_status_;
     uint16_t p2p_port_;
 

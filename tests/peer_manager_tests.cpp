@@ -1,5 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include "../src/PeerManager.hpp"
+#include "../src/ChainService.hpp"
+#include "../src/ChainError.hpp"
 #include "../src/PeerConfig.hpp"
 #include "../src/Blockchain.hpp"
 #include "../src/MockChunk.hpp"
@@ -23,9 +25,10 @@ TEST_CASE("PeerManager generates UUID on first run", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     REQUIRE(!pm.get_node_uuid().empty());
@@ -41,17 +44,18 @@ TEST_CASE("PeerManager persists and reloads UUID", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
     std::string uuid;
     {
-        PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+        PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
         pm.load_peers();
         uuid = pm.get_node_uuid();
     }
 
     {
-        PeerManager pm2(io, ssl_ctx, cfg, dir, bc, sync);
+        PeerManager pm2(io, ssl_ctx, cfg, dir, bc, cs, sync);
         pm2.load_peers();
         REQUIRE(pm2.get_node_uuid() == uuid);
     }
@@ -65,9 +69,10 @@ TEST_CASE("PeerManager add/remove/find peers", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     PeerEntry e;
@@ -75,13 +80,16 @@ TEST_CASE("PeerManager add/remove/find peers", "[PeerManager]") {
     e.port = 12346;
     e.last_seen = 100;
 
-    REQUIRE(pm.add_peer(e));
+    pm.add_peer(e);
     REQUIRE(pm.get_peers().size() == 1);
     REQUIRE(pm.find_peer("10.0.0.1", 12346) != nullptr);
     REQUIRE(pm.find_peer("10.0.0.2", 12346) == nullptr);
 
-    REQUIRE(pm.remove_peer("10.0.0.1", 12346));
+    pm.remove_peer("10.0.0.1", 12346);
     REQUIRE(pm.get_peers().empty());
+
+    // Removing a non-existent peer throws PeerError
+    REQUIRE_THROWS_AS(pm.remove_peer("10.0.0.1", 12346), PeerError);
 
     std::filesystem::remove_all(dir);
 }
@@ -92,10 +100,11 @@ TEST_CASE("PeerManager enforces 256-entry cap with oldest-seen eviction", "[Peer
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
     cfg.max_stored_peers = 5; // Small cap for testing
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     for (int i = 0; i < 6; i++) {
@@ -120,9 +129,10 @@ TEST_CASE("PeerManager ban and unban", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     REQUIRE(!pm.is_banned("10.0.0.1", 12346));
@@ -144,10 +154,11 @@ TEST_CASE("PeerManager auto-ban on error threshold", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
     cfg.ban_threshold_errors = 3;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     PeerEntry e;
@@ -175,9 +186,10 @@ TEST_CASE("PeerManager handles malformed peers.json", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers(); // Should not throw
 
     REQUIRE(!pm.get_node_uuid().empty());
@@ -192,9 +204,10 @@ TEST_CASE("PeerManager save_peers produces atomic output", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     PeerEntry e;
@@ -273,10 +286,11 @@ TEST_CASE("PeerManager connection limit checks", "[PeerManager]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
     cfg.max_inbound = 2;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     REQUIRE(pm.can_accept_inbound());

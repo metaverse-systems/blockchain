@@ -1,4 +1,5 @@
 #include "ChainPersistence.hpp"
+#include "ChainError.hpp"
 #include "Chunk.hpp"
 #include "MockChunk.hpp"
 #include "utils.hpp"
@@ -115,7 +116,7 @@ size_t ChainPersistence<ChunkHandler>::saveAllChunks(std::vector<ChunkHandler>& 
                 chain[i].save();
             } catch (const std::exception &e) {
                 logMessage("ERROR", "Failed to save chunk " + std::to_string(i) + ": " + std::string(e.what()));
-                ++failures;
+                failures++;
             }
         }
     }
@@ -123,20 +124,17 @@ size_t ChainPersistence<ChunkHandler>::saveAllChunks(std::vector<ChunkHandler>& 
     try {
         saveKeys(keyIndexMap);
     } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to save keys: " + std::string(e.what()));
-        ++failures;
+        throw PersistenceError("Failed to save keys: " + std::string(e.what()));
     }
     try {
         saveStreams(streamRegistry);
     } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to save streams: " + std::string(e.what()));
-        ++failures;
+        throw PersistenceError("Failed to save streams: " + std::string(e.what()));
     }
     try {
         saveStreamIndex(streamKeyIndex);
     } catch (const std::exception &e) {
-        logMessage("ERROR", "Failed to save stream index: " + std::string(e.what()));
-        ++failures;
+        throw PersistenceError("Failed to save stream index: " + std::string(e.what()));
     }
 
     if (failures == 0) {

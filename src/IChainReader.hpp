@@ -3,6 +3,7 @@
 #include "Block.hpp"
 #include "StreamEntry.hpp"
 #include "ConsensusConfig.hpp"
+#include "json.hpp"
 #include <set>
 #include <string>
 #include <vector>
@@ -22,4 +23,10 @@ public:
     virtual size_t getChunkCount() const = 0;
     virtual uint32_t getCurrentDifficulty() const = 0;
     virtual const ConsensusConfig& getConfig() const = 0;
+
+    virtual Block getBlockByIndex(size_t index) = 0;
+    virtual std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys) = 0;
+    virtual nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) = 0;
+    virtual nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
+                                                 const nlohmann::json &proofArray) = 0;
 };

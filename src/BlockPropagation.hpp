@@ -7,7 +7,9 @@
 #include <functional>
 #include <chrono>
 #include "Block.hpp"
+#include "IChainReader.hpp"
 #include "IBlockchain.hpp"
+#include "ChainService.hpp"
 #include "SyncState.hpp"
 
 class PeerManager;
@@ -27,7 +29,7 @@ class BlockPropagation {
 public:
     using RelayCallback = std::function<void(const Block&, const std::string&)>;
 
-    BlockPropagation(IBlockchain &bc, SyncStatus &sync_status, RelayCallback relay_cb);
+    BlockPropagation(IChainReader &reader, ChainService &chain_service, SyncStatus &sync_status, RelayCallback relay_cb);
 
     void on_block_received(const Block &block, const std::string &sender_key);
     void process_sync_queue();
@@ -35,7 +37,8 @@ public:
     void set_peer_manager(PeerManager *pm) { peer_manager_ = pm; }
 
 private:
-    IBlockchain &bc_;
+    IChainReader &reader_;
+    ChainService &chain_service_;
     SyncStatus &sync_status_;
     RelayCallback relay_cb_;
     PeerManager *peer_manager_ = nullptr;

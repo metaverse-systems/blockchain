@@ -17,6 +17,7 @@
 #include "../src/Blockchain.hpp"
 #include "../src/Chunk.hpp"
 #include "../src/BlockPropagation.hpp"
+#include "../src/ChainService.hpp"
 #include "../src/ConsensusConfig.hpp"
 #include "../src/NodeConfig.hpp"
 #include "../src/PeerManager.hpp"
@@ -130,6 +131,7 @@ struct NodeInstance {
     // Core components
     std::unique_ptr<Blockchain<Chunk>> blockchain;
     SyncStatus sync_status;
+    std::unique_ptr<ChainService> chain_service;
     std::unique_ptr<PeerManager> peer_manager;
     std::unique_ptr<BlockPropagation> block_propagation;
 
@@ -171,6 +173,9 @@ struct NodeInstance {
 
         // Create blockchain
         blockchain = std::make_unique<Blockchain<Chunk>>(data_dir, consensus_cfg);
+
+        // Create ChainService
+        chain_service = std::make_unique<ChainService>(*blockchain);
 
         // Setup RPC SSL context (server-only TLS)
         rpc_ssl_ctx = std::make_unique<ssl::context>(ssl::context::tlsv12);
@@ -215,11 +220,11 @@ struct NodeInstance {
 
         // Create PeerManager
         peer_manager = std::make_unique<PeerManager>(
-            io_context, *p2p_ssl_ctx, peer_cfg, data_dir, *blockchain, sync_status, p2p_port);
+            io_context, *p2p_ssl_ctx, peer_cfg, data_dir, *blockchain, *chain_service, sync_status, p2p_port);
 
         // Create BlockPropagation
         block_propagation = std::make_unique<BlockPropagation>(
-            *blockchain, sync_status,
+            *blockchain, *chain_service, sync_status,
             [this](const Block &block, const std::string &exclude_key) {
                 peer_manager->relay_block(block, exclude_key);
             });

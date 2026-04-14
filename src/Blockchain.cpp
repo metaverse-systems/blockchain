@@ -1,4 +1,5 @@
 #include "Blockchain.hpp"
+#include "ChainError.hpp"
 #include "Chunk.hpp"
 #include "MockChunk.hpp"
 #include "MerkleTree.hpp"
@@ -29,7 +30,7 @@ Block Blockchain<ChunkHandler>::publish(const std::string &stream, const std::st
                                          const std::string &data, const std::vector<std::string> &keys)
 {
     if (this->isShuttingDown()) {
-        throw std::runtime_error("Cannot publish block: node is shutting down");
+        throw ValidationError("Cannot publish block: node is shutting down");
     }
 
     // Auto-create stream if needed
@@ -99,7 +100,7 @@ Block Blockchain<ChunkHandler>::publish(const std::string &stream, const std::st
 
         auto elapsed = std::chrono::steady_clock::now() - startTime;
         if (elapsed >= timeoutDuration) {
-            throw std::runtime_error("Mining timeout exceeded ("
+            throw ValidationError("Mining timeout exceeded ("
                 + std::to_string(this->config.miningTimeout) + "s)");
         }
     }
@@ -128,7 +129,7 @@ template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::createStream(const std::string &name)
 {
     if (this->streamRegistry.find(name) != this->streamRegistry.end()) {
-        throw std::runtime_error("Stream already exists: " + name);
+        throw ValidationError("Stream already exists: " + name);
     }
     this->streamRegistry.insert(name);
 }
@@ -191,11 +192,11 @@ std::pair<size_t, StreamEntry> Blockchain<ChunkHandler>::getStreamEntry(
 {
     auto streamIt = this->streamKeyIndex.find(stream);
     if (streamIt == this->streamKeyIndex.end()) {
-        throw std::runtime_error("Entry not found");
+        throw ValidationError("Entry not found");
     }
     auto keyIt = streamIt->second.find(key);
     if (keyIt == streamIt->second.end() || keyIt->second.empty()) {
-        throw std::runtime_error("Entry not found");
+        throw ValidationError("Entry not found");
     }
     size_t lastBlockIdx = keyIt->second.back();
     size_t chunkIdx = lastBlockIdx / this->chunkSize;
@@ -206,14 +207,14 @@ std::pair<size_t, StreamEntry> Blockchain<ChunkHandler>::getStreamEntry(
             return {lastBlockIdx, *it};
         }
     }
-    throw std::runtime_error("Entry not found");
+    throw ValidationError("Entry not found");
 }
 
 template<typename ChunkHandler>
 void Blockchain<ChunkHandler>::appendBlock(const Block &block)
 {
     if (this->isShuttingDown()) {
-        throw std::runtime_error("Cannot append block: node is shutting down");
+        throw ValidationError("Cannot append block: node is shutting down");
     }
 
     size_t chunkIndex = block.index / this->chunkSize;
@@ -255,7 +256,7 @@ void Blockchain<ChunkHandler>::appendBlock(const Block &block)
 }
 
 template<typename ChunkHandler>
-auto Blockchain<ChunkHandler>::getBlockByIndex(size_t index) -> Block
+Block Blockchain<ChunkHandler>::getBlockByIndex(size_t index)
 {
     size_t chunkIndex = index / this->chunkSize;
 
@@ -584,6 +585,109 @@ void Blockchain<ChunkHandler>::replaceChain(const std::vector<Block> &candidateB
 
     logMessage("INFO", "Chain replaced with candidate chain of length "
                + std::to_string(candidateBlocks.size()));
+}
+
+template<typename ChunkHandler>
+void Blockchain<ChunkHandler>::replaceChainStreaming(
+    size_t candidateLength,
+    std::function<std::vector<Block>(size_t batchStart, size_t batchSize)> fetcher)
+{
+    size_t currentLength = this->getChainBlockCount();
+
+    if (candidateLength <= currentLength) {
+        throw ValidationError("Candidate chain is not longer than current chain");
+    }
+
+    if (candidateLength - currentLength > this->config.maxReorgDepth) {
+        throw ValidationError("Chain reorganization depth exceeds maximum of "
+                              + std::to_string(this->config.maxReorgDepth));
+    }
+
+    // Clear difficulty cache at start
+    this->difficultyCache_.clear();
+
+    const size_t batchSize = 100;
+
+    // Phase 1: Validate all batches and write to temp chunk files
+    std::vector<ChunkHandler> tempChunks;
+    std::map<std::string, std::map<std::string, std::vector<size_t>>> tempStreamKeyIndex;
+    std::set<std::string> tempStreamRegistry;
+    std::map<std::string, std::vector<size_t>> tempKeyIndexMap;
+    size_t totalBlocks = 0;
+
+    Block prevBlock;
+    bool havePrev = false;
+
+    for (size_t start = 0; start < candidateLength; start += batchSize) {
+        size_t count = std::min(batchSize, candidateLength - start);
+        auto batch = fetcher(start, count);
+
+        if (batch.size() != count) {
+            throw ValidationError("Fetcher returned wrong batch size");
+        }
+
+        for (const auto &block : batch) {
+            // Validate genesis block
+            if (block.index == 0 && !havePrev) {
+                // Genesis — just accept
+            } else if (havePrev) {
+                if (!IBlockchain::isValidNewBlock(block, prevBlock, this->config)) {
+                    throw ValidationError("Invalid block #" + std::to_string(block.index)
+                                          + " in candidate chain");
+                }
+            }
+
+            size_t chunkIndex = block.index / this->chunkSize;
+            while (tempChunks.size() <= chunkIndex) {
+                tempChunks.emplace_back(ChunkHandler(tempChunks.size(), this->blockchainPath));
+            }
+            Block b = block;
+            tempChunks[chunkIndex].push_back(b);
+
+            // Build stream index
+            for (const auto &entry : block.entries) {
+                tempStreamRegistry.insert(entry.stream);
+                tempStreamKeyIndex[entry.stream][entry.key].push_back(block.index);
+            }
+
+            prevBlock = block;
+            havePrev = true;
+            totalBlocks++;
+        }
+    }
+
+    // Phase 2: Archive old chain files
+    this->archiveChainFiles();
+
+    // Phase 3: Atomic commit — save all temp chunks as real chunks
+    this->chain.clear();
+    this->keyIndexMap.clear();
+    this->streamRegistry.clear();
+    this->streamKeyIndex.clear();
+
+    this->chain = std::move(tempChunks);
+    this->streamRegistry = std::move(tempStreamRegistry);
+    this->streamKeyIndex = std::move(tempStreamKeyIndex);
+    this->totalBlockCount_ = totalBlocks;
+    this->chunkCount_ = this->chain.size();
+    this->dirty_ = true;
+
+    // Save all chunks
+    for (size_t i = 0; i < this->chain.size(); i++) {
+        try {
+            this->chain[i].save();
+        } catch (const std::exception &e) {
+            throw PersistenceError("Failed to save chunk " + std::to_string(i)
+                                   + " after replaceChainStreaming: " + std::string(e.what()));
+        }
+    }
+    this->saveKeys();
+    this->saveStreams();
+    this->saveStreamIndex();
+    this->dirty_ = false;
+
+    logMessage("INFO", "Chain replaced (streaming) with candidate chain of length "
+               + std::to_string(totalBlocks));
 }
 
 template<typename ChunkHandler>

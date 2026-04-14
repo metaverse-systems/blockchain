@@ -87,6 +87,7 @@ tests/p2p_sync_integration_tests
 tests/chain_persistence_module_tests
 tests/difficulty_engine_tests
 tests/merkle_proof_tests
+tests/chain_service_tests
 
 # Test artifacts
 *.trs

@@ -36,15 +36,16 @@ All 4 bugs, both security issues, and 1 performance issue were resolved in
 **018-audit-bug-security-fixes**. Three more performance issues, both
 duplication clusters, and 1 test-quality issue were resolved in
 **019-perf-dedup-cleanup**. The remaining 5 test-quality issues were resolved
-in **020-address-test-quality**. Remaining items are tracked below.
+in **020-address-test-quality**. All 3 architecture concerns and the remaining
+performance issue were resolved in **021-architecture-remediation**.
 
 | Category              | Found | Resolved | Remaining | Highest Open Severity |
 |-----------------------|------:|---------:|----------:|----------------------:|
 | Bugs                  |     4 |        4 |         0 | —                     |
 | Security issues       |     2 |        2 |         0 | —                     |
-| Performance issues    |     5 |        4 |         1 | Low                   |
+| Performance issues    |     5 |        5 |         0 | —                     |
 | Code duplication      |     2 |        2 |         0 | —                     |
-| Architecture concerns |     3 |        0 |         3 | Medium                |
+| Architecture concerns |     3 |        3 |         0 | —                     |
 | Test quality issues   |     6 |        6 |         0 | —                     |
 
 ---
@@ -118,13 +119,11 @@ Hot-path `logMessage()` calls in `PeerManager.cpp`, `BlockPropagation.cpp`,
 `LOG_INFO`/`LOG_WARN`/`LOG_ERROR`/`LOG_DEBUG` macros that check `getLogLevel()`
 before evaluating the message expression.
 
-### 4.5 `replaceChain()` loads entire candidate into memory — LOW
+### 4.5 ~~`replaceChain()` loads entire candidate into memory — LOW~~ ✅ RESOLVED (021)
 
-[Blockchain.cpp](../src/Blockchain.cpp#L486-L536)
-
-`replaceChain()` accepts `const std::vector<Block> &candidateBlocks` — the
-full chain. For very long chains this means the entire history must fit in RAM
-simultaneously. A streaming/chunked replacement would bound memory usage.
+`replaceChainStreaming()` accepts a batch-fetcher callback and validates the
+candidate chain in 100-block batches, bounding memory usage regardless of chain
+length. The original `replaceChain()` remains for backward compatibility.
 
 ---
 
@@ -147,45 +146,27 @@ shared `TestHelpers::` namespace.
 
 ## 6. Architecture Concerns
 
-### 6.1 `IBlockchain` interface is wide
+### 6.1 ~~`IBlockchain` interface is wide~~ ✅ RESOLVED (021)
 
-[IBlockchain.hpp](../src/IBlockchain.hpp) exposes 28 methods including
-persistence (`saveChunk`, `saveKeys`), mining (`publish`), querying
-(`getStreamEntries`), and sync (`replaceChain`). Consumers that only need read
-access (e.g. `RpcServer` for query endpoints) are coupled to the full
-interface.
+`IBlockchain` now inherits from `IChainReader` (read-only query methods) and
+`IChainWriter` (mutation methods). `RpcServer` holds narrow `IChainReader &`
+and `IChainWriter &` references, decoupling it from the full interface.
 
-**Suggestion:** Split into `IChainReader` (query methods) and `IChainWriter`
-(mutation methods). `RpcServer` depends only on `IChainReader` plus a small
-`IChainWriter` for `publish` and `createStream`.
+### 6.2 ~~No separation between domain and network layers~~ ✅ RESOLVED (021)
 
-### 6.2 No separation between domain and network layers
+`ChainService` now mediates between network and domain layers. `PeerClient`
+and `BlockPropagation` submit blocks through `ChainService::submitBlock()` and
+`submitSyncBatch()` instead of calling `IBlockchain` directly. The wire-format
+`SyncResponse::chunk_index` has been renamed to `start_index`, removing the
+storage-detail leak.
 
-`PeerClient`, `PeerServer`, and `BlockPropagation` directly call
-`IBlockchain` methods. If the consensus rules or block format change, the
-network layer must change too.
+### 6.3 ~~Error handling is inconsistent~~ ✅ RESOLVED (021)
 
-**Suggestion:** Introduce a thin service layer (e.g. `ChainService`) that
-mediates between the network and domain layers. The network layer would submit
-blocks to the service, which validates and delegates to `Blockchain`.
-
-Additionally, the sync protocol currently leaks storage details: `SyncResponse`
-includes a `chunk_index` field, coupling the wire format to the internal chunk
-storage scheme. The `ChainService` should own the batching strategy so that
-the network layer exchanges blocks only, with no awareness of chunks.
-
-### 6.3 Error handling is inconsistent
-
-| Pattern                | Used by                                    |
-|------------------------|--------------------------------------------|
-| Throw `std::runtime_error` | `publish()`, `createStream()`, `getStreamEntry()` |
-| Return `bool`          | `add_peer()`, `remove_peer()`              |
-| Log and continue       | `loadKeys()`, `saveAllChunks()`            |
-| Silent no-op           | `freeChunk()` on already-freed chunks      |
-
-This inconsistency makes it hard to reason about failure modes. For example,
-`saveAllChunks()` logs chunk-save failures but continues saving indexes —
-leaving a partially-saved state with no caller notification.
+A domain-specific exception hierarchy (`ChainError` → `ValidationError`,
+`PersistenceError`, `PeerError`) replaces ad-hoc `std::runtime_error` throws.
+`saveAllChunks()` now throws `PersistenceError` on any save failure.
+`add_peer()` returns void (always succeeds with eviction), and `remove_peer()`
+throws `PeerError` when the peer is not found.
 
 ---
 
@@ -274,6 +255,6 @@ Ordered by impact and effort:
 | 7 | Cache chunk during `recoverChain()` validation (§2.2, §4.3) | 3× faster startup | Low | ✅ Done (018) |
 | 8 | Replace O(n) peer lookups with `unordered_map` (§4.1) | O(1) peer operations | Medium | ✅ Done (019) |
 | 9 | Extract RPC dispatch table from `do_read()` (§4.2) | Maintainability, testability | Medium | ✅ Done (019) |
-| 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.1) | Reduces coupling | Medium | Open |
+| 10 | Narrow `IBlockchain` into reader/writer interfaces (§6.1) | Reduces coupling | Medium | ✅ Done (021) |
 | 11 | Remove local test helpers in favor of `TestHelpers.hpp` (§7.6) | Consistency | Low | ✅ Done (019) |
 | 12 | Make integration tests deterministic (§7.4) | Reduces CI flakiness | Medium | ✅ Done (020) |

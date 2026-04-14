@@ -4,6 +4,7 @@
 #include <set>
 #include <unordered_map>
 #include <memory>
+#include <functional>
 #include "Block.hpp"
 #include "StreamEntry.hpp"
 #include "IChunk.hpp"
@@ -55,8 +56,8 @@ class Blockchain : public IBlockchain
     std::pair<size_t, StreamEntry> getStreamEntry(
         const std::string &stream, const std::string &key) const;
     void appendBlock(const Block &block);
-    std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys);
-    auto getBlockByIndex(size_t index) -> Block;
+    std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys) override;
+    Block getBlockByIndex(size_t index) override;
     void dumpBlocks();
     void dumpKeys();
     void saveChunk(size_t chunkIndex);
@@ -70,6 +71,8 @@ class Blockchain : public IBlockchain
     void loadStreamIndex();
     bool isValidChain(const std::vector<Block> &blocks);
     void replaceChain(const std::vector<Block> &candidateBlocks);
+    void replaceChainStreaming(size_t candidateLength,
+                               std::function<std::vector<Block>(size_t batchStart, size_t batchSize)> fetcher) override;
     uint32_t calculateNewDifficulty();
     uint32_t getDifficultyForHeight(size_t height);
     const ConsensusConfig &getConfig() const { return config; }

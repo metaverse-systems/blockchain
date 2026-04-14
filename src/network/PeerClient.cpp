@@ -5,6 +5,7 @@
 #include "PeerMessages.hpp"
 #include "../PeerManager.hpp"
 #include "../BlockPropagation.hpp"
+#include "../ChainError.hpp"
 #include "../utils.hpp"
 #include "../ConsensusConfig.hpp"
 #include <boost/archive/binary_oarchive.hpp>
@@ -83,7 +84,7 @@ void PeerClient::start_sync()
 void PeerClient::send_sync_query()
 {
     SyncQuery query;
-    query.local_chain_height = bc.getChainBlockCount();
+    query.local_chain_height = reader_.getChainBlockCount();
     LOG_INFO("Sending BLOCKCHAIN_QUERY with local_chain_height=" + std::to_string(query.local_chain_height));
 
     send(query, PacketType::BLOCKCHAIN_QUERY);
@@ -203,11 +204,11 @@ void PeerClient::do_read_body(const PacketHeader &header)
 
 void PeerClient::handle_sync_response(const SyncResponse &response)
 {
-    LOG_INFO("Received BLOCKCHAIN_RESPONSE: chunk=" + std::to_string(response.chunk_index)
+    LOG_INFO("Received BLOCKCHAIN_RESPONSE: start_index=" + std::to_string(response.start_index)
                + " blocks=" + std::to_string(response.blocks.size())
                + " total_chain_height=" + std::to_string(response.total_chain_height));
 
-    size_t local_height = bc.getChainBlockCount();
+    size_t local_height = reader_.getChainBlockCount();
 
     // Longest-chain guard: skip sync if peer is not strictly longer
     if (response.total_chain_height <= local_height) {
@@ -230,7 +231,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
     }
 
     // Validate each block in the chunk
-    const auto &config = bc.getConfig();
+    const auto &config = reader_.getConfig();
     for (size_t i = 0; i < response.blocks.size(); i++) {
         const Block &block = response.blocks[i];
 
@@ -244,7 +245,7 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
         if (i == 0) {
             // First block in chunk — get previous from local chain
             if (block.index > 0 && block.index - 1 < local_height) {
-                prev_block = bc.getBlockByIndex(block.index - 1);
+                prev_block = reader_.getBlockByIndex(block.index - 1);
             } else {
                 LOG_ERROR("Cannot validate block " + std::to_string(block.index)
                            + ": no previous block available");
@@ -257,40 +258,28 @@ void PeerClient::handle_sync_response(const SyncResponse &response)
 
         if (!IBlockchain::isValidNewBlock(block, prev_block, config)) {
             LOG_ERROR("Block " + std::to_string(block.index)
-                       + " failed validation in chunk " + std::to_string(response.chunk_index)
+                       + " failed validation in batch starting at " + std::to_string(response.start_index)
                        + " from peer " + host + ":" + port);
             abort_sync("Invalid block at index " + std::to_string(block.index));
             return;
         }
     }
 
-    LOG_INFO("Chunk " + std::to_string(response.chunk_index) + " validated successfully ("
+    LOG_INFO("Batch starting at " + std::to_string(response.start_index) + " validated successfully ("
                + std::to_string(response.blocks.size()) + " blocks)");
 
-    // Persist the valid chunk: append blocks to the chain
-    for (const auto &block : response.blocks) {
-        if (block.index < local_height) {
-            // Overlap region: verify hash matches local chain
-            Block local_block = bc.getBlockByIndex(block.index);
-            if (local_block.hash != block.hash) {
-                abort_sync("Overlap hash mismatch at block " + std::to_string(block.index));
-                return;
-            }
-            continue; // Already have this block
-        }
-        bc.appendBlock(block);
-    }
-
-    // Save the chunk and keys
-    size_t chunk_idx = response.chunk_index;
+    // Submit the validated batch to ChainService
     try {
-        bc.saveChunk(chunk_idx);
-        bc.saveKeys();
-    } catch (...) {
-        // Chunk may not exist yet in the chain structure — that's ok for now
+        chain_service_.submitSyncBatch(response.blocks, local_height);
+    } catch (const ValidationError &e) {
+        abort_sync("Sync batch rejected: " + std::string(e.what()));
+        return;
+    } catch (const PersistenceError &e) {
+        abort_sync("Sync batch persistence failed: " + std::string(e.what()));
+        return;
     }
 
-    size_t new_local_height = bc.getChainBlockCount();
+    size_t new_local_height = reader_.getChainBlockCount();
     LOG_INFO("Synced " + std::to_string(response.blocks.size())
                + " blocks, local height now " + std::to_string(new_local_height));
 
