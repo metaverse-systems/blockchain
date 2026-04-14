@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include "../src/PeerManager.hpp"
+#include "../src/ChainService.hpp"
 #include "../src/PeerConfig.hpp"
 #include "../src/Blockchain.hpp"
 #include "../src/MockChunk.hpp"
@@ -69,10 +70,11 @@ TEST_CASE("PeerManager merges received peer list", "[PeerExchange]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
     cfg.discovery_enabled = false; // Disable auto-connect for testing
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     // Simulate receiving a peer exchange
@@ -102,10 +104,11 @@ TEST_CASE("PeerManager filters banned peers from exchange", "[PeerExchange]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
     cfg.discovery_enabled = false;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     // Ban a peer first
@@ -133,9 +136,10 @@ TEST_CASE("PeerManager get_non_banned_peer_addresses excludes banned", "[PeerExc
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     PeerEntry e1{.host = "10.0.0.1", .port = 12346};
@@ -158,9 +162,10 @@ TEST_CASE("PeerManager expired ban purge", "[PeerExchange]") {
     boost::asio::ssl::context ssl_ctx(boost::asio::ssl::context::tlsv12);
     Blockchain<MockChunk> bc(".");
     SyncStatus sync;
+    ChainService cs(bc);
     PeerConfig cfg;
 
-    PeerManager pm(io, ssl_ctx, cfg, dir, bc, sync);
+    PeerManager pm(io, ssl_ctx, cfg, dir, bc, cs, sync);
     pm.load_peers();
 
     // Create an already-expired ban (expires in the past)

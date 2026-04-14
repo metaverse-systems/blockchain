@@ -42,7 +42,7 @@ TEST_CASE("SyncResponse serialization round-trip", "[Sync][Setup]")
 {
     SyncResponse response;
     response.total_chain_height = 200;
-    response.chunk_index = 1;
+    response.start_index = 1;
     response.blocks = TestHelpers::buildValidChain(3, 1);
 
     std::stringstream ss;
@@ -58,7 +58,7 @@ TEST_CASE("SyncResponse serialization round-trip", "[Sync][Setup]")
     }
 
     REQUIRE(restored.total_chain_height == 200);
-    REQUIRE(restored.chunk_index == 1);
+    REQUIRE(restored.start_index == 1);
     REQUIRE(restored.blocks.size() == 3);
     REQUIRE(restored.blocks[0].index == 0);
     REQUIRE(restored.blocks[2].hash == response.blocks[2].hash);
@@ -202,7 +202,7 @@ TEST_CASE("PeerClient receives BLOCKCHAIN_RESPONSE and validates blocks", "[Sync
 
     SyncResponse response;
     response.total_chain_height = 5;
-    response.chunk_index = 0;
+    response.start_index = 0;
     response.blocks = chain;
 
     // Serialize and deserialize the response
@@ -271,7 +271,7 @@ TEST_CASE("PeerClient sends BLOCKCHAIN_QUERY with height > 1 for incremental syn
     // If peer has 10 blocks, we only need blocks 4-9
     SyncResponse response;
     response.total_chain_height = 10;
-    response.chunk_index = 0;
+    response.start_index = 0;
 
     // Peer sends only the blocks the client is missing
     auto full_chain = TestHelpers::buildValidChain(10, 1);
@@ -611,7 +611,7 @@ TEST_CASE("handle_sync_response treats empty batch as end-of-sync", "[Sync][US1]
 
     SyncResponse response;
     response.total_chain_height = 100;
-    response.chunk_index = 0;
+    response.start_index = 0;
     response.blocks.clear(); // Empty batch
 
     // The handler should stop syncing on empty response

@@ -6,6 +6,7 @@
 #include "Block.hpp"
 #include "Blockchain.hpp"
 #include "BlockPropagation.hpp"
+#include "ChainService.hpp"
 #include "CliParser.hpp"
 #include "ConsensusConfig.hpp"
 #include "NodeConfig.hpp"
@@ -140,6 +141,8 @@ int main(int argc, char *argv[])
 
     SyncStatus sync_status;
 
+    ChainService chain_service(bc);
+
     boost::asio::io_context io_context;
 
     // Mutual TLS context for P2P
@@ -159,10 +162,10 @@ int main(int argc, char *argv[])
     rpc_ssl_context.use_private_key_file(key_file, ssl::context::pem);
 
     // Create PeerManager
-    PeerManager peer_manager(io_context, p2p_ssl_context, node_config.to_peer_config(), blockchainDir, bc, sync_status, node_config.network.p2p_port);
+    PeerManager peer_manager(io_context, p2p_ssl_context, node_config.to_peer_config(), blockchainDir, bc, chain_service, sync_status, node_config.network.p2p_port);
 
     // Create BlockPropagation with relay callback
-    BlockPropagation block_propagation(bc, sync_status,
+    BlockPropagation block_propagation(bc, chain_service, sync_status,
         [&peer_manager](const Block &block, const std::string &exclude_key) {
             peer_manager.relay_block(block, exclude_key);
         });

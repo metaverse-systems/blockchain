@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include "../src/BlockPropagation.hpp"
+#include "../src/ChainService.hpp"
 #include "../src/PeerManager.hpp"
 #include "../src/Block.hpp"
 #include "../src/StreamEntry.hpp"
@@ -15,12 +16,13 @@
 TEST_CASE("Integration: valid block received, validated, appended, relayed", "[integration][block_propagation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
 
     bool relay_called = false;
     std::string relay_exclude;
     Block relayed_block;
 
-    BlockPropagation bp(bc, sync_status, [&](const Block &block, const std::string &exclude) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &block, const std::string &exclude) {
         relay_called = true;
         relay_exclude = exclude;
         relayed_block = block;
@@ -42,9 +44,10 @@ TEST_CASE("Integration: valid block received, validated, appended, relayed", "[i
 TEST_CASE("Integration: invalid block rejected, not relayed", "[integration][block_propagation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
 
     bool relay_called = false;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_called = true;
     });
 
@@ -72,9 +75,10 @@ TEST_CASE("Integration: invalid block rejected, not relayed", "[integration][blo
 TEST_CASE("Integration: duplicate block via dedup cache hit, discarded", "[integration][block_propagation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
 
     int relay_count = 0;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_count++;
     });
 
@@ -94,9 +98,10 @@ TEST_CASE("Integration: duplicate block via dedup cache hit, discarded", "[integ
 TEST_CASE("Integration: gap block deferred, resolved when predecessor arrives", "[integration][block_propagation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
 
     int relay_count = 0;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_count++;
     });
 
@@ -126,10 +131,11 @@ TEST_CASE("Integration: gap block deferred, resolved when predecessor arrives", 
 TEST_CASE("Integration: full pipeline with sync queue", "[integration][block_propagation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     sync_status.isSyncing.store(true);
 
     int relay_count = 0;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_count++;
     });
 

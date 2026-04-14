@@ -7,6 +7,8 @@
 #include <string>
 #include <functional>
 #include "../IBlockchain.hpp"
+#include "../IChainReader.hpp"
+#include "../ChainService.hpp"
 #include "../SyncState.hpp"
 #include "PacketHeader.hpp"
 #include "SyncMessages.hpp"
@@ -25,13 +27,15 @@ class PeerClient : public std::enable_shared_from_this<PeerClient>
                ssl::context &ssl_context,
                const std::string &host,
                unsigned short port,
-               IBlockchain &bc,
+               IChainReader &reader,
+               ChainService &chain_service,
                SyncStatus &sync_status)
         : resolver(io_context),
           socket(io_context, ssl_context),
           host(host),
           port(std::to_string(port)),
-          bc(bc),
+          reader_(reader),
+          chain_service_(chain_service),
           sync_status(sync_status),
           chunk_timer(io_context) {}
 
@@ -57,7 +61,8 @@ class PeerClient : public std::enable_shared_from_this<PeerClient>
     std::string host;
     std::string port;
     boost::asio::streambuf write_buffer;
-    IBlockchain &bc;
+    IChainReader &reader_;
+    ChainService &chain_service_;
     SyncStatus &sync_status;
     boost::asio::steady_timer chunk_timer;
     bool connected = false;

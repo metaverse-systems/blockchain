@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include "../src/BlockPropagation.hpp"
+#include "../src/ChainService.hpp"
 #include "../src/Block.hpp"
 #include "../src/SyncState.hpp"
 #include "../src/MerkleTree.hpp"
@@ -16,8 +17,9 @@
 TEST_CASE("RecentBlockCache insert and contains", "[block_propagation][dedup]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     bool relay_called = false;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_called = true;
     });
 
@@ -35,7 +37,8 @@ TEST_CASE("RecentBlockCache insert and contains", "[block_propagation][dedup]") 
 TEST_CASE("RecentBlockCache FIFO eviction at capacity", "[block_propagation][dedup]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     // Submit 512 valid blocks through on_block_received to fill the dedup cache
     // Use different peer addresses to avoid per-peer rate limiting (10/sec)
@@ -58,8 +61,9 @@ TEST_CASE("RecentBlockCache FIFO eviction at capacity", "[block_propagation][ded
 TEST_CASE("Rate limiter allows up to limit then rejects", "[block_propagation][rate_limit]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     int relay_count = 0;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_count++;
     });
 
@@ -97,7 +101,8 @@ TEST_CASE("Rate limiter allows up to limit then rejects", "[block_propagation][r
 TEST_CASE("Gap block deferred in pending pool, resolved when predecessor arrives", "[block_propagation][pending]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     // Create two sequential valid blocks
     Block b1 = bc.createValidNextBlock("first");
@@ -125,9 +130,10 @@ TEST_CASE("Gap block deferred in pending pool, resolved when predecessor arrives
 TEST_CASE("Blocks queued during sync, processed after sync completes", "[block_propagation][sync_queue]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     sync_status.isSyncing.store(true);
 
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     Block b = bc.createValidNextBlock("synced");
 
@@ -146,10 +152,11 @@ TEST_CASE("Blocks queued during sync, processed after sync completes", "[block_p
 TEST_CASE("Valid block is validated, appended, and relayed", "[block_propagation][valid]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     bool relay_called = false;
     std::string relayed_exclude;
 
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &exclude) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &exclude) {
         relay_called = true;
         relayed_exclude = exclude;
     });
@@ -168,9 +175,10 @@ TEST_CASE("Valid block is validated, appended, and relayed", "[block_propagation
 TEST_CASE("Invalid block is rejected and not appended", "[block_propagation][invalid]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     bool relay_called = false;
 
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_called = true;
     });
 
@@ -193,9 +201,10 @@ TEST_CASE("Invalid block is rejected and not appended", "[block_propagation][inv
 TEST_CASE("Duplicate block discarded silently", "[block_propagation][duplicate]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     int relay_count = 0;
 
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_count++;
     });
 
@@ -216,7 +225,8 @@ TEST_CASE("Duplicate block discarded silently", "[block_propagation][duplicate]"
 TEST_CASE("Throughput benchmark: 100 blocks in under 10 seconds", "[block_propagation][benchmark]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     // Pre-build 100 valid sequential blocks
     std::vector<Block> valid_blocks;
@@ -248,7 +258,8 @@ TEST_CASE("Throughput benchmark: 100 blocks in under 10 seconds", "[block_propag
 TEST_CASE("Block with valid stream entries is accepted via P2P", "[block_propagation][stream_validation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     Block b = bc.createValidNextBlock("valid_entry");
     bp.on_block_received(b, "peer1:9000");
@@ -258,7 +269,8 @@ TEST_CASE("Block with valid stream entries is accepted via P2P", "[block_propaga
 TEST_CASE("Block with empty stream name is rejected via P2P", "[block_propagation][stream_validation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     // Build a block that connects to chain tip but has invalid stream entry
     auto &prev = bc.blocks.back();
@@ -286,7 +298,8 @@ TEST_CASE("Block with empty stream name is rejected via P2P", "[block_propagatio
 TEST_CASE("Block with empty key is rejected via P2P", "[block_propagation][stream_validation]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     auto &prev = bc.blocks.back();
     Block b;
@@ -315,7 +328,8 @@ TEST_CASE("Block with empty key is rejected via P2P", "[block_propagation][strea
 TEST_CASE("Pending pool evicts oldest entry at capacity", "[block_propagation][pending_pool]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     // Fill pending pool to capacity (64) by sending blocks with gap prevHash
     for (int i = 0; i < 65; i++) {
@@ -339,8 +353,9 @@ TEST_CASE("Pending pool evicts oldest entry at capacity", "[block_propagation][p
 TEST_CASE("Pending pool resolves deferred block when predecessor arrives", "[block_propagation][pending_pool]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     int relay_count = 0;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         relay_count++;
     });
 
@@ -388,7 +403,8 @@ TEST_CASE("Pending pool resolves deferred block when predecessor arrives", "[blo
 TEST_CASE("Block with valid merkle root is accepted", "[block_propagation][merkle]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     Block b = bc.createValidNextBlock("merkle_ok");
     bp.on_block_received(b, "127.0.0.1:9000");
@@ -399,7 +415,8 @@ TEST_CASE("Block with valid merkle root is accepted", "[block_propagation][merkl
 TEST_CASE("Block with corrupted merkle root is rejected", "[block_propagation][merkle]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     Block b = bc.createValidNextBlock("merkle_bad");
     b.merkleRoot = "0000000000000000000000000000000000000000000000000000000000000000";
@@ -413,7 +430,8 @@ TEST_CASE("Block with corrupted merkle root is rejected", "[block_propagation][m
 TEST_CASE("Block with corrupted hash is rejected", "[block_propagation][merkle]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     Block b = bc.createValidNextBlock("hash_bad");
     b.hash = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -452,8 +470,9 @@ TEST_CASE("parsePeerKey throws on malformed key", "[utils][ipv6]") {
 TEST_CASE("Relay callback exception does not crash block propagation", "[block_propagation][relay][us5]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     bool threw = false;
-    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
         threw = true;
         throw std::runtime_error("simulated relay disconnect");
     });
@@ -477,7 +496,8 @@ TEST_CASE("Relay callback exception does not crash block propagation", "[block_p
 TEST_CASE("Rate limiter window resets after 1 second", "[block_propagation][rate_limit][us5]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     // Pre-create 12 valid blocks
     std::vector<Block> blocks;
@@ -509,7 +529,8 @@ TEST_CASE("Rate limiter window resets after 1 second", "[block_propagation][rate
 TEST_CASE("Pending pool entries expire after TTL", "[block_propagation][pending][us5]") {
     MockBlockchain bc;
     SyncStatus sync_status;
-    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+    ChainService chain_service(bc);
+    BlockPropagation bp(bc, chain_service, sync_status, [](const Block &, const std::string &) {});
 
     // Create blocks: b1 connects to genesis, b2 connects to b1
     Block b1 = bc.createValidNextBlock("first");
@@ -533,11 +554,12 @@ TEST_CASE("Pending pool entries expire after TTL", "[block_propagation][pending]
 TEST_CASE("Block relay callback receives sender key for exclusion", "[block_propagation][relay][us5]") {
     MockBlockchain bc;
     SyncStatus sync_status;
+    ChainService chain_service(bc);
     std::string relayed_sender_key;
     Block relayed_block;
     bool relay_called = false;
 
-    BlockPropagation bp(bc, sync_status, [&](const Block &block, const std::string &sender_key) {
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &block, const std::string &sender_key) {
         relay_called = true;
         relayed_block = block;
         relayed_sender_key = sender_key;

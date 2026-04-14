@@ -152,6 +152,17 @@ public:
         blocks = candidateBlocks;
     }
 
+    void replaceChainStreaming(size_t candidateLength,
+                               std::function<std::vector<Block>(size_t, size_t)> fetcher) override {
+        blocks.clear();
+        const size_t batchSize = 100;
+        for (size_t start = 0; start < candidateLength; start += batchSize) {
+            size_t count = std::min(batchSize, candidateLength - start);
+            auto batch = fetcher(start, count);
+            blocks.insert(blocks.end(), batch.begin(), batch.end());
+        }
+    }
+
     size_t getChainBlockCount() const override {
         return blocks.size();
     }

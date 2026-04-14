@@ -23,7 +23,7 @@ struct SyncQuery
 struct SyncResponse
 {
     uint64_t total_chain_height = 0;
-    uint64_t chunk_index = 0;
+    uint64_t start_index = 0;
     std::vector<Block> blocks;
 
     friend class boost::serialization::access;
@@ -32,7 +32,7 @@ struct SyncResponse
     unsigned int serialize(Archive &ar, const unsigned int version)
     {
         ar & total_chain_height;
-        ar & chunk_index;
+        ar & start_index;
         ar & blocks;
         return version;
     }

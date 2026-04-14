@@ -1,11 +1,12 @@
 #include "BlockPropagation.hpp"
+#include "ChainError.hpp"
 #include "PeerManager.hpp"
 #include "utils.hpp"
 #include "ConsensusConfig.hpp"
 #include <algorithm>
 
-BlockPropagation::BlockPropagation(IBlockchain &bc, SyncStatus &sync_status, RelayCallback relay_cb)
-    : bc_(bc), sync_status_(sync_status), relay_cb_(std::move(relay_cb))
+BlockPropagation::BlockPropagation(IChainReader &reader, ChainService &chain_service, SyncStatus &sync_status, RelayCallback relay_cb)
+    : reader_(reader), chain_service_(chain_service), sync_status_(sync_status), relay_cb_(std::move(relay_cb))
 {
 }
 
@@ -130,14 +131,20 @@ void BlockPropagation::appendReceivedBlock(const Block &block)
         Block verified(block.index, block.timestamp, block.prevHash,
                        block.entries, block.nonce, block.difficulty,
                        block.merkleRoot, block.hash);
-        bc_.appendBlock(verified);
+        chain_service_.submitBlock(verified);
     } catch (const std::invalid_argument &e) {
         LOG_WARN("Block #" + std::to_string(block.index)
                    + " rejected: " + std::string(e.what()));
         return;
+    } catch (const ValidationError &e) {
+        LOG_WARN("Block #" + std::to_string(block.index)
+                   + " validation failed: " + std::string(e.what()));
+        return;
+    } catch (const PersistenceError &e) {
+        LOG_WARN("Block #" + std::to_string(block.index)
+                   + " persist failed: " + std::string(e.what()));
+        return;
     }
-    bc_.saveChunk(block.index / bc_.chunkSize);
-    bc_.saveKeys();
 }
 
 // --- Core Reception ---
@@ -162,7 +169,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
     }
 
     // Chain-tip index check: already in chain
-    if (block.index < bc_.getChainBlockCount()) {
+    if (block.index < reader_.getChainBlockCount()) {
         return;
     }
 
@@ -177,9 +184,9 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
     }
 
     // Check if block connects to chain tip
-    size_t chain_height = bc_.getChainBlockCount();
+    size_t chain_height = reader_.getChainBlockCount();
     if (chain_height > 0) {
-        Block tip = bc_.getBlockByIndex(chain_height - 1);
+        Block tip = reader_.getBlockByIndex(chain_height - 1);
 
         if (block.prevHash != tip.hash) {
             // Gap block — defer
@@ -188,7 +195,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
         }
 
         // Validate against consensus
-        const auto &config = bc_.getConfig();
+        const auto &config = reader_.getConfig();
         if (!IBlockchain::isValidNewBlock(block, tip, config)) {
             LOG_WARN("Invalid block #" + std::to_string(block.index) + " from " + sender_key);
             if (peer_manager_) {
@@ -228,7 +235,7 @@ void BlockPropagation::process_sync_queue()
 
     for (auto &[block, sender_key] : queue) {
         if (cache_contains(block.hash)) continue;
-        if (block.index < bc_.getChainBlockCount()) continue;
+        if (block.index < reader_.getChainBlockCount()) continue;
         on_block_received(block, sender_key);
     }
 }

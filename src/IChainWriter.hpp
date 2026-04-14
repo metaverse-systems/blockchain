@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Block.hpp"
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,8 @@ public:
     virtual void createStream(const std::string &name) = 0;
     virtual void appendBlock(const Block &block) = 0;
     virtual void replaceChain(const std::vector<Block> &candidateBlocks) = 0;
+    virtual void replaceChainStreaming(size_t candidateLength,
+                                       std::function<std::vector<Block>(size_t batchStart, size_t batchSize)> fetcher) = 0;
     virtual void setShuttingDown() = 0;
     virtual void saveKeys() = 0;
 };

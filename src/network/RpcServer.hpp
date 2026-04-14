@@ -10,6 +10,8 @@
 #include <functional>
 #include <unordered_map>
 #include "../IBlockchain.hpp"
+#include "../IChainReader.hpp"
+#include "../IChainWriter.hpp"
 #include "../Chunk.hpp"
 #include "../json.hpp"
 #include "../StreamEntry.hpp"
@@ -30,6 +32,8 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
 
   private:
     boost::asio::streambuf buffer;
+    IChainReader &reader_;
+    IChainWriter &writer_;
     SyncStatus *sync_status = nullptr;
     PeerClient *peer_client = nullptr;
     PeerManager *peer_manager = nullptr;

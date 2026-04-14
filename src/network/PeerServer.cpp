@@ -164,33 +164,28 @@ void PeerServer::handle_blockchain_query(const SyncQuery &query)
     size_t total_height = bc.getChainBlockCount();
 
     if (query.local_chain_height >= total_height) {
-        // Peer is up to date or ahead — send empty response
         SyncResponse response;
         response.total_chain_height = total_height;
-        response.chunk_index = 0;
-        // blocks left empty
+        response.start_index = 0;
         send_sync_response(response, 0, 0, total_height);
         return;
     }
 
-    size_t start_chunk = query.local_chain_height / bc.chunkSize;
-    size_t total_chunks = (total_height + bc.chunkSize - 1) / bc.chunkSize;
+    size_t batch_size = 100;
+    size_t block_start = query.local_chain_height;
+    size_t block_end = std::min(block_start + batch_size, total_height);
 
-    // Send the first chunk
     SyncResponse response;
     response.total_chain_height = total_height;
-    response.chunk_index = start_chunk;
-
-    // Gather blocks for this chunk, starting from local_chain_height within the chunk
-    size_t block_start = query.local_chain_height;
-    size_t block_end = std::min((start_chunk + 1) * bc.chunkSize, total_height);
+    response.start_index = block_start;
 
     for (size_t i = block_start; i < block_end; i++) {
         response.blocks.push_back(bc.getBlockByIndex(i));
     }
 
-    size_t remaining = total_chunks - start_chunk - 1;
-    send_sync_response(response, remaining, start_chunk + 1, total_height);
+    size_t remaining_blocks = total_height - block_end;
+    size_t remaining_batches = (remaining_blocks + batch_size - 1) / batch_size;
+    send_sync_response(response, remaining_batches, block_end, total_height);
 }
 
 void PeerServer::send_sync_response(const SyncResponse &response, size_t remaining_chunks, size_t next_chunk, uint64_t total_height)
@@ -215,24 +210,26 @@ void PeerServer::send_sync_response(const SyncResponse &response, size_t remaini
     boost::asio::async_write(this->ssl_socket, buffers,
         [this, self, header_buf, payload_buf, remaining_chunks, next_chunk, total_height](const boost::system::error_code &ec, std::size_t) {
             if (!ec) {
-                LOG_INFO("Sent BLOCKCHAIN_RESPONSE chunk " + std::to_string(next_chunk > 0 ? next_chunk - 1 : 0));
+                LOG_INFO("Sent BLOCKCHAIN_RESPONSE batch starting at block " + std::to_string(next_chunk > 0 ? next_chunk - 100 : 0));
 
                 if (remaining_chunks > 0) {
-                    // Build and send the next chunk
+                    size_t batch_size = 100;
+                    size_t block_start = next_chunk;
+                    size_t block_end = std::min(block_start + batch_size, static_cast<size_t>(total_height));
+
                     SyncResponse next_response;
                     next_response.total_chain_height = total_height;
-                    next_response.chunk_index = next_chunk;
-
-                    size_t block_start = next_chunk * bc.chunkSize;
-                    size_t block_end = std::min((next_chunk + 1) * bc.chunkSize, static_cast<size_t>(total_height));
+                    next_response.start_index = block_start;
 
                     for (size_t i = block_start; i < block_end; i++) {
                         next_response.blocks.push_back(bc.getBlockByIndex(i));
                     }
 
-                    send_sync_response(next_response, remaining_chunks - 1, next_chunk + 1, total_height);
+                    size_t remaining_blocks = total_height - block_end;
+                    size_t remaining_batches = (remaining_blocks + batch_size - 1) / batch_size;
+                    send_sync_response(next_response, remaining_batches, block_end, total_height);
                 } else {
-                    // All chunks sent — go back to reading
+                    // All batches sent — go back to reading
                     do_read_header();
                 }
             } else {

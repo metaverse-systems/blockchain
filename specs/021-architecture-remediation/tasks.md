@@ -19,8 +19,8 @@
 
 **Purpose**: Create new files and build infrastructure that all user stories depend on
 
-- [ ] T001 Create exception hierarchy in src/ChainError.hpp per contracts/ChainError.md
-- [ ] T004 [P] Add tests/chain_service_tests to .gitignore
+- [X] T001 Create exception hierarchy in src/ChainError.hpp per contracts/ChainError.md
+- [X] T004 [P] Add tests/chain_service_tests to .gitignore
 
 ---
 
@@ -30,12 +30,12 @@
 
 **⚠️ CRITICAL**: All user stories depend on the widened `IChainReader` and the exception hierarchy
 
-- [ ] T005 Move `getBlockByIndex()`, `getBlocksByKeys()`, `getInclusionProof()`, `verifyInclusionProof()` declarations from src/IBlockchain.hpp to src/IChainReader.hpp per contracts/IChainReader.md
-- [ ] T006 Remove the four moved method declarations from src/IBlockchain.hpp (retain persistence methods, `isValidNewBlock` static, `chunkSize`)
-- [ ] T007 Update override declarations in src/Blockchain.hpp to match the new interface locations (methods now override IChainReader virtuals)
-- [ ] T008 Convert `throw std::runtime_error(...)` to `throw ValidationError(...)` / `throw PersistenceError(...)` in src/Blockchain.cpp per contracts/ChainError.md migration rules
-- [ ] T009 Convert log-and-continue patterns to `throw PersistenceError(...)` in src/ChainPersistence.cpp (saveAllChunks partial failure must propagate)
-- [ ] T010 Build with `make -j8` and verify all existing tests still pass (no regressions from interface moves and exception changes)
+- [X] T005 Move `getBlockByIndex()`, `getBlocksByKeys()`, `getInclusionProof()`, `verifyInclusionProof()` declarations from src/IBlockchain.hpp to src/IChainReader.hpp per contracts/IChainReader.md
+- [X] T006 Remove the four moved method declarations from src/IBlockchain.hpp (retain persistence methods, `isValidNewBlock` static, `chunkSize`)
+- [X] T007 Update override declarations in src/Blockchain.hpp to match the new interface locations (methods now override IChainReader virtuals)
+- [X] T008 Convert `throw std::runtime_error(...)` to `throw ValidationError(...)` / `throw PersistenceError(...)` in src/Blockchain.cpp per contracts/ChainError.md migration rules
+- [X] T009 Convert log-and-continue patterns to `throw PersistenceError(...)` in src/ChainPersistence.cpp (saveAllChunks partial failure must propagate)
+- [X] T010 Build with `make -j8` and verify all existing tests still pass (no regressions from interface moves and exception changes)
 
 **Checkpoint**: Interfaces widened, exceptions standardized, all existing tests green
 
@@ -49,11 +49,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Update src/network/SessionHandler.hpp to accept dual-reference pattern (`const IChainReader&` + `IChainWriter&`) instead of requiring `IBlockchain&`
-- [ ] T012 [US1] Change src/network/RpcServer.hpp constructor and factory to accept `const IChainReader&` + `IChainWriter&` instead of `IBlockchain&`
-- [ ] T013 [US1] Update src/network/RpcServer.cpp to use reader reference for all query handlers and writer reference for handle_publish/handle_createStream
-- [ ] T014 [US1] Update RpcServer creation in src/main.cpp to pass narrow interfaces from the `Blockchain` instance
-- [ ] T015 [US1] Build with `make -j8` and run `./tests/rpc_expansion_tests` and `./tests/rpc_integration_tests` to verify no regressions
+- [X] T011 [US1] Update src/network/SessionHandler.hpp to accept dual-reference pattern (`const IChainReader&` + `IChainWriter&`) instead of requiring `IBlockchain&`
+- [X] T012 [US1] Change src/network/RpcServer.hpp constructor and factory to accept `const IChainReader&` + `IChainWriter&` instead of `IBlockchain&`
+- [X] T013 [US1] Update src/network/RpcServer.cpp to use reader reference for all query handlers and writer reference for handle_publish/handle_createStream
+- [X] T014 [US1] Update RpcServer creation in src/main.cpp to pass narrow interfaces from the `Blockchain` instance
+- [X] T015 [US1] Build with `make -j8` and run `./tests/rpc_expansion_tests` and `./tests/rpc_integration_tests` to verify no regressions
 
 **Checkpoint**: RpcServer uses narrow interfaces. All RPC tests pass.
 
@@ -67,19 +67,19 @@
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Create src/ChainService.hpp with `submitBlock()`, `submitSyncBatch()`, `getChainHeight()`, `getBlockAtTip()`, `getConsensusConfig()` per contracts/ChainService.md
-- [ ] T017 [US2] Create src/ChainService.cpp implementing the validate-append-persist workflow per contracts/ChainService.md behavioral contract
-- [ ] T002 [US2] Add ChainService.cpp to src/Makefile.am libblockchain_core_a_SOURCES list (after src file exists)
-- [ ] T018 [US2] Write unit tests for ChainService in tests/chain_service_tests.cpp: test submitBlock validates then persists, submitSyncBatch handles overlap and appends new blocks, submitSyncBatch throws ValidationError on fork detection
-- [ ] T003 [US2] Add chain_service_tests target to tests/Makefile.am with sources and link flags (after test file exists)
-- [ ] T019 [US2] Replace `chunk_index` with `start_index` in SyncResponse struct in src/network/SyncMessages.hpp per contracts/SyncMessages.md
-- [ ] T020 [US2] Update src/network/PeerServer.hpp and src/network/PeerServer.cpp: replace `bc.chunkSize` references with block-index-range batching, use `IChainReader` for reads, set `response.start_index` instead of `response.chunk_index`
-- [ ] T021 [US2] Update src/network/PeerClient.hpp to accept `ChainService&` for mutation operations (in addition to `IChainReader` for reads)
-- [ ] T022 [US2] Update src/network/PeerClient.cpp `handle_sync_response()`: replace direct `appendBlock()`/`saveChunk()`/`saveKeys()` calls with `chain_service.submitSyncBatch()`; remove `chunk_index` usage from response processing
-- [ ] T023 [US2] Update src/BlockPropagation.hpp to accept `ChainService&` instead of `IBlockchain&` for mutation operations
-- [ ] T024 [US2] Update src/BlockPropagation.cpp `appendReceivedBlock()`: replace direct `appendBlock()`/`saveChunk()`/`saveKeys()` calls with `chain_service.submitBlock()`
-- [ ] T025 [US2] Wire ChainService in src/main.cpp: create `ChainService` after `Blockchain`, inject into `PeerManager`/`BlockPropagation`/`Server<PeerServer>` constructors
-- [ ] T026 [US2] Build with `make -j8` and run `./tests/chain_service_tests`, `./tests/block_propagation_tests`, `./tests/block_propagation_integration_tests`, `./tests/sync_tests`, `./tests/p2p_sync_integration_tests` to verify no regressions
+- [X] T016 [US2] Create src/ChainService.hpp with `submitBlock()`, `submitSyncBatch()`, `getChainHeight()`, `getBlockAtTip()`, `getConsensusConfig()` per contracts/ChainService.md
+- [X] T017 [US2] Create src/ChainService.cpp implementing the validate-append-persist workflow per contracts/ChainService.md behavioral contract
+- [X] T002 [US2] Add ChainService.cpp to src/Makefile.am libblockchain_core_a_SOURCES list (after src file exists)
+- [X] T018 [US2] Write unit tests for ChainService in tests/chain_service_tests.cpp: test submitBlock validates then persists, submitSyncBatch handles overlap and appends new blocks, submitSyncBatch throws ValidationError on fork detection
+- [X] T003 [US2] Add chain_service_tests target to tests/Makefile.am with sources and link flags (after test file exists)
+- [X] T019 [US2] Replace `chunk_index` with `start_index` in SyncResponse struct in src/network/SyncMessages.hpp per contracts/SyncMessages.md
+- [X] T020 [US2] Update src/network/PeerServer.hpp and src/network/PeerServer.cpp: replace `bc.chunkSize` references with block-index-range batching, use `IChainReader` for reads, set `response.start_index` instead of `response.chunk_index`
+- [X] T021 [US2] Update src/network/PeerClient.hpp to accept `ChainService&` for mutation operations (in addition to `IChainReader` for reads)
+- [X] T022 [US2] Update src/network/PeerClient.cpp `handle_sync_response()`: replace direct `appendBlock()`/`saveChunk()`/`saveKeys()` calls with `chain_service.submitSyncBatch()`; remove `chunk_index` usage from response processing
+- [X] T023 [US2] Update src/BlockPropagation.hpp to accept `ChainService&` instead of `IBlockchain&` for mutation operations
+- [X] T024 [US2] Update src/BlockPropagation.cpp `appendReceivedBlock()`: replace direct `appendBlock()`/`saveChunk()`/`saveKeys()` calls with `chain_service.submitBlock()`
+- [X] T025 [US2] Wire ChainService in src/main.cpp: create `ChainService` after `Blockchain`, inject into `PeerManager`/`BlockPropagation`/`Server<PeerServer>` constructors
+- [X] T026 [US2] Build with `make -j8` and run `./tests/chain_service_tests`, `./tests/block_propagation_tests`, `./tests/block_propagation_integration_tests`, `./tests/sync_tests`, `./tests/p2p_sync_integration_tests` to verify no regressions
 
 **Checkpoint**: All network components use ChainService. Zero direct calls to appendBlock/saveChunk/saveKeys from network code. Wire format uses start_index.
 
@@ -93,11 +93,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Convert `PeerManager::add_peer()` in src/PeerManager.hpp and src/PeerManager.cpp from `bool` return to `void` with `throw PeerError(...)` on capacity exceeded
-- [ ] T028 [US3] Convert `PeerManager::remove_peer()` in src/PeerManager.hpp and src/PeerManager.cpp from `bool` return to `void` with `throw PeerError(...)` when peer not found
-- [ ] T029 [US3] Update all callers of `add_peer()` and `remove_peer()` across src/ to use try/catch instead of checking bool return values; add try/catch around the `remove_peer()` call inside `ban_peer()` (which legitimately bans an already-removed peer) and review `unban_peer()` for silent-failure patterns
-- [ ] T030 [US3] Update tests/peer_manager_tests.cpp and tests/peer_discovery_tests.cpp to expect exceptions instead of false returns
-- [ ] T031 [US3] Build with `make -j8` and run `./tests/blockchain_tests`, `./tests/lifecycle_tests`, `./tests/lifecycle_integration_tests` to verify no regressions
+- [X] T027 [US3] Convert `PeerManager::add_peer()` in src/PeerManager.hpp and src/PeerManager.cpp from `bool` return to `void` with `throw PeerError(...)` on capacity exceeded
+- [X] T028 [US3] Convert `PeerManager::remove_peer()` in src/PeerManager.hpp and src/PeerManager.cpp from `bool` return to `void` with `throw PeerError(...)` when peer not found
+- [X] T029 [US3] Update all callers of `add_peer()` and `remove_peer()` across src/ to use try/catch instead of checking bool return values; add try/catch around the `remove_peer()` call inside `ban_peer()` (which legitimately bans an already-removed peer) and review `unban_peer()` for silent-failure patterns
+- [X] T030 [US3] Update tests/peer_manager_tests.cpp and tests/peer_discovery_tests.cpp to expect exceptions instead of false returns
+- [X] T031 [US3] Build with `make -j8` and run `./tests/blockchain_tests`, `./tests/lifecycle_tests`, `./tests/lifecycle_integration_tests` to verify no regressions
 
 **Checkpoint**: All failure reporting uses exceptions. No bool-return failure patterns remain in the codebase.
 
@@ -111,11 +111,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T032 [US4] Refactor `replaceChain()` signature in src/IChainWriter.hpp: add `virtual void replaceChainStreaming(size_t candidateLength, std::function<std::vector<Block>(size_t batchStart, size_t batchSize)> fetcher) = 0` and deprecate the existing `replaceChain(const std::vector<Block>&)` overload
-- [ ] T033 [US4] Implement streaming `replaceChain()` in src/Blockchain.cpp: clear difficulty cache at start (FR-011), validate batches of 100 blocks, write to temp chunk files, atomic rename on success, delete temp files on failure
-- [ ] T034 [US4] Update `ChainService::submitSyncBatch()` and any callers of `replaceChain()` in src/ to use the new streaming signature
-- [ ] T035 [US4] Update tests/chunk_replace_tests.cpp to verify: bounded-memory batch processing, original chain preserved on validation failure, difficulty cache cleared at start, end state identical to all-in-memory approach
-- [ ] T036 [US4] Build with `make -j8` and run `./tests/chunk_replace_tests`, `./tests/consensus_tests`, `./tests/sync_tests` to verify no regressions
+- [X] T032 [US4] Refactor `replaceChain()` signature in src/IChainWriter.hpp: add `virtual void replaceChainStreaming(size_t candidateLength, std::function<std::vector<Block>(size_t batchStart, size_t batchSize)> fetcher) = 0` and deprecate the existing `replaceChain(const std::vector<Block>&)` overload
+- [X] T033 [US4] Implement streaming `replaceChain()` in src/Blockchain.cpp: clear difficulty cache at start (FR-011), validate batches of 100 blocks, write to temp chunk files, atomic rename on success, delete temp files on failure
+- [X] T034 [US4] Update `ChainService::submitSyncBatch()` and any callers of `replaceChain()` in src/ to use the new streaming signature
+- [X] T035 [US4] Update tests/chunk_replace_tests.cpp to verify: bounded-memory batch processing, original chain preserved on validation failure, difficulty cache cleared at start, end state identical to all-in-memory approach
+- [X] T036 [US4] Build with `make -j8` and run `./tests/chunk_replace_tests`, `./tests/consensus_tests`, `./tests/sync_tests` to verify no regressions
 
 **Checkpoint**: Chain replacement uses bounded memory with crash-safe rollback. All chain replacement tests pass.
 
@@ -125,9 +125,9 @@
 
 **Purpose**: Final validation, documentation, and cleanup
 
-- [ ] T037 [P] Update docs/AUDIT.md to mark §6.1, §6.2, §6.3, and §4.5 as RESOLVED with brief descriptions of what was done
-- [ ] T038 [P] Update docs/ROADMAP.md to move 021-architecture-remediation to Completed table
-- [ ] T039 Full build with `make -j8` and run ALL test binaries individually per quickstart.md to verify zero regressions across the entire test suite
+- [X] T037 [P] Update docs/AUDIT.md to mark §6.1, §6.2, §6.3, and §4.5 as RESOLVED with brief descriptions of what was done
+- [X] T038 [P] Update docs/ROADMAP.md to move 021-architecture-remediation to Completed table
+- [X] T039 Full build with `make -j8` and run ALL test binaries individually per quickstart.md to verify zero regressions across the entire test suite
 
 ---
 

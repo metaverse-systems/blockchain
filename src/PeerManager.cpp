@@ -1,5 +1,6 @@
 #include "PeerManager.hpp"
 #include "BlockPropagation.hpp"
+#include "ChainError.hpp"
 #include "network/PeerClient.hpp"
 #include "network/PeerServer.hpp"
 #include "network/PeerMessages.hpp"
@@ -20,6 +21,7 @@ PeerManager::PeerManager(boost::asio::io_context &io_context,
                          const PeerConfig &config,
                          const std::filesystem::path &data_dir,
                          IBlockchain &bc,
+                         ChainService &chain_service,
                          SyncStatus &sync_status,
                          uint16_t p2p_port)
     : io_context_(io_context),
@@ -27,6 +29,7 @@ PeerManager::PeerManager(boost::asio::io_context &io_context,
       config_(config),
       data_dir_(data_dir),
       bc_(bc),
+      chain_service_(chain_service),
       sync_status_(sync_status),
       p2p_port_(p2p_port)
 {
@@ -144,7 +147,7 @@ static std::string normalize_address(const std::string &host) {
 
 // --- Peer List Management ---
 
-bool PeerManager::add_peer(const PeerEntry &entry) {
+void PeerManager::add_peer(const PeerEntry &entry) {
     auto norm_host = normalize_address(entry.host);
     auto key = peer_key(norm_host, entry.port);
 
@@ -153,7 +156,7 @@ bool PeerManager::add_peer(const PeerEntry &entry) {
         // Update existing entry
         if (!entry.node_uuid.empty()) it->second.node_uuid = entry.node_uuid;
         if (entry.last_seen > it->second.last_seen) it->second.last_seen = entry.last_seen;
-        return true;
+        return;
     }
 
     // Cap enforcement with oldest-seen eviction
@@ -164,7 +167,6 @@ bool PeerManager::add_peer(const PeerEntry &entry) {
     PeerEntry new_entry = entry;
     new_entry.host = norm_host;
     peers_[key] = std::move(new_entry);
-    return true;
 }
 
 void PeerManager::evict_oldest_peer() {
@@ -179,10 +181,12 @@ void PeerManager::evict_oldest_peer() {
     peers_.erase(oldest);
 }
 
-bool PeerManager::remove_peer(const std::string &host_raw, uint16_t port) {
+void PeerManager::remove_peer(const std::string &host_raw, uint16_t port) {
     auto host = normalize_address(host_raw);
     auto key = peer_key(host, port);
-    return peers_.erase(key) > 0;
+    if (peers_.erase(key) == 0) {
+        throw PeerError("Peer not found: " + key);
+    }
 }
 
 std::vector<PeerEntry> PeerManager::get_peers() const {
@@ -285,7 +289,7 @@ void PeerManager::connect_to(const std::string &host_raw, uint16_t port) {
 
     LOG_INFO("Connecting to peer " + key);
 
-    auto client = std::make_shared<PeerClient>(io_context_, ssl_context_, host, port, bc_, sync_status_);
+    auto client = std::make_shared<PeerClient>(io_context_, ssl_context_, host, port, bc_, chain_service_, sync_status_);
     client->set_peer_manager(this);
     if (block_propagation_) {
         client->set_block_propagation(block_propagation_);
@@ -515,8 +519,10 @@ void PeerManager::ban_peer(const std::string &host, uint16_t port, const std::st
         outbound_connections_.erase(it);
     }
 
-    // Remove from peer list
-    remove_peer(host, port);
+    // Remove from peer list (may already be absent)
+    try {
+        remove_peer(host, port);
+    } catch (const PeerError &) {}
 
     // Add ban record
     BanRecord ban;
@@ -645,7 +651,9 @@ void PeerManager::disconnect_and_remove(const std::string &host_raw, uint16_t po
     auto host = normalize_address(host_raw);
     auto key = peer_key(host, port);
     outbound_connections_.erase(key);
-    remove_peer(host, port);
+    try {
+        remove_peer(host, port);
+    } catch (const PeerError &) {}
     save_peers();
 }
 

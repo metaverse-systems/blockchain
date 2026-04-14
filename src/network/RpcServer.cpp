@@ -6,12 +6,13 @@
 #include "../StreamEntry.hpp"
 #include "../PeerManager.hpp"
 #include "../MerkleTree.hpp"
+#include "../ChainError.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <regex>
 
 RpcServer::RpcServer(std::shared_ptr<ssl::stream<tcp::socket>> socket_ptr, IBlockchain &bc)
-        : SessionHandler(std::move(*socket_ptr), bc) { init_dispatch(); }
+        : SessionHandler(std::move(*socket_ptr), bc), reader_(bc), writer_(bc) { init_dispatch(); }
 
 std::shared_ptr<RpcServer> RpcServer::create(boost::asio::io_context &io_context, ssl::context &ssl_context, IBlockchain &bc)
 {
@@ -158,7 +159,7 @@ nlohmann::json RpcServer::handle_publish(const nlohmann::json &request)
     }
 
     try {
-        Block b = bc.publish(stream_name, key, data, keys);
+        Block b = writer_.publish(stream_name, key, data, keys);
         b.dump();
         bc.saveChunk(b.index / bc.chunkSize);
         bc.saveKeys();
@@ -185,7 +186,7 @@ nlohmann::json RpcServer::handle_createStream(const nlohmann::json &request)
         return errorMessage(request["id"], -32602, "Invalid params: stream name invalid");
     }
     try {
-        bc.createStream(name);
+        writer_.createStream(name);
         return resultMessage(request["id"], "Stream '" + name + "' created");
     } catch (const std::runtime_error &) {
         return errorMessage(request["id"], -32004, "Stream already exists");
@@ -194,7 +195,7 @@ nlohmann::json RpcServer::handle_createStream(const nlohmann::json &request)
 
 nlohmann::json RpcServer::handle_listStreams(const nlohmann::json &request)
 {
-    auto streams = bc.listStreams();
+    auto streams = reader_.listStreams();
     nlohmann::json arr = nlohmann::json::array();
     for (const auto &s : streams) {
         arr.push_back(s);
@@ -214,7 +215,7 @@ nlohmann::json RpcServer::handle_getStreamEntries(const nlohmann::json &request)
     if (request["params"].contains("key") && request["params"]["key"].is_string()) {
         key = request["params"]["key"].get<std::string>();
     }
-    auto entries = bc.getStreamEntries(stream_name, key);
+    auto entries = reader_.getStreamEntries(stream_name, key);
     nlohmann::json arr = nlohmann::json::array();
     for (const auto &[blockIdx, entry] : entries) {
         nlohmann::json ej;
@@ -239,7 +240,7 @@ nlohmann::json RpcServer::handle_getStreamEntry(const nlohmann::json &request)
     auto stream_name = request["params"]["stream"].get<std::string>();
     auto key = request["params"]["key"].get<std::string>();
     try {
-        auto [blockIdx, entry] = bc.getStreamEntry(stream_name, key);
+        auto [blockIdx, entry] = reader_.getStreamEntry(stream_name, key);
         nlohmann::json ej;
         ej["block_index"] = blockIdx;
         ej["stream"] = entry.stream;
@@ -271,10 +272,10 @@ nlohmann::json RpcServer::handle_getBlockByIndex(const nlohmann::json &request)
         return invalidParamsMessage(request["id"]);
     }
     auto index = request["params"]["index"].get<size_t>();
-    if (index >= bc.getChainLength()) {
+    if (index >= reader_.getChainLength()) {
         return errorMessage(request["id"], -32001, "Block not found");
     }
-    Block b = bc.getBlockByIndex(index);
+    Block b = reader_.getBlockByIndex(index);
     b.dump();
     return resultMessage(request["id"], b.toJson().dump());
 }
@@ -285,7 +286,7 @@ nlohmann::json RpcServer::handle_getBlocksByKeys(const nlohmann::json &request)
         return invalidParamsMessage(request["id"]);
     }
     auto keys = request["params"]["keys"].get<std::vector<std::string>>();
-    std::vector<Block> blocks = bc.getBlocksByKeys(keys);
+    std::vector<Block> blocks = reader_.getBlocksByKeys(keys);
     nlohmann::json result;
 
     for (auto &b : blocks) {
@@ -437,7 +438,7 @@ nlohmann::json RpcServer::handle_getInclusionProof(const nlohmann::json &request
     auto blockIndex = request["params"]["blockIndex"].get<size_t>();
     auto entryIndex = request["params"]["entryIndex"].get<size_t>();
     try {
-        auto result = bc.getInclusionProof(blockIndex, entryIndex);
+        auto result = reader_.getInclusionProof(blockIndex, entryIndex);
         return resultJsonMessage(request["id"], result);
     } catch (const std::out_of_range &e) {
         std::string msg = e.what();
@@ -470,7 +471,7 @@ nlohmann::json RpcServer::handle_verifyInclusionProof(const nlohmann::json &requ
     auto leafHash = request["params"]["leafHash"].get<std::string>();
     auto proofArray = request["params"]["proof"];
     try {
-        auto result = bc.verifyInclusionProof(blockIndex, leafHash, proofArray);
+        auto result = reader_.verifyInclusionProof(blockIndex, leafHash, proofArray);
         return resultJsonMessage(request["id"], result);
     } catch (const std::out_of_range &) {
         return errorMessage(request["id"], -32001, "Block not found");
@@ -485,7 +486,7 @@ nlohmann::json RpcServer::handle_getBlockHeader(const nlohmann::json &request)
     }
     auto blockIndex = request["params"]["blockIndex"].get<size_t>();
     try {
-        Block b = bc.getBlockByIndex(blockIndex);
+        Block b = reader_.getBlockByIndex(blockIndex);
         return resultJsonMessage(request["id"], b.toHeaderJson());
     } catch (const std::out_of_range &) {
         return errorMessage(request["id"], -32001, "Block not found");
@@ -495,10 +496,10 @@ nlohmann::json RpcServer::handle_getBlockHeader(const nlohmann::json &request)
 nlohmann::json RpcServer::handle_getNodeStatus(const nlohmann::json &request)
 {
     nlohmann::json result;
-    result["chainLength"] = bc.getChainLength();
-    result["chunkCount"] = bc.getChunkCount();
+    result["chainLength"] = reader_.getChainLength();
+    result["chunkCount"] = reader_.getChunkCount();
     result["syncState"] = (sync_status && sync_status->isSyncing.load()) ? "syncing" : "idle";
-    result["currentDifficulty"] = bc.getCurrentDifficulty();
+    result["currentDifficulty"] = reader_.getCurrentDifficulty();
     result["inboundPeers"] = peer_manager ? peer_manager->inbound_count() : static_cast<size_t>(0);
     result["outboundPeers"] = peer_manager ? peer_manager->outbound_count() : static_cast<size_t>(0);
     result["nodeUuid"] = peer_manager ? peer_manager->get_node_uuid() : "";
@@ -528,7 +529,7 @@ nlohmann::json RpcServer::handle_getBlockRange(const nlohmann::json &request)
         return errorMessage(request["id"], -32602, "Range too large: maximum 1000 blocks per request");
     }
 
-    size_t chainLength = bc.getChainLength();
+    size_t chainLength = reader_.getChainLength();
     if (startIndex >= chainLength) {
         return errorMessage(request["id"], -32001, "Start index out of range");
     }
@@ -539,7 +540,7 @@ nlohmann::json RpcServer::handle_getBlockRange(const nlohmann::json &request)
 
     nlohmann::json blocks = nlohmann::json::array();
     for (size_t i = startIndex; i <= endIndex; i++) {
-        Block b = bc.getBlockByIndex(i);
+        Block b = reader_.getBlockByIndex(i);
         blocks.push_back(headersOnly ? b.toHeaderJson() : b.toJson());
     }
     return resultMessage(request["id"], blocks.dump());
@@ -547,12 +548,12 @@ nlohmann::json RpcServer::handle_getBlockRange(const nlohmann::json &request)
 
 nlohmann::json RpcServer::handle_getChainLength(const nlohmann::json &request)
 {
-    return resultMessage(request["id"], std::to_string(bc.getChainLength()));
+    return resultMessage(request["id"], std::to_string(reader_.getChainLength()));
 }
 
 nlohmann::json RpcServer::handle_getChunkCount(const nlohmann::json &request)
 {
-    return resultMessage(request["id"], std::to_string(bc.getChunkCount()));
+    return resultMessage(request["id"], std::to_string(reader_.getChunkCount()));
 }
 
 void RpcServer::do_write()
