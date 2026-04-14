@@ -439,21 +439,17 @@ TEST_CASE("saveAllChunks partial failure returns non-zero and keeps dirty flag",
         bc.publish("test", "dirty_key", "dirty_data", {"k"});
         REQUIRE(bc.isDirty() == true);
 
-        // Make the chunk 0 file read-only (Chunk::save writes a .tmp then renames)
-        auto chunk_file = dir / "chunk_000000.dat";
-        std::filesystem::permissions(chunk_file, std::filesystem::perms::owner_read,
-                                     std::filesystem::perm_options::replace);
-        // Also restrict the directory so .tmp files can't be created
-        std::filesystem::permissions(dir, std::filesystem::perms::owner_read | std::filesystem::perms::owner_exec,
-                                     std::filesystem::perm_options::replace);
+        // Block the dirty chunk's save by creating a directory where its
+        // .tmp file would go — ofstream on a directory fails cross-platform.
+        auto tmp_blocker = dir / "chunk_000001.dat.tmp";
+        std::filesystem::create_directory(tmp_blocker);
 
         size_t failures = bc.saveAllChunks();
         REQUIRE(failures > 0);
         REQUIRE(bc.isDirty() == true);
 
-        // Restore directory permissions for cleanup
-        std::filesystem::permissions(dir, std::filesystem::perms::all,
-                                     std::filesystem::perm_options::replace);
+        // Remove blocker directory for cleanup
+        std::filesystem::remove(tmp_blocker);
     }
     cleanup_test_dir(dir);
 }
