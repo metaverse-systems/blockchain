@@ -27,7 +27,7 @@ Read-only query interface. All query methods consolidated here.
 
 **Relationship**: Implemented by `Blockchain<ChunkHandler>`. Consumed by `RpcServer` (read path), `PeerServer` (sync read path).
 
-### IChainWriter (Interface — Unchanged Signature, New Exception Contract)
+### IChainWriter (Interface — Updated Signature + Exception Contract)
 
 Mutation interface for chain operations.
 
@@ -37,7 +37,7 @@ Mutation interface for chain operations.
 | `publish()` | `Block` | Publish data to stream | `ValidationError`, `PersistenceError` |
 | `createStream()` | `void` | Create named stream | `ValidationError` |
 | `appendBlock()` | `void` | Append validated block | `ValidationError` |
-| `replaceChain()` | `void` | **SIGNATURE CHANGES** — streaming replacement | `ValidationError`, `PersistenceError` |
+| `replaceChainStreaming(size_t candidateLength, std::function<std::vector<Block>(size_t, size_t)> fetcher)` | `void` | Streaming replacement — fetches blocks in batches via callback | `ValidationError`, `PersistenceError` |
 | `setShuttingDown()` | `void` | Signal shutdown (never fails) | — |
 | `saveKeys()` | `void` | Persist key indexes | `PersistenceError` |
 

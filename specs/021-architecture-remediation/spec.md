@@ -96,7 +96,7 @@ An operator running a node on a machine with limited RAM should be able to accep
 - **FR-004**: A service layer MUST mediate between the network layer and the domain layer, accepting blocks and delegating validation, append, and persistence to the chain.
 - **FR-005**: Network components (`PeerClient`, `PeerServer`, `BlockPropagation`) MUST submit blocks and sync batches through the service layer rather than calling chain mutation and persistence methods directly.
 - **FR-006**: The sync wire protocol MUST NOT include storage-specific fields such as `chunk_index`; batching strategy MUST be owned by the service layer.
-- **FR-007**: All operations that can fail — including chain-domain operations (block validation, persistence, stream operations) and peer management operations (`add_peer`, `remove_peer`, `ban_peer`, `unban_peer`) — MUST report failure through exceptions with domain-specific exception types. No operation may silently swallow errors, return booleans for failure, or log-and-continue when data integrity is at stake.
+- **FR-007**: All mutating operations that can fail — including chain-domain operations (block validation, persistence, stream operations) and peer management operations (`add_peer`, `remove_peer`, `ban_peer`, `unban_peer`) — MUST report failure through exceptions with domain-specific exception types. No mutating operation may silently swallow errors, return booleans for failure, or log-and-continue when data integrity is at stake. System-boundary input validation (`std::invalid_argument` in `parsePeerKey()`, `Block` constructor) and read-only index checks (`std::out_of_range` in `MerkleProofService`) retain their existing standard library exception types.
 - **FR-008**: `replaceChain` MUST process the candidate chain in bounded-size batches so that peak memory is proportional to the batch size, not the total chain length.
 - **FR-009**: If a streaming chain replacement fails partway through validation, the original chain state MUST be preserved with no partial replacement committed.
 - **FR-011**: The difficulty cache MUST be cleared once at the start of a streaming chain replacement (before processing any batches) to prevent stale cache entries from affecting difficulty recalculations during rebuild.
@@ -118,8 +118,7 @@ An operator running a node on a machine with limited RAM should be able to accep
 - **SC-003**: The sync wire format contains no storage-specific fields (e.g. chunk index).
 - **SC-004**: Every mutating operation that can fail uses the same error-reporting mechanism, verifiable by code review.
 - **SC-005**: Chain replacement peak memory usage is bounded by batch size regardless of total chain length.
-- **SC-006**: All existing tests continue to pass after the refactoring, and new tests cover the service layer and streaming replacement.
-- **SC-007**: No regressions in chain sync, block propagation, or RPC functionality after the architectural changes.
+- **SC-006**: All existing tests continue to pass after the refactoring with no regressions in chain sync, block propagation, or RPC functionality, and new tests cover the service layer and streaming replacement.
 
 ## Clarifications
 

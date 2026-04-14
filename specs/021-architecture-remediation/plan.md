@@ -97,7 +97,6 @@ tests/
 ```
 
 **Structure Decision**: Single-project layout following existing `src/` + `tests/` convention. New files placed at the same level as the classes they relate to. No new directories.
-# Implementation Plan: [FEATURE]
 
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
