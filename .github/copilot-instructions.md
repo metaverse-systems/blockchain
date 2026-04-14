@@ -24,6 +24,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-13
 - Boost.Serialization binary chunk files (`chunk_NNNNNN.dat`), keys (`keys.dat`), streams (`streams.dat`, `stream_index.dat`) (016-audit-remediation)
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test only) (019-perf-dedup-cleanup)
 - Boost.Serialization binary chunk files (`chunk_NNNNNN.dat`), JSON files (`peers.json`, `config.json`) (019-perf-dedup-cleanup)
+- C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework) (020-address-test-quality)
 
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored `src/json.hpp`), Catch2 (test only) (001-code-constitution-audit)
 
@@ -51,9 +52,9 @@ C++20 (`-std=c++20`): Follow standard conventions
 - Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
 
 ## Recent Changes
+- 020-address-test-quality: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework)
 - 019-perf-dedup-cleanup: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test only)
 - 018-audit-bug-security-fixes: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
-- 017-blockchain-module-split: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
 
 
 <!-- MANUAL ADDITIONS START -->

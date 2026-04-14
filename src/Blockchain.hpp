@@ -77,7 +77,7 @@ class Blockchain : public IBlockchain
     size_t getChainBlockCount() const;
     size_t getChainLength() const override;
     size_t getChunkCount() const override;
-    void saveAllChunks();
+    size_t saveAllChunks();
     size_t discoverChunks();
     void recoverChain(bool fast_startup = false);
     bool validateChunk(size_t chunkIndex);

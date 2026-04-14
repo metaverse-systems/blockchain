@@ -101,8 +101,12 @@ TEST_CASE("replaceChain handles backup dir creation failure gracefully", "[US8][
         std::ofstream(dir / "backups") << "blocker";
 
         auto candidate = build_candidate_chain(10);
+        size_t chain_len_before = bc.getChainLength();
         // Should not throw — logs and continues
         REQUIRE_NOTHROW(bc.replaceChain(candidate));
+        // Chain should be replaced with the longer candidate despite backup failure
+        REQUIRE(bc.getChainLength() == candidate.size());
+        REQUIRE(bc.getChainLength() > chain_len_before);
 
         // Clean up the blocker file
         std::filesystem::remove(dir / "backups");

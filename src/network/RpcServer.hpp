@@ -23,6 +23,8 @@ class PeerManager;
 
 class RpcServer : public SessionHandler, public std::enable_shared_from_this<RpcServer>
 {
+    friend class RpcHandlerTests;
+
   public:
     using RpcHandler = std::function<nlohmann::json(const nlohmann::json &)>;
 

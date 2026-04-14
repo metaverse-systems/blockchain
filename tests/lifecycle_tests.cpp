@@ -46,8 +46,10 @@ TEST_CASE("saveAllChunks saves only dirty chunks", "[lifecycle][us1]") {
     // directly since chain is private. Instead, call saveAllChunks which should
     // save dirty chunks, then verify via the dirty_ flag behavior.
 
-    // saveAllChunks should complete without error
-    REQUIRE_NOTHROW(bc.saveAllChunks());
+    // saveAllChunks should succeed with zero failures and clear dirty flag
+    size_t failures = bc.saveAllChunks();
+    REQUIRE(failures == 0);
+    REQUIRE(bc.isDirty() == false);
 
     cleanup_test_dir(dir);
 }
@@ -57,8 +59,9 @@ TEST_CASE("saveAllChunks skips empty chunks", "[lifecycle][us1]") {
     Blockchain<MockChunk> bc(dir, test_config());
 
     // Genesis block is in chunk 0 (1 block). The chunk is not empty.
-    // saveAllChunks iterates all chunks; empty chunks should be skipped
-    REQUIRE_NOTHROW(bc.saveAllChunks());
+    // saveAllChunks iterates all chunks; should succeed with zero failures
+    size_t failures = bc.saveAllChunks();
+    REQUIRE(failures == 0);
 
     cleanup_test_dir(dir);
 }
@@ -302,7 +305,8 @@ TEST_CASE("Periodic save only writes dirty chunks via saveAllChunks", "[lifecycl
     REQUIRE(bc.isDirty() == false);
 
     // Calling saveAllChunks again should be a no-op (nothing dirty)
-    REQUIRE_NOTHROW(bc.saveAllChunks());
+    size_t failures2 = bc.saveAllChunks();
+    REQUIRE(failures2 == 0);
 
     cleanup_test_dir(dir);
 }
@@ -410,5 +414,42 @@ TEST_CASE("dirty flag stays true through chunk rotation until save", "[lifecycle
     bc.saveAllChunks();
     REQUIRE(bc.isDirty() == false);
 
+    cleanup_test_dir(dir);
+}
+
+// --- Phase 7: US5 Coverage Gap Tests ---
+
+TEST_CASE("saveAllChunks partial failure returns non-zero and keeps dirty flag", "[lifecycle][us5]") {
+    auto dir = create_test_dir("partial_save_failure");
+    {
+        auto cfg = test_config();
+        Blockchain<Chunk> bc(dir, cfg);
+
+        // Fill chunk 0 (100 blocks) and create chunk 1
+        for (int i = 0; i < 101; i++) {
+            bc.publish("test", "key" + std::to_string(i), "data", {"k"});
+        }
+        REQUIRE(bc.getChunkCount() >= 2);
+
+        // Save once to create the chunk files, then make chunk 0 read-only
+        bc.saveAllChunks();
+        REQUIRE(bc.isDirty() == false);
+
+        // Add another block to make dirty again
+        bc.publish("test", "dirty_key", "dirty_data", {"k"});
+        REQUIRE(bc.isDirty() == true);
+
+        // Block the dirty chunk's save by creating a directory where its
+        // .tmp file would go — ofstream on a directory fails cross-platform.
+        auto tmp_blocker = dir / "chunk_000001.dat.tmp";
+        std::filesystem::create_directory(tmp_blocker);
+
+        size_t failures = bc.saveAllChunks();
+        REQUIRE(failures > 0);
+        REQUIRE(bc.isDirty() == true);
+
+        // Remove blocker directory for cleanup
+        std::filesystem::remove(tmp_blocker);
+    }
     cleanup_test_dir(dir);
 }

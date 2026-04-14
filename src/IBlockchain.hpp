@@ -10,9 +10,11 @@
 #include "Block.hpp"
 #include "StreamEntry.hpp"
 #include "ConsensusConfig.hpp"
+#include "IChainReader.hpp"
+#include "IChainWriter.hpp"
 #include "json.hpp"
 
-class IBlockchain
+class IBlockchain : public IChainReader, public IChainWriter
 {
   private:
     std::filesystem::path blockchainPath;
@@ -22,37 +24,25 @@ class IBlockchain
 
     virtual ~IBlockchain() = default;
 
-    bool isShuttingDown() const { return shutting_down_; }
-    void setShuttingDown() { shutting_down_ = true; }
+    bool isShuttingDown() const override { return shutting_down_; }
+    void setShuttingDown() override { shutting_down_ = true; }
     
+    // Persistence methods (not in sub-interfaces)
     virtual void loadChunk(size_t chunk_id) = 0;
     virtual void freeChunk(size_t chunk_id) = 0;
     virtual void saveChunk(size_t chunk_id) = 0;
     virtual void loadKeys() = 0;
-    virtual void saveKeys() = 0;
     virtual void dumpBlocks() = 0;
     virtual void dumpKeys() = 0;
-    virtual void generateGenesisBlock() = 0;
-    virtual Block publish(const std::string &stream, const std::string &key,
-                          const std::string &data, const std::vector<std::string> &keys) = 0;
-    virtual void createStream(const std::string &name) = 0;
-    virtual std::set<std::string> listStreams() const = 0;
-    virtual std::vector<std::pair<size_t, StreamEntry>> getStreamEntries(
-        const std::string &stream, const std::string &key = "") const = 0;
-    virtual std::pair<size_t, StreamEntry> getStreamEntry(
-        const std::string &stream, const std::string &key) const = 0;
-    virtual void appendBlock(const Block &block) = 0;
+
+    // Query methods returning mutable copies (kept on IBlockchain)
     virtual std::vector<Block> getBlocksByKeys(const std::vector<std::string> &keys) = 0;
     virtual Block getBlockByIndex(size_t index) = 0;
-    virtual void replaceChain(const std::vector<Block> &candidateBlocks) = 0;
-    virtual size_t getChainBlockCount() const = 0;
-    virtual size_t getChainLength() const = 0;
-    virtual size_t getChunkCount() const = 0;
-    virtual uint32_t getCurrentDifficulty() const = 0;
+
+    // Merkle proof methods
     virtual nlohmann::json getInclusionProof(size_t blockIndex, size_t entryIndex) = 0;
     virtual nlohmann::json verifyInclusionProof(size_t blockIndex, const std::string &leafHash,
                                                  const nlohmann::json &proofArray) = 0;
-    virtual const ConsensusConfig& getConfig() const = 0;
 
     static bool isValidNewBlock(const Block &newBlock, const Block &previousBlock, const ConsensusConfig &config)
     {

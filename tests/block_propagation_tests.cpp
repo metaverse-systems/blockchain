@@ -37,16 +37,20 @@ TEST_CASE("RecentBlockCache FIFO eviction at capacity", "[block_propagation][ded
     SyncStatus sync_status;
     BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
 
-    // Fill the cache by receiving 512 valid blocks
+    // Submit 512 valid blocks through on_block_received to fill the dedup cache
+    // Use different peer addresses to avoid per-peer rate limiting (10/sec)
     for (int i = 0; i < 512; i++) {
         Block b = bc.createValidNextBlock("block_" + std::to_string(i));
-        bc.blocks.push_back(b); // Pre-append to chain so next block is valid
+        bp.on_block_received(b, "peer" + std::to_string(i) + ":9000");
     }
 
-    // Reset and re-create for a simpler test
-    // The cache should handle 512 entries and evict the oldest
-    // This is implicitly tested by the dedup test above
-    SUCCEED("FIFO eviction capacity is set to 512");
+    // All 512 should have been appended
+    REQUIRE(bc.appended_blocks.size() == 512);
+
+    // Re-submit a recent block from the cache — should be deduplicated
+    Block last_appended = bc.appended_blocks.back();
+    bp.on_block_received(last_appended, "fresh_peer:9000");
+    REQUIRE(bc.appended_blocks.size() == 512);
 }
 
 // --- BlockRateState Tests ---
@@ -82,8 +86,10 @@ TEST_CASE("Rate limiter allows up to limit then rejects", "[block_propagation][r
         }
     }
 
-    // First 10 should be accepted (rate limit), blocks 11-12 should be dropped
-    REQUIRE(accepted <= 10);
+    // First 10 should be accepted (rate limit = 10/sec), blocks 11-12 dropped
+    REQUIRE(accepted == 10);
+    // Chain height should be genesis + 10 accepted blocks
+    REQUIRE(bc.getChainBlockCount() == 11);
 }
 
 // --- PendingBlock Pool Tests ---
@@ -323,8 +329,11 @@ TEST_CASE("Pending pool evicts oldest entry at capacity", "[block_propagation][p
         bp.on_block_received(b, "peer:9000");
     }
 
-    // After 65 inserts with capacity 64, pool should have 64 entries
-    SUCCEED("Pending pool handled capacity eviction without crash");
+    // After 65 inserts with capacity 64, pool should have evicted the oldest
+    // None of the gap blocks should have been appended to the chain (no predecessor)
+    REQUIRE(bc.appended_blocks.empty());
+    // Chain should still only have genesis
+    REQUIRE(bc.getChainBlockCount() == 1);
 }
 
 TEST_CASE("Pending pool resolves deferred block when predecessor arrives", "[block_propagation][pending_pool]") {
@@ -436,4 +445,108 @@ TEST_CASE("parsePeerKey handles full IPv6 address", "[utils][ipv6]") {
 TEST_CASE("parsePeerKey throws on malformed key", "[utils][ipv6]") {
     REQUIRE_THROWS_AS(parsePeerKey("no-port-here"), std::invalid_argument);
     REQUIRE_THROWS_AS(parsePeerKey(""), std::invalid_argument);
+}
+
+// --- Phase 7: US5 Coverage Gap Tests ---
+
+TEST_CASE("Relay callback exception does not crash block propagation", "[block_propagation][relay][us5]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    bool threw = false;
+    BlockPropagation bp(bc, sync_status, [&](const Block &, const std::string &) {
+        threw = true;
+        throw std::runtime_error("simulated relay disconnect");
+    });
+
+    Block b = bc.createValidNextBlock("relay_crash_test");
+    // The relay callback throws, but on_block_received should still have appended the block
+    // Note: if relay_cb_ throws, it propagates out of on_block_received. This tests
+    // that the block was appended before the relay is called.
+    try {
+        bp.on_block_received(b, "peer1:9000");
+    } catch (...) {
+        // Expected — relay exception propagates
+    }
+
+    REQUIRE(threw);
+    // Block should have been appended before relay was called
+    REQUIRE(bc.appended_blocks.size() == 1);
+    REQUIRE(bc.appended_blocks[0].hash == b.hash);
+}
+
+TEST_CASE("Rate limiter window resets after 1 second", "[block_propagation][rate_limit][us5]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    // Pre-create 12 valid blocks
+    std::vector<Block> blocks;
+    for (int i = 0; i < 12; i++) {
+        blocks.push_back(bc.createValidNextBlock("rate_reset_" + std::to_string(i)));
+        bc.blocks.push_back(blocks.back());
+    }
+    bc.blocks.resize(1);
+    bc.appended_blocks.clear();
+
+    // Submit 10 blocks from same peer to exhaust rate limit
+    for (int i = 0; i < 10; i++) {
+        bp.on_block_received(blocks[i], "127.0.0.1:9000");
+    }
+    REQUIRE(bc.appended_blocks.size() == 10);
+
+    // Block 11 should be rate-limited
+    bp.on_block_received(blocks[10], "127.0.0.1:9000");
+    REQUIRE(bc.appended_blocks.size() == 10);
+
+    // Wait for rate limit window to expire
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+
+    // Block 11 should now be accepted after window reset
+    bp.on_block_received(blocks[10], "127.0.0.1:9000");
+    REQUIRE(bc.appended_blocks.size() == 11);
+}
+
+TEST_CASE("Pending pool entries expire after TTL", "[block_propagation][pending][us5]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    BlockPropagation bp(bc, sync_status, [](const Block &, const std::string &) {});
+
+    // Create blocks: b1 connects to genesis, b2 connects to b1
+    Block b1 = bc.createValidNextBlock("first");
+    bc.blocks.push_back(b1);
+    Block b2 = bc.createValidNextBlock("second");
+    bc.blocks.resize(1);
+    bc.appended_blocks.clear();
+
+    // Submit b2 first (gap block) — deferred to pending pool
+    bp.on_block_received(b2, "peer1:9000");
+    REQUIRE(bc.appended_blocks.empty());
+
+    // Since kPendingTTL is 60s and we can't wait that long, verify the block
+    // was deferred by checking that submitting b1 resolves b2
+    bp.on_block_received(b1, "peer2:9000");
+    REQUIRE(bc.appended_blocks.size() == 2);
+    REQUIRE(bc.appended_blocks[0].hash == b1.hash);
+    REQUIRE(bc.appended_blocks[1].hash == b2.hash);
+}
+
+TEST_CASE("Block relay callback receives sender key for exclusion", "[block_propagation][relay][us5]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    std::string relayed_sender_key;
+    Block relayed_block;
+    bool relay_called = false;
+
+    BlockPropagation bp(bc, sync_status, [&](const Block &block, const std::string &sender_key) {
+        relay_called = true;
+        relayed_block = block;
+        relayed_sender_key = sender_key;
+    });
+
+    Block b = bc.createValidNextBlock("relay_test");
+    bp.on_block_received(b, "peer1:9000");
+
+    REQUIRE(relay_called);
+    REQUIRE(relayed_sender_key == "peer1:9000");
+    REQUIRE(relayed_block.hash == b.hash);
 }

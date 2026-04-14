@@ -3,6 +3,8 @@
 #include "../src/Block.hpp"
 #include "../src/StreamEntry.hpp"
 #include "../src/ConsensusConfig.hpp"
+#include "../src/IChainReader.hpp"
+#include "../src/IChainWriter.hpp"
 #include "../src/MerkleTree.hpp"
 #include "../src/utils.hpp"
 #include <filesystem>
@@ -93,3 +95,59 @@ inline Block make_block(size_t index, const std::string &prevHash) {
 }
 
 } // namespace TestHelpers
+
+class MockChainReader : public IChainReader {
+public:
+    bool shutting_down = false;
+    std::set<std::string> streams;
+    std::vector<std::pair<size_t, StreamEntry>> stream_entries;
+    std::pair<size_t, StreamEntry> single_entry = {0, StreamEntry{}};
+    size_t block_count = 1;
+    size_t chain_length = 1;
+    size_t chunk_count = 1;
+    uint32_t difficulty = 4;
+    ConsensusConfig cfg;
+
+    bool isShuttingDown() const override { return shutting_down; }
+    std::set<std::string> listStreams() const override { return streams; }
+    std::vector<std::pair<size_t, StreamEntry>> getStreamEntries(
+        const std::string &, const std::string &) const override { return stream_entries; }
+    std::pair<size_t, StreamEntry> getStreamEntry(
+        const std::string &, const std::string &) const override { return single_entry; }
+    size_t getChainBlockCount() const override { return block_count; }
+    size_t getChainLength() const override { return chain_length; }
+    size_t getChunkCount() const override { return chunk_count; }
+    uint32_t getCurrentDifficulty() const override { return difficulty; }
+    const ConsensusConfig& getConfig() const override { return cfg; }
+};
+
+class MockChainWriter : public IChainWriter {
+public:
+    size_t generate_genesis_count = 0;
+    size_t publish_count = 0;
+    size_t create_stream_count = 0;
+    size_t append_block_count = 0;
+    size_t replace_chain_count = 0;
+    size_t set_shutting_down_count = 0;
+    size_t save_keys_count = 0;
+    std::vector<Block> appended_blocks;
+    std::vector<Block> last_replaced_chain;
+
+    void generateGenesisBlock() override { ++generate_genesis_count; }
+    Block publish(const std::string &, const std::string &,
+                  const std::string &, const std::vector<std::string> &) override {
+        ++publish_count;
+        return Block{};
+    }
+    void createStream(const std::string &) override { ++create_stream_count; }
+    void appendBlock(const Block &block) override {
+        ++append_block_count;
+        appended_blocks.push_back(block);
+    }
+    void replaceChain(const std::vector<Block> &candidateBlocks) override {
+        ++replace_chain_count;
+        last_replaced_chain = candidateBlocks;
+    }
+    void setShuttingDown() override { ++set_shutting_down_count; }
+    void saveKeys() override { ++save_keys_count; }
+};

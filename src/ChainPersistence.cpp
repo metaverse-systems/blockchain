@@ -102,18 +102,20 @@ void ChainPersistence<ChunkHandler>::loadStreamIndex(StreamKeyIndex& streamKeyIn
 }
 
 template<typename ChunkHandler>
-void ChainPersistence<ChunkHandler>::saveAllChunks(std::vector<ChunkHandler>& chain,
+size_t ChainPersistence<ChunkHandler>::saveAllChunks(std::vector<ChunkHandler>& chain,
                                                     const std::map<std::string, std::vector<size_t>>& keyIndexMap,
                                                     const std::set<std::string>& streamRegistry,
                                                     const StreamKeyIndex& streamKeyIndex,
                                                     bool& dirty)
 {
+    size_t failures = 0;
     for (size_t i = 0; i < chain.size(); i++) {
         if (chain[i].isDirty() && chain[i].size() > 0) {
             try {
                 chain[i].save();
             } catch (const std::exception &e) {
                 logMessage("ERROR", "Failed to save chunk " + std::to_string(i) + ": " + std::string(e.what()));
+                ++failures;
             }
         }
     }
@@ -122,19 +124,25 @@ void ChainPersistence<ChunkHandler>::saveAllChunks(std::vector<ChunkHandler>& ch
         saveKeys(keyIndexMap);
     } catch (const std::exception &e) {
         logMessage("ERROR", "Failed to save keys: " + std::string(e.what()));
+        ++failures;
     }
     try {
         saveStreams(streamRegistry);
     } catch (const std::exception &e) {
         logMessage("ERROR", "Failed to save streams: " + std::string(e.what()));
+        ++failures;
     }
     try {
         saveStreamIndex(streamKeyIndex);
     } catch (const std::exception &e) {
         logMessage("ERROR", "Failed to save stream index: " + std::string(e.what()));
+        ++failures;
     }
 
-    dirty = false;
+    if (failures == 0) {
+        dirty = false;
+    }
+    return failures;
 }
 
 template<typename ChunkHandler>

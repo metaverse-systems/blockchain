@@ -423,9 +423,9 @@ size_t Blockchain<ChunkHandler>::getChunkCount() const
 }
 
 template<typename ChunkHandler>
-void Blockchain<ChunkHandler>::saveAllChunks()
+size_t Blockchain<ChunkHandler>::saveAllChunks()
 {
-    persistence_.saveAllChunks(this->chain, this->keyIndexMap,
+    return persistence_.saveAllChunks(this->chain, this->keyIndexMap,
                                this->streamRegistry, this->streamKeyIndex, this->dirty_);
 }
 
