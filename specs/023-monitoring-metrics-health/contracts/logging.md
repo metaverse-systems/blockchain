@@ -53,6 +53,7 @@ Valid values for `log_level`: `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"
 - One JSON object per line (JSON Lines format)
 - `timestamp`: ISO 8601 UTC (`YYYY-MM-DDTHH:MM:SSZ`)
 - `level`: Uppercase string (`"TRACE"`, `"DEBUG"`, `"INFO"`, `"WARN"`, `"ERROR"`)
+- `component`: Source component name (e.g., `"PeerManager"`, `"RpcServer"`, `"Blockchain"`, `"main"`)
 - `message`: Log message text (special characters JSON-escaped)
 - No ANSI color codes
 - Output to `stderr`

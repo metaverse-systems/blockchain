@@ -70,8 +70,8 @@ An operator configures the node to output logs in JSON format so that log aggreg
 
 - **FR-001**: System MUST provide an HTTP `/health` endpoint that returns a JSON object containing `status` (string: `"healthy"` or `"shutting_down"`), `chain_height` (integer), `peer_count` (integer), `chunk_count` (integer), `uptime_seconds` (number), and `last_block_index` (integer); status is `"shutting_down"` when `IBlockchain::isShuttingDown()` returns true
 - **FR-002**: System MUST provide an HTTP `/metrics` endpoint that returns Prometheus-compatible text format with gauge and counter metrics
-- **FR-003**: System MUST expose the following Prometheus metrics: `chain_height` (gauge), `peer_count` (gauge), `chunk_count` (gauge), `active_connections` (gauge), `uptime_seconds` (gauge), `rpc_requests_total` (counter), `rpc_errors_total` (counter), `blocks_received_total` (counter), `blocks_rejected_total` (counter)
-- **FR-004**: System MUST provide a MetricsService that collects and updates metrics from the blockchain state and peer network without blocking or invasive changes to existing components
+- **FR-003**: System MUST expose the following Prometheus metrics: `chain_height` (gauge), `peer_count` (gauge), `chunk_count` (gauge), `active_connections` (gauge), `uptime_seconds` (gauge), `rpc_requests_total` (counter), `rpc_errors_total` (counter), `blocks_received_total` (counter), `blocks_rejected_total` (counter). Additional peer-lifecycle metrics (connections, disconnections, bans, errors) MAY be exposed but are not required for v1.
+- **FR-004**: System MUST provide a MetricsCollector that collects and updates metrics from the blockchain state and peer network without blocking or invasive changes to existing components
 - **FR-005**: System MUST support configurable log levels (trace, debug, info, warn, error) via `config.json`; `LogLevel` enum extended with `Trace = 0` (shifting Debug→1, Info→2, Warning→3, Error→4), new `LOG_TRACE` macro added
 - **FR-006**: System MUST support JSON structured log output format configurable via `network.log_format` in `config.json` (values: `"text"` default, `"json"`); implemented by replacing `logMessage()` to detect format and output accordingly; `LOG_*` macros unchanged
 - **FR-007**: System MUST allow the monitoring HTTP server port and bind address to be configured via `network.monitoring_port` and `network.monitoring_bind_address` in `config.json`, plus `--monitoring-port` CLI argument
@@ -81,7 +81,7 @@ An operator configures the node to output logs in JSON format so that log aggreg
 
 ### Key Entities
 
-- **MetricsService**: Central component that maintains current metric values, observes blockchain and network state changes, and formats output for the metrics endpoint
+- **MetricsCollector**: Central component that maintains current metric values, observes blockchain and network state changes, and formats output for the metrics endpoint
 - **HealthResponse**: JSON structure returned by `/health` containing node status snapshot
 - **MonitoringHttpServer**: Lightweight HTTP server hosting `/health` and `/metrics` endpoints on a separate port from the JSON-RPC server
 
@@ -99,7 +99,7 @@ An operator configures the node to output logs in JSON format so that log aggreg
 
 ### Session 2026-06-23
 
-- Q: Metrics collection strategy — callback hooks vs polling vs hybrid? → A: Lightweight callback hooks added to existing components (PeerManager, RpcServer, Blockchain); MetricsService registers callbacks that fire on state changes
+- Q: Metrics collection strategy — callback hooks vs polling vs hybrid? → A: Lightweight callback hooks added to existing components (PeerManager, RpcServer, Blockchain); MetricsCollector registers callbacks that fire on state changes
 - Q: Log level `trace` vs existing 4-level enum — add Trace or drop it? → A: Add `Trace` to `LogLevel` enum as the lowest level (shift Debug=0→1, etc.), add `LOG_TRACE` macro
 - Q: Monitoring server bind address — localhost only, all interfaces, or configurable? → A: Default to `127.0.0.1` (localhost), configurable via `network.monitoring_bind_address` and `network.monitoring_port` in `config.json`
 - Q: Structured logging scope — replace logMessage, new logger, or parallel? → A: Replace `logMessage()` implementation to detect format config and output JSON or text; macros unchanged
@@ -112,6 +112,6 @@ An operator configures the node to output logs in JSON format so that log aggreg
 - Prometheus text format follows the standard Exposition format (one metric per line, labels in curly braces)
 - Log level ordering is: trace < debug < info < warn < error (configuring "warn" shows warn and error)
 - The feature reuses the existing `config.json` configuration pattern established by spec 009
-- Metrics are collected via callback hooks: MetricsService registers `std::function<void()>` callbacks on PeerManager, RpcServer, and Blockchain; no polling timers used
-- No authentication or TLS is required for the monitoring endpoints (operators are expected to manage access via firewall/port binding)
+- Metrics are collected via callback hooks: MetricsCollector registers `std::function<void()>` callbacks on PeerManager, RpcServer, and Blockchain; no polling timers used
+- No authentication is required for the monitoring endpoints; TLS is mandatory per Constitution §VI (operators manage access via firewall/port binding)
 - The monitoring server handles only synchronous GET requests (no POST, PUT, or streaming)
