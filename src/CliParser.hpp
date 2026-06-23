@@ -10,6 +10,7 @@ struct CliOptions {
     std::optional<std::string> config_path;
     std::optional<uint16_t> rpc_port;
     std::optional<uint16_t> p2p_port;
+    std::optional<uint16_t> monitoring_port;
     std::vector<std::string> seed_nodes;
     std::optional<std::string> log_level;
     bool generate_config = false;

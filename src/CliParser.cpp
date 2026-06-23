@@ -17,6 +17,7 @@ static po::options_description make_options() {
         ("config", po::value<std::string>(), "Path to configuration file")
         ("rpc-port", po::value<uint16_t>(), "RPC listen port (default: 12345)")
         ("p2p-port", po::value<uint16_t>(), "P2P listen port (default: 12346)")
+        ("monitoring-port", po::value<uint16_t>(), "Monitoring HTTPS port (default: 9090)")
         ("seed-node", po::value<std::vector<std::string>>(), "Add seed node (repeatable)")
         ("log-level", po::value<std::string>(), "Log level: debug|info|warning|error (default: info)")
         ("generate-config", "Generate default config.json and exit")
@@ -85,6 +86,9 @@ CliOptions CliParser::parse(int argc, char* argv[]) {
     }
     if (vm.count("p2p-port")) {
         opts.p2p_port = vm["p2p-port"].as<uint16_t>();
+    }
+    if (vm.count("monitoring-port")) {
+        opts.monitoring_port = vm["monitoring-port"].as<uint16_t>();
     }
     if (vm.count("seed-node")) {
         opts.seed_nodes = vm["seed-node"].as<std::vector<std::string>>();

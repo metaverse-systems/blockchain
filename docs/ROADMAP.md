@@ -28,6 +28,7 @@ Last updated: 2026-06-23
 | 020  | Address Test Quality | Replaced all trivial/vacuous assertions with behavioral checks, rewrote RPC expansion tests against real handlers, made integration tests deterministic, added 6 coverage-gap tests, split `IBlockchain` into `IChainReader`/`IChainWriter` |
 | 021  | Architecture Remediation | Segregated `IBlockchain` into `IChainReader`/`IChainWriter` with narrow references in `RpcServer`, introduced `ChainService` mediator between network and domain layers, domain-specific exception hierarchy (`ChainError` → `ValidationError`/`PersistenceError`/`PeerError`), streaming `replaceChainStreaming()` with 100-block batch validation, wire-format cleanup (`chunk_index` → `start_index`) |
 | 022  | Peer Disconnect Test Coverage | Added 9 unit tests for relay callback exception handling and peer disconnect handler state transitions covering the last remaining medium-severity coverage gap from AUDIT.md §7.5 |
+| 023  | Monitoring, Metrics & Health Endpoint | HTTPS `/health` JSON endpoint, Prometheus-compatible `/metrics` scraping, atomic metric counters with hooks in RpcServer/BlockPropagation/PeerManager, JSON structured logging, configurable bind address and port |
 
 ## Suggested Specs
 

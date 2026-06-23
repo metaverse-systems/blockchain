@@ -20,6 +20,7 @@
 class PeerClient;
 class PeerServer;
 class BlockPropagation;
+class MetricsCollector;
 
 class PeerManager {
 public:
@@ -98,11 +99,18 @@ public:
     void send_to_peers(const Block &block, const std::string &exclude_key = "");
     void set_block_propagation(BlockPropagation *bp) { block_propagation_ = bp; }
 
+    // Metrics
+    void set_metrics_collector(MetricsCollector *mc) { metrics_collector_ = mc; }
+
     // Per-peer backoff state
     struct BackoffState {
         uint32_t current_delay = 0;
         std::shared_ptr<boost::asio::steady_timer> timer;
     };
+
+    // Metrics
+    void record_peer_connected();
+    void record_peer_disconnected();
 
 private:
     boost::asio::io_context &io_context_;
@@ -113,6 +121,7 @@ private:
     ChainService &chain_service_;
     SyncStatus &sync_status_;
     uint16_t p2p_port_;
+    MetricsCollector *metrics_collector_ = nullptr;
 
     std::string node_uuid_;
     std::unordered_map<std::string, PeerEntry> peers_;

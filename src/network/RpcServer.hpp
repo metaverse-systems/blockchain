@@ -22,6 +22,7 @@ using boost::asio::ip::tcp;
 
 class PeerClient;
 class PeerManager;
+class MetricsCollector;
 
 class RpcServer : public SessionHandler, public std::enable_shared_from_this<RpcServer>
 {
@@ -37,6 +38,7 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
     SyncStatus *sync_status = nullptr;
     PeerClient *peer_client = nullptr;
     PeerManager *peer_manager = nullptr;
+    MetricsCollector *metrics_collector_ = nullptr;
     std::vector<std::string> allowed_streams;
     std::unordered_map<std::string, RpcHandler> dispatch_;
 
@@ -51,6 +53,7 @@ class RpcServer : public SessionHandler, public std::enable_shared_from_this<Rpc
     void set_sync_status(SyncStatus *status) { sync_status = status; }
     void set_peer_client(PeerClient *client) { peer_client = client; }
     void set_peer_manager(PeerManager *pm) { peer_manager = pm; }
+    void set_metrics_collector(MetricsCollector *mc) { metrics_collector_ = mc; }
     void set_allowed_streams(const std::vector<std::string> &streams) { allowed_streams = streams; }
 
   private:

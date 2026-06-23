@@ -88,6 +88,8 @@ tests/chain_persistence_module_tests
 tests/difficulty_engine_tests
 tests/merkle_proof_tests
 tests/chain_service_tests
+tests/monitoring_tests
+tests/monitoring_integration_tests
 
 # Test artifacts
 *.trs

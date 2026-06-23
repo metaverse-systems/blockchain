@@ -3,12 +3,15 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <memory>
 #include "Block.hpp"
 #include "Blockchain.hpp"
 #include "BlockPropagation.hpp"
 #include "ChainService.hpp"
 #include "CliParser.hpp"
 #include "ConsensusConfig.hpp"
+#include "MetricsCollector.hpp"
+#include "MonitoringHttpServer.hpp"
 #include "NodeConfig.hpp"
 #include "PeerManager.hpp"
 #include "SyncState.hpp"
@@ -88,6 +91,7 @@ int main(int argc, char *argv[])
     // Apply CLI overrides onto loaded config
     if (cli.rpc_port) node_config.network.rpc_port = *cli.rpc_port;
     if (cli.p2p_port) node_config.network.p2p_port = *cli.p2p_port;
+    if (cli.monitoring_port) node_config.network.monitoring_port = *cli.monitoring_port;
     if (cli.log_level) node_config.network.log_level = *cli.log_level;
     for (const auto &seed : cli.seed_nodes) {
         try {
@@ -207,6 +211,24 @@ int main(int argc, char *argv[])
     bc.setSaveIntervalSeconds(node_config.persistence.save_interval_seconds);
     bc.startPeriodicSave(io_context);
 
+    // Start monitoring HTTPS server (optional)
+    std::unique_ptr<MetricsCollector> metrics_collector;
+    std::unique_ptr<MonitoringHttpServer> monitoring_server;
+    if (node_config.network.monitoring_enabled) {
+        metrics_collector = std::make_unique<MetricsCollector>();
+        metrics_collector->blockchain_ = &bc;
+        metrics_collector->peer_manager_ = &peer_manager;
+        peer_manager.set_metrics_collector(metrics_collector.get());
+        block_propagation.set_metrics_collector(metrics_collector.get());
+        monitoring_server = std::make_unique<MonitoringHttpServer>(
+            io_context, rpc_ssl_context,
+            node_config.network.monitoring_port,
+            node_config.network.monitoring_bind_address,
+            bc, &peer_manager, *metrics_collector);
+        monitoring_server->start();
+    }
+
+    
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](const boost::system::error_code&, int) {
         logMessage("INFO", "Shutting down...");

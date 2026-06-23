@@ -1,4 +1,5 @@
 #include "RpcServer.hpp"
+#include "MetricsCollector.hpp"
 #include "PeerClient.hpp"
 #include "../Block.hpp"
 #include "../Chunk.hpp"
@@ -76,8 +77,15 @@ void RpcServer::do_read()
                 auto it = dispatch_.find(method);
                 nlohmann::json response;
                 if (it != dispatch_.end()) {
+                    if (metrics_collector_) metrics_collector_->rpc_requests_total_.fetch_add(1, std::memory_order_relaxed);
                     response = it->second(object);
+                    // Check if response indicates an error (has "error" key)
+                    if (response.contains("error") && response["error"] != nullptr) {
+                        if (metrics_collector_) metrics_collector_->rpc_errors_total_.fetch_add(1, std::memory_order_relaxed);
+                    }
                 } else {
+                    if (metrics_collector_) metrics_collector_->rpc_requests_total_.fetch_add(1, std::memory_order_relaxed);
+                    if (metrics_collector_) metrics_collector_->rpc_errors_total_.fetch_add(1, std::memory_order_relaxed);
                     response = invalidMethodMessage(object["id"], method);
                 }
                 buffer.consume(buffer.size());

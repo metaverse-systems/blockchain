@@ -13,6 +13,7 @@
 #include "SyncState.hpp"
 
 class PeerManager;
+class MetricsCollector;
 
 struct PendingBlock {
     Block block;
@@ -35,6 +36,7 @@ public:
     void process_sync_queue();
 
     void set_peer_manager(PeerManager *pm) { peer_manager_ = pm; }
+    void set_metrics_collector(MetricsCollector *mc) { metrics_collector_ = mc; }
 
 private:
     IChainReader &reader_;
@@ -42,6 +44,7 @@ private:
     SyncStatus &sync_status_;
     RelayCallback relay_cb_;
     PeerManager *peer_manager_ = nullptr;
+    MetricsCollector *metrics_collector_ = nullptr;
 
     // RecentBlockCache (max 512)
     std::unordered_set<std::string> dedup_set_;

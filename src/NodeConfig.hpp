@@ -24,6 +24,12 @@ public:
         uint16_t p2p_port = 12346;
         uint32_t timeout_seconds = 30;
         std::string log_level = "info";
+
+        // Monitoring settings
+        bool monitoring_enabled = false;
+        uint16_t monitoring_port = 9090;
+        std::string monitoring_bind_address = "127.0.0.1";
+        std::string log_format = "text";
     } network;
 
     // Consensus settings

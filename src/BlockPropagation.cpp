@@ -1,5 +1,6 @@
 #include "BlockPropagation.hpp"
 #include "ChainError.hpp"
+#include "MetricsCollector.hpp"
 #include "PeerManager.hpp"
 #include "utils.hpp"
 #include "ConsensusConfig.hpp"
@@ -154,6 +155,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
     // Rate limit check
     if (!check_rate_limit(sender_key)) {
         LOG_WARN("Rate limit exceeded for peer " + sender_key + ", dropping block #" + std::to_string(block.index));
+        if (metrics_collector_) metrics_collector_->blocks_rejected_total_.fetch_add(1, std::memory_order_relaxed);
         if (peer_manager_) {
             try {
                 auto [host, port] = parsePeerKey(sender_key);
@@ -198,6 +200,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
         const auto &config = reader_.getConfig();
         if (!IBlockchain::isValidNewBlock(block, tip, config)) {
             LOG_WARN("Invalid block #" + std::to_string(block.index) + " from " + sender_key);
+            if (metrics_collector_) metrics_collector_->blocks_rejected_total_.fetch_add(1, std::memory_order_relaxed);
             if (peer_manager_) {
                 try {
                     auto [host, port] = parsePeerKey(sender_key);
@@ -210,6 +213,7 @@ void BlockPropagation::on_block_received(const Block &block, const std::string &
 
     // Append valid block
     appendReceivedBlock(block);
+    if (metrics_collector_) metrics_collector_->blocks_received_total_.fetch_add(1, std::memory_order_relaxed);
     LOG_INFO("Block #" + std::to_string(block.index) + " validated and appended");
 
     // Add to dedup cache

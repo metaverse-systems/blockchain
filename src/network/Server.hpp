@@ -10,6 +10,7 @@ using boost::asio::ip::tcp;
 
 class PeerManager;
 class BlockPropagation;
+class MetricsCollector;
 
 template<typename SessionHandler, typename Acceptor>
 class Server
@@ -23,6 +24,7 @@ class Server
     std::chrono::seconds timeout_duration{30};
     PeerManager *peer_manager = nullptr;
     BlockPropagation *block_propagation = nullptr;
+    MetricsCollector *metrics_collector = nullptr;
     std::vector<std::string> allowed_streams;
 
   public:
@@ -37,6 +39,7 @@ class Server
     void set_timeout(std::chrono::seconds timeout) { timeout_duration = timeout; }
     void set_peer_manager(PeerManager *pm) { peer_manager = pm; }
     void set_block_propagation(BlockPropagation *bp) { block_propagation = bp; }
+    void set_metrics_collector(MetricsCollector *mc) { metrics_collector = mc; }
     void set_allowed_streams(const std::vector<std::string> &streams) { allowed_streams = streams; }
 
     void start_accept()
@@ -55,8 +58,11 @@ class Server
             if (!allowed_streams.empty()) {
                 new_session->set_allowed_streams(allowed_streams);
             }
+        }        if constexpr (requires(SessionHandler &s, MetricsCollector *mc) { s.set_metrics_collector(mc); }) {
+            if (metrics_collector) {
+                new_session->set_metrics_collector(metrics_collector);
+            }
         }
-
         acceptor.async_accept(new_session->get_socket_ref().lowest_layer(),
         [this, new_session](const boost::system::error_code& error)
         {

@@ -23,6 +23,7 @@ LogLevel getLogLevel() {
 LogLevel parseLogLevel(const std::string &str) {
     std::string lower = str;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower == "trace") return LogLevel::Trace;
     if (lower == "debug") return LogLevel::Debug;
     if (lower == "info") return LogLevel::Info;
     if (lower == "warning" || lower == "warn") return LogLevel::Warning;
@@ -74,22 +75,17 @@ std::string sha256(const std::string &str) {
     return bytesToHexString(hash, lengthOfHash);
 }
 
-void logMessage(const std::string &level, const std::string &msg)
+void logMessage(const std::string &level, const std::string &msg, const std::string &log_format)
 {
     // Map string level to LogLevel enum for filtering
     LogLevel msg_level = LogLevel::Info;
-    if (level == "DEBUG") msg_level = LogLevel::Debug;
+    if (level == "TRACE") msg_level = LogLevel::Trace;
+    else if (level == "DEBUG") msg_level = LogLevel::Debug;
     else if (level == "INFO") msg_level = LogLevel::Info;
     else if (level == "WARN") msg_level = LogLevel::Warning;
     else if (level == "ERROR") msg_level = LogLevel::Error;
 
     if (msg_level < g_log_level.load(std::memory_order_relaxed)) return;
-
-    const char *color = "\033[0m";
-    if (level == "ERROR") color = "\033[1;31m";      // bold red
-    else if (level == "WARN") color = "\033[1;33m";   // bold yellow
-    else if (level == "INFO") color = "\033[1;36m";   // bold cyan
-    else if (level == "DEBUG") color = "\033[0;37m";  // dim white
 
     auto now = std::chrono::system_clock::now();
     auto time_t_now = std::chrono::system_clock::to_time_t(now);
@@ -99,8 +95,41 @@ void logMessage(const std::string &level, const std::string &msg)
 #else
     localtime_r(&time_t_now, &tm_buf);
 #endif
-    std::cerr << "[" << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S") << "] "
-              << color << "[" << level << "]\033[0m " << msg << "\n";
+
+    if (log_format == "json") {
+        // JSON structured logging (JSON Lines format)
+        // Escape special characters in message for JSON
+        std::string escaped_msg;
+        escaped_msg.reserve(msg.size());
+        for (char c : msg) {
+            switch (c) {
+                case '"': escaped_msg += "\\\""; break;
+                case '\\': escaped_msg += "\\\\"; break;
+                case '\n': escaped_msg += "\\n"; break;
+                case '\r': escaped_msg += "\\r"; break;
+                case '\t': escaped_msg += "\\t"; break;
+                default: escaped_msg += c; break;
+            }
+        }
+        std::cerr << "{\"timestamp\":\""
+                  << std::put_time(&tm_buf, "%Y-%m-%dT%H:%M:%S")
+                  << "Z\",\"level\":\""
+                  << level
+                  << "\",\"message\":\""
+                  << escaped_msg
+                  << "\"}\n";
+    } else {
+        // Default text format
+        const char *color = "\033[0m";
+        if (level == "ERROR") color = "\033[1;31m";      // bold red
+        else if (level == "WARN") color = "\033[1;33m";   // bold yellow
+        else if (level == "INFO") color = "\033[1;36m";   // bold cyan
+        else if (level == "DEBUG") color = "\033[0;37m";  // dim white
+        else if (level == "TRACE") color = "\033[2;37m";  // faint white
+
+        std::cerr << "[" << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S") << "] "
+                  << color << "[" << level << "]\033[0m " << msg << "\n";
+    }
 }
 
 std::string generate_uuid_v4() {

@@ -14,7 +14,11 @@ nlohmann::json NodeConfig::default_json() {
             {"rpc_port", 12345},
             {"p2p_port", 12346},
             {"timeout_seconds", 30},
-            {"log_level", "info"}
+            {"log_level", "info"},
+            {"monitoring_enabled", false},
+            {"monitoring_port", 9090},
+            {"monitoring_bind_address", "127.0.0.1"},
+            {"log_format", "text"}
         }},
         {"consensus", {
             {"target_block_interval", 10},
@@ -107,6 +111,10 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
         if (n.contains("p2p_port")) n["p2p_port"].get_to(cfg.network.p2p_port);
         if (n.contains("timeout_seconds")) n["timeout_seconds"].get_to(cfg.network.timeout_seconds);
         if (n.contains("log_level")) n["log_level"].get_to(cfg.network.log_level);
+        if (n.contains("monitoring_enabled")) n["monitoring_enabled"].get_to(cfg.network.monitoring_enabled);
+        if (n.contains("monitoring_port")) n["monitoring_port"].get_to(cfg.network.monitoring_port);
+        if (n.contains("monitoring_bind_address")) n["monitoring_bind_address"].get_to(cfg.network.monitoring_bind_address);
+        if (n.contains("log_format")) n["log_format"].get_to(cfg.network.log_format);
     }
 
     // Consensus
@@ -157,7 +165,8 @@ NodeConfig NodeConfig::load(const std::filesystem::path &config_path) {
     static const std::set<std::string> known_top = {"tls", "network", "consensus", "peers", "streams", "persistence"};
     static const std::map<std::string, std::set<std::string>> known_sub = {
         {"tls", {"cert_file", "key_file", "ca_file"}},
-        {"network", {"rpc_port", "p2p_port", "timeout_seconds", "log_level"}},
+        {"network", {"rpc_port", "p2p_port", "timeout_seconds", "log_level",
+                     "monitoring_enabled", "monitoring_port", "monitoring_bind_address", "log_format"}},
         {"consensus", {"target_block_interval", "adjustment_window", "max_adjustment_factor",
                         "min_difficulty", "max_difficulty", "initial_difficulty",
                         "mining_timeout", "max_future_timestamp", "max_reorg_depth"}},
@@ -203,6 +212,20 @@ void NodeConfig::validate(const std::filesystem::path &blockchain_dir) const {
     }
     if (network.rpc_port == network.p2p_port) {
         errors.push_back("Error: network.rpc_port and network.p2p_port must not be equal (both are " + std::to_string(network.rpc_port) + ")");
+    }
+    if (network.monitoring_enabled) {
+        if (network.monitoring_port == 0) {
+            errors.push_back("Error: network.monitoring_port must be > 0 when monitoring is enabled");
+        }
+        if (network.monitoring_port == network.rpc_port) {
+            errors.push_back("Error: network.monitoring_port and network.rpc_port must not be equal (both are " + std::to_string(network.monitoring_port) + ")");
+        }
+        if (network.monitoring_port == network.p2p_port) {
+            errors.push_back("Error: network.monitoring_port and network.p2p_port must not be equal (both are " + std::to_string(network.monitoring_port) + ")");
+        }
+        if (network.log_format != "text" && network.log_format != "json") {
+            errors.push_back("Error: network.log_format must be \"text\" or \"json\" (got \"" + network.log_format + "\")");
+        }
     }
     if (!blockchain_dir.empty()) {
         auto resolve = [&](const std::string &p) -> std::filesystem::path {

@@ -1,7 +1,7 @@
 noinst_LIBRARIES = libblockchain_core.a
 libblockchain_core_a_SOURCES = Block.cpp Blockchain.cpp Chunk.cpp utils.cpp NodeConfig.cpp PeerManager.cpp \
     BlockPropagation.cpp MerkleTree.cpp ChainPersistence.cpp DifficultyEngine.cpp MerkleProofService.cpp \
-    ChainService.cpp \
+    ChainService.cpp MonitoringHttpServer.cpp MetricsCollector.cpp \
     network/RpcServer.cpp network/PeerServer.cpp network/PeerClient.cpp
 libblockchain_core_a_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic $(BOOST_CPPFLAGS) ${OPENSSL_CFLAGS}
 

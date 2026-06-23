@@ -1,6 +1,7 @@
 #include "PeerManager.hpp"
 #include "BlockPropagation.hpp"
 #include "ChainError.hpp"
+#include "MetricsCollector.hpp"
 #include "network/PeerClient.hpp"
 #include "network/PeerServer.hpp"
 #include "network/PeerMessages.hpp"
@@ -296,6 +297,23 @@ void PeerManager::connect_to(const std::string &host_raw, uint16_t port) {
     }
     outbound_connections_[key] = client;
     client->connect();
+    record_peer_connected();
+}
+
+// --- Metrics Hooks ---
+
+void PeerManager::record_peer_connected() {
+    if (metrics_collector_) {
+        // Peer counts are computed live from outbound_count() + inbound_count()
+        // This hook is reserved for future per-event metrics
+    }
+}
+
+void PeerManager::record_peer_disconnected() {
+    if (metrics_collector_) {
+        // Peer counts are computed live from outbound_count() + inbound_count()
+        // This hook is reserved for future per-event metrics
+    }
 }
 
 bool PeerManager::can_accept_inbound() const {
@@ -307,7 +325,7 @@ void PeerManager::on_peer_disconnected(const std::string &host_ref, uint16_t por
     // that outbound_connections_.erase() is about to destroy.
     std::string host = normalize_address(host_ref);
     auto key = peer_key(host, port);
-    outbound_connections_.erase(key);
+   outbound_connections_.erase(key);
 
     auto *peer = find_peer(host, port);
     if (peer) {
@@ -315,6 +333,7 @@ void PeerManager::on_peer_disconnected(const std::string &host_ref, uint16_t por
     }
 
     LOG_INFO("Peer disconnected: " + key);
+    record_peer_disconnected();
 
     // Check if we still have an inbound session from the same node (e.g. dedup dropped
     // our outbound but the inbound is still alive). If so, skip reconnect.
@@ -353,6 +372,7 @@ void PeerManager::on_inbound_connected(const std::string &host_raw, uint16_t por
     inbound_sessions_[key] = session;
     inbound_count_++;
     LOG_INFO("Inbound connection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
+    record_peer_connected();
 }
 
 void PeerManager::on_inbound_disconnected(const std::string &host_raw, uint16_t port) {
@@ -361,6 +381,7 @@ void PeerManager::on_inbound_disconnected(const std::string &host_raw, uint16_t 
     inbound_sessions_.erase(key);
     if (inbound_count_ > 0) inbound_count_--;
     LOG_INFO("Inbound disconnection from " + key + " (total: " + std::to_string(inbound_count_) + ")");
+    record_peer_disconnected();
 }
 
 // --- Peer Exchange ---

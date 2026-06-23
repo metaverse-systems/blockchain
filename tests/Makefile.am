@@ -5,7 +5,7 @@ check_PROGRAMS = blockchain_tests block_propagation_tests block_propagation_inte
     merkle_rpc_integration_tests cli_tests rpc_expansion_tests lifecycle_tests \
     lifecycle_integration_tests rpc_integration_tests p2p_sync_integration_tests \
     chain_persistence_module_tests difficulty_engine_tests merkle_proof_tests \
-    chain_service_tests
+    chain_service_tests monitoring_tests monitoring_integration_tests
 TESTS = $(check_PROGRAMS)
 blockchain_tests_SOURCES = block_tests.cpp server_tests.cpp consensus_tests.cpp sync_tests.cpp \
     node_config_tests.cpp peer_manager_tests.cpp peer_discovery_tests.cpp \
@@ -78,6 +78,16 @@ p2p_sync_integration_tests_SOURCES = p2p_sync_integration_tests.cpp
 p2p_sync_integration_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
 p2p_sync_integration_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
 p2p_sync_integration_tests_LDFLAGS = $(BOOST_LDFLAGS)
+
+monitoring_tests_SOURCES = monitoring_tests.cpp
+monitoring_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
+monitoring_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
+monitoring_tests_LDFLAGS = $(BOOST_LDFLAGS)
+
+monitoring_integration_tests_SOURCES = monitoring_integration_tests.cpp
+monitoring_integration_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)
+monitoring_integration_tests_LDADD = ../src/libblockchain_core.a ${OPENSSL_LIBS} $(BOOST_SERIALIZATION_LIB) ${CATCH2_LIBS} $(PLATFORM_LIBS)
+monitoring_integration_tests_LDFLAGS = $(BOOST_LDFLAGS)
 
 chain_persistence_module_tests_SOURCES = chain_persistence_module_tests.cpp
 chain_persistence_module_tests_CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -I. $(BOOST_CPPFLAGS)

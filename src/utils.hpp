@@ -5,7 +5,7 @@
 #include <atomic>
 #include <utility>
 
-enum class LogLevel { Debug = 0, Info = 1, Warning = 2, Error = 3 };
+enum class LogLevel { Trace = 0, Debug = 1, Info = 2, Warning = 3, Error = 4 };
 
 void setLogLevel(LogLevel level);
 LogLevel getLogLevel();
@@ -15,11 +15,12 @@ std::string bytesToHexString(const unsigned char *bytes, size_t length);
 std::string sha256(const std::string &str);
 std::string chunkFilename(size_t index);
 std::pair<std::string, uint16_t> parsePeerKey(const std::string &key);
-void logMessage(const std::string &level, const std::string &msg);
+void logMessage(const std::string &level, const std::string &msg, const std::string &log_format = "text");
 bool checkLeadingZeroBits(const std::string &hashStr, uint32_t bitsNeeded);
 std::string generate_uuid_v4();
 
 // Lazy log macros — suppress message expression evaluation when the level is below threshold
+#define LOG_TRACE(msg) do { if (getLogLevel() <= LogLevel::Trace)   logMessage("TRACE", msg); } while (0)
 #define LOG_DEBUG(msg) do { if (getLogLevel() <= LogLevel::Debug)   logMessage("DEBUG", msg); } while (0)
 #define LOG_INFO(msg)  do { if (getLogLevel() <= LogLevel::Info)    logMessage("INFO",  msg); } while (0)
 #define LOG_WARN(msg)  do { if (getLogLevel() <= LogLevel::Warning) logMessage("WARN",  msg); } while (0)
