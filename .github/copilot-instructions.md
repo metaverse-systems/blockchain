@@ -27,6 +27,7 @@ Auto-generated from all feature plans. Last updated: 2026-06-23
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework) (020-address-test-quality)
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored), Catch2 (test only) (022-test-coverage-gaps)
 - N/A (test-only feature; no persistence changes) (022-test-coverage-gaps)
+- Boost.Serialization binary chunk files (`chunk_NNNNNN.dat`), JSON files (`peers.json`, `config.json`) — no new persistence (023-monitoring-metrics-health)
 
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored `src/json.hpp`), Catch2 (test only) (001-code-constitution-audit)
 
@@ -54,9 +55,9 @@ C++20 (`-std=c++20`): Follow standard conventions
 - Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
 
 ## Recent Changes
+- 023-monitoring-metrics-health: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test only)
 - 022-test-coverage-gaps: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored), Catch2 (test only)
 - 021-architecture-remediation: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
-- 020-address-test-quality: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework)
 
 
 <!-- MANUAL ADDITIONS START -->
