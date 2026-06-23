@@ -17,7 +17,7 @@ When a node is propagating a newly received block to its connected peers, one of
 
 **Acceptance Scenarios**:
 
-1. **Given** a node has multiple connected peers and receives a valid block, **When** relaying to one peer throws an exception (simulating disconnect), **Then** the block is still relayed to all other peers without crash
+1. **Given** a node has multiple connected peers and receives a valid block, **When** relaying to one peer throws an exception (simulating disconnect), **Then** the block is still relayed to all other peers without crash and block propagation continues normally
 2. **Given** a peer disconnects during block propagation, **When** the disconnect is processed, **Then** the peer's error count is incremented and the peer is removed from the active connection pool
 3. **Given** a peer disconnects during propagation and is not banned, **When** the disconnect is processed, **Then** a reconnection attempt is scheduled for that peer
 4. **Given** a relay operation fails with an exception during propagation, **When** the exception is caught, **Then** the block propagation continues normally and does not terminate the node
@@ -68,7 +68,7 @@ When an inbound peer connection drops while the node is processing a block recei
 
 - **SC-001**: All medium-severity coverage gaps listed in AUDIT.md §7.5 are resolved (0 remaining open items)
 - **SC-002**: New tests achieve 100% pass rate across 10 consecutive executions (no flakes)
-- **SC-003**: Test coverage for peer disconnect handlers and relay exception handling increases from 0 assertions to at least 5 meaningful assertions per scenario
+- **SC-003**: Test coverage for peer disconnect handlers and relay exception handling increases from 0 assertions to at least 5 REQUIRE assertions per scenario
 - **SC-004**: All existing tests continue to pass without modification
 
 ## Assumptions

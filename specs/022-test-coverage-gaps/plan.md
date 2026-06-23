@@ -16,8 +16,8 @@ Add unit tests for the last remaining medium-severity coverage gap identified in
 **Target Platform**: Linux, macOS, Windows (cross-platform per constitution §VII)
 **Project Type**: CLI library (C++ blockchain library)  
 **Performance Goals**: N/A (test coverage only; no performance changes)  
-**Constraints**: Tests must be deterministic (no sleep/timing dependencies), must use mock objects per constitution §III  
-**Scale/Scope**: ~8-10 new test cases across 2 existing test files, ~200-300 lines of test code
+**Constraints**: Tests must be deterministic (no sleep/timing dependencies), must use mock objects per constitution §III. **Principle III waiver**: Network integration tests are not required for this feature; research.md justifies that relay callback exceptions and disconnect state transitions are fully verifiable via unit tests with mock objects (no network required).  
+**Scale/Scope**: 9 new test cases across 2 existing test files (3 relay exception + 6 disconnect handler), ~200-300 lines of test code
 
 ## Constitution Check
 
@@ -66,9 +66,4 @@ tests/
 
 ## Complexity Tracking
 
-No constitution violations — this is a straightforward test-coverage addition.
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+No constitution violations — this is a straightforward test-coverage addition. No exceptions required (Principle III integration test waiver is documented in Technical Context above).
