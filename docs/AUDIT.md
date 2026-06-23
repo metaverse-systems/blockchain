@@ -223,7 +223,7 @@ The following behaviors have no test coverage:
 | Seed node parsing with invalid port values | High | ✅ Covered (018) |
 | Partial `saveAllChunks()` failure (one chunk fails, others continue) | High | ✅ Covered (020) |
 | Chain sync completing end-to-end (blocks actually appended) | High | ✅ Covered (018) |
-| Peer disconnect during propagation | Medium | Open |
+| Peer disconnect during propagation | Medium | ✅ Resolved (022-test-coverage-gaps) |
 | Rate limiter resetting after time window expires | Medium | ✅ Covered (020) |
 | Pending pool TTL-based expiry of stale blocks | Medium | ✅ Covered (020) |
 | Block propagation relay excludes sender correctly | Medium | ✅ Covered (020) |

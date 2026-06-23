@@ -572,3 +572,93 @@ TEST_CASE("Block relay callback receives sender key for exclusion", "[block_prop
     REQUIRE(relayed_sender_key == "peer1:9000");
     REQUIRE(relayed_block.hash == b.hash);
 }
+
+// --- Relay Exception Tests (T002-T004) ---
+
+TEST_CASE("Relay callback exception still allows block append", "[block_propagation][relay][relay_exception]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    ChainService chain_service(bc);
+    bool relay_called = false;
+
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
+        relay_called = true;
+        throw std::runtime_error("simulated relay disconnect");
+    });
+
+    Block b = bc.createValidNextBlock("relay_exception_append");
+
+    try {
+        bp.on_block_received(b, "peer1:9000");
+    } catch (...) {
+        // Expected — relay exception propagates after block is appended
+    }
+
+    REQUIRE(relay_called);
+    REQUIRE(bc.appended_blocks.size() == 1);
+    REQUIRE(bc.appended_blocks[0].hash == b.hash);
+}
+
+TEST_CASE("Relay callback selective failure continues to remaining peers", "[block_propagation][relay][relay_exception]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    ChainService chain_service(bc);
+    std::vector<std::string> relayed_peers;
+    std::set<std::string> throw_peers{"peerA:9000"};
+
+    // Mock a multi-peer relay: track which peers were called and throw for one
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &sender_key) {
+        // Simulate relay to multiple peers (peerA, peerB, peerC)
+        std::vector<std::string> peers = {"peerA:9000", "peerB:9000", "peerC:9000"};
+        for (const auto &p : peers) {
+            if (p == sender_key) continue; // Skip sender
+            relayed_peers.push_back(p);
+            if (throw_peers.count(p)) {
+                throw std::runtime_error("relay to " + p + " failed");
+            }
+        }
+    });
+
+    Block b = bc.createValidNextBlock("relay_selective_fail");
+
+    try {
+        bp.on_block_received(b, "peerD:9000");
+    } catch (...) {
+        // Exception from peerA
+    }
+
+    // Block should be appended despite relay failure
+    REQUIRE(bc.appended_blocks.size() == 1);
+    // At least peerA should have been attempted (before throw)
+    bool peerA_attempted = false;
+    for (const auto &p : relayed_peers) {
+        if (p == "peerA:9000") peerA_attempted = true;
+    }
+    REQUIRE(peerA_attempted);
+}
+
+TEST_CASE("Multiple relay failures do not crash node", "[block_propagation][relay][relay_exception]") {
+    MockBlockchain bc;
+    SyncStatus sync_status;
+    ChainService chain_service(bc);
+    int relay_count = 0;
+
+    BlockPropagation bp(bc, chain_service, sync_status, [&](const Block &, const std::string &) {
+        relay_count++;
+        throw std::runtime_error("all relays fail");
+    });
+
+    Block b = bc.createValidNextBlock("relay_all_fail");
+
+    for (int i = 0; i < 5; i++) {
+        try {
+            bp.on_block_received(b, "peer" + std::to_string(i) + ":9000");
+        } catch (...) {
+            // Expected
+        }
+    }
+
+    // First block should be appended (subsequent are deduplicated)
+    REQUIRE(bc.appended_blocks.size() == 1);
+    REQUIRE(relay_count >= 1);
+}

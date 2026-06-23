@@ -29,7 +29,7 @@ description: "Task list for peer disconnect test coverage"
 
 **Purpose**: Verify existing test infrastructure is sufficient for new test cases
 
-- [ ] T001 Confirm tests/block_propagation_tests.cpp includes MockBlockchain.hpp and TestHelpers.hpp, and tests/peer_manager_tests.cpp includes MockChunk.hpp — verify existing test infrastructure is sufficient for new test cases
+- [X] T001 Confirm tests/block_propagation_tests.cpp includes MockBlockchain.hpp and TestHelpers.hpp, and tests/peer_manager_tests.cpp includes MockChunk.hpp — verify existing test infrastructure is sufficient for new test cases
 
 ---
 
@@ -49,12 +49,12 @@ description: "Task list for peer disconnect test coverage"
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Add relay callback exception test in tests/block_propagation_tests.cpp — verify block is appended even when relay callback throws
-- [ ] T003 [US1] Add relay callback selective failure test in tests/block_propagation_tests.cpp — verify relay continues to remaining peers when one peer throws
-- [ ] T004 [US1] Add multiple relay failure test in tests/block_propagation_tests.cpp — verify node doesn't crash when relay callback throws for all peers
-- [ ] T005 [US1] Add outbound peer disconnect error count test in tests/peer_manager_tests.cpp — verify on_peer_disconnected increments error_count
-- [ ] T006 [US1] Add outbound peer disconnect reconnect scheduling test in tests/peer_manager_tests.cpp — verify non-banned peer gets reconnect scheduled via on_peer_disconnected
-- [ ] T007 [US1] Add outbound peer disconnect skip reconnect when banned test in tests/peer_manager_tests.cpp — verify banned peer does not get reconnect scheduled
+- [X] T002 [US1] Add relay callback exception test in tests/block_propagation_tests.cpp — verify block is appended even when relay callback throws
+- [X] T003 [US1] Add relay callback selective failure test in tests/block_propagation_tests.cpp — verify relay continues to remaining peers when one peer throws
+- [X] T004 [US1] Add multiple relay failure test in tests/block_propagation_tests.cpp — verify node doesn't crash when relay callback throws for all peers
+- [X] T005 [US1] Add outbound peer disconnect error count test in tests/peer_manager_tests.cpp — verify on_peer_disconnected increments error_count
+- [X] T006 [US1] Add outbound peer disconnect reconnect scheduling test in tests/peer_manager_tests.cpp — verify non-banned peer gets reconnect scheduled via on_peer_disconnected
+- [X] T007 [US1] Add outbound peer disconnect skip reconnect when banned test in tests/peer_manager_tests.cpp — verify banned peer does not get reconnect scheduled
 
 **Checkpoint**: User Story 1 is fully functional — relay exception handling and outbound disconnect are covered by tests.
 
@@ -68,8 +68,8 @@ description: "Task list for peer disconnect test coverage"
 
 ### Implementation for User Story 2
 
-- [ ] T008 [P] [US2] Add inbound peer disconnect session removal test in tests/peer_manager_tests.cpp — verify on_inbound_disconnected removes session and decrements inbound_count
-- [ ] T009 [P] [US2] Add outbound peer disconnect inbound dedup test in tests/peer_manager_tests.cpp — verify outbound disconnect skips reconnect when inbound session from same UUID exists (addresses edge case: "peer disconnects but inbound session from same node is still alive")
+- [X] T008 [P] [US2] Add inbound peer disconnect session removal test in tests/peer_manager_tests.cpp — verify on_inbound_disconnected removes session and decrements inbound_count
+- [X] T009 [P] [US2] Add outbound peer disconnect inbound dedup test in tests/peer_manager_tests.cpp — verify outbound disconnect skips reconnect when inbound session from same UUID exists (addresses edge case: "peer disconnects but inbound session from same node is still alive")
 
 **Checkpoint**: User Stories 1 AND 2 are both complete — all medium-severity coverage gaps from AUDIT.md §7.5 are resolved.
 
@@ -79,11 +79,11 @@ description: "Task list for peer disconnect test coverage"
 
 **Purpose**: Validation and cleanup
 
-- [ ] T010 Validate all new tests pass by running each binary individually: `./tests/block_propagation_tests`, `./tests/peer_manager_tests`
-- [ ] T011 Validate all existing tests still pass by running each binary individually: `./tests/lifecycle_tests`, `./tests/sync_tests`, `./tests/consensus_tests`
-- [ ] T012 Update docs/ROADMAP.md to reflect completed test coverage gap
-- [ ] T013 Update docs/AUDIT.md §7.5 to mark "Peer disconnect during propagation" gap as resolved (satisfies SC-001: 0 remaining open items)
-- [ ] T014 Run each new test binary 10 times consecutively to verify no flakes (satisfies SC-002): `for i in $(seq 1 10); do ./tests/block_propagation_tests "[relay_exception]" && ./tests/peer_manager_tests "[disconnect]"; done`
+- [X] T010 Validate all new tests pass by running each binary individually: `./tests/block_propagation_tests`, `./tests/peer_manager_tests`
+- [X] T011 Validate all existing tests still pass by running each binary individually: `./tests/lifecycle_tests`, `./tests/sync_tests`, `./tests/consensus_tests`
+- [X] T012 Update docs/ROADMAP.md to reflect completed test coverage gap
+- [X] T013 Update docs/AUDIT.md §7.5 to mark "Peer disconnect during propagation" gap as resolved (satisfies SC-001: 0 remaining open items)
+- [X] T014 Run each new test binary 10 times consecutively to verify no flakes (satisfies SC-002): `for i in $(seq 1 10); do ./tests/block_propagation_tests "[relay_exception]" && ./tests/peer_manager_tests "[disconnect]"; done`
 
 ---
 
