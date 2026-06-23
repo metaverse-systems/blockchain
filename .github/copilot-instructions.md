@@ -1,6 +1,6 @@
 # blockchain Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-13
+Auto-generated from all feature plans. Last updated: 2026-06-23
 
 ## Active Technologies
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (SHA-256 via EVP), nlohmann/json (vendored `src/json.hpp`) (002-consensus-mechanism)
@@ -25,6 +25,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-13
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test only) (019-perf-dedup-cleanup)
 - Boost.Serialization binary chunk files (`chunk_NNNNNN.dat`), JSON files (`peers.json`, `config.json`) (019-perf-dedup-cleanup)
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework) (020-address-test-quality)
+- C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored), Catch2 (test only) (022-test-coverage-gaps)
+- N/A (test-only feature; no persistence changes) (022-test-coverage-gaps)
 
 - C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored `src/json.hpp`), Catch2 (test only) (001-code-constitution-audit)
 
@@ -52,9 +54,9 @@ C++20 (`-std=c++20`): Follow standard conventions
 - Do not include task numbers (e.g. T001, T010) in code comments. Comments should describe *what* or *why*, not reference planning artifacts.
 
 ## Recent Changes
+- 022-test-coverage-gaps: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL, nlohmann/json (vendored), Catch2 (test only)
 - 021-architecture-remediation: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`)
 - 020-address-test-quality: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test framework)
-- 019-perf-dedup-cleanup: Added C++20 (`-std=c++20`) + Boost (Asio, Serialization), OpenSSL (EVP SHA-256), nlohmann/json (vendored `src/json.hpp`), Catch2 (test only)
 
 
 <!-- MANUAL ADDITIONS START -->
