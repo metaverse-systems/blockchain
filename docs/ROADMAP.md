@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-23
+Last updated: 2026-06-25
 
 ## Completed
 
@@ -76,25 +76,13 @@ The daemon takes a single positional argument (blockchain directory). Ports are 
 
 ### Tier 5 — Future / Exploratory
 
-#### 015 — Compile-Time Optimization
-
-*Completed. See spec 015 in Completed table above.*
-
----
-
-#### 016 — Smart Contract / Scripting Layer
+#### 024 — Smart Contract / Scripting Layer
 
 No programmability exists beyond storing opaque data strings. Explore adding a scripting or smart contract layer for programmable on-chain logic.
 
 ---
 
-#### 017 — Monitoring, Metrics & Health Endpoint
-
-No observability. Add a `/health` HTTP endpoint, Prometheus-compatible metrics (block height, peer count, chunk loads), and structured log leveling.
-
----
-
-#### 018 — Light Client Protocol
+#### 025 — Light Client Protocol
 
 No way to verify block inclusion without downloading the full chain. Design a light client protocol using Merkle proofs (depends on 008) for resource-constrained participants.
 
@@ -116,8 +104,16 @@ No way to verify block inclusion without downloading the full chain. Design a li
 012 Integration Tests ──┐
 013 CI/CD Pipeline ─────┼── Tier 4: COMPLETE ✓
 014 Documentation ──────┘
-015 Compile-Time Opt ───── Tier 4b: COMPLETE ✓
-016–018 ────────────────── Tier 5: future
+015 Compile-Time Opt ───┐
+016 Audit Remediation ──┤
+017 Module Split ───────┤
+018 Bug & Security Fixes┤
+019 Perf Cleanup ───────┤
+020 Test Quality ───────┤
+021 Arch Remediation ───┼── Tier 4b: COMPLETE ✓
+022 Test Coverage Gaps ─┤
+023 Monitoring & Health ┘
+024–025 ───────────────── Tier 5: future
 ```
 
-Tiers 1–4 are complete. Tier 5 specs (015–017) are exploratory future work.
+Tiers 1–4b are complete. Tier 5 specs (024–025) are exploratory future work.
